@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Navbar } from './components/Navbar';
-import { Sidebar, PageId } from './components/Sidebar';
+import { MobileBottomNav } from './components/MobileBottomNav';
 import { SmartParserModal } from './components/SmartParserModal';
 import { QuickTransactionModal } from './components/QuickTransactionModal';
 import { SnapshotModal } from './components/SnapshotModal';
+import { ImageOcrModal } from './components/ImageOcrModal';
 
 // Pages
 import { Dashboard } from './pages/Dashboard';
@@ -28,6 +29,7 @@ import {
   Goal, 
   DashboardAnalytics 
 } from './types';
+import { PageId } from './components/Sidebar';
 
 export function App() {
   const [currentPage, setCurrentPage] = useState<PageId>('dashboard');
@@ -39,6 +41,7 @@ export function App() {
   const [smartParserOpen, setSmartParserOpen] = useState(false);
   const [quickTxOpen, setQuickTxOpen] = useState(false);
   const [snapshotOpen, setSnapshotOpen] = useState(false);
+  const [imageOcrOpen, setImageOcrOpen] = useState(false);
 
   // Core Data States
   const [analytics, setAnalytics] = useState<DashboardAnalytics | null>(null);
@@ -105,31 +108,26 @@ export function App() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors duration-200">
-      {/* Top Navigation */}
-      <Navbar
-        analytics={analytics}
-        darkMode={darkMode}
-        onToggleDarkMode={() => setDarkMode(prev => !prev)}
-        onOpenSmartParser={() => setSmartParserOpen(true)}
-        onOpenQuickTx={() => setQuickTxOpen(true)}
-        onOpenSnapshot={() => setSnapshotOpen(true)}
-        onReload={loadAllData}
-      />
-
-      {/* Main App Layout */}
-      <div className="flex-1 flex">
-        {/* Left Sidebar */}
-        <Sidebar
-          currentPage={currentPage}
-          onSelectPage={(page) => setCurrentPage(page)}
+    <div className="min-h-screen bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors duration-200">
+      {/* Mobile-First App Wrapper */}
+      <div className="w-full max-w-md mx-auto min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col shadow-2xl relative">
+        {/* Top Navbar */}
+        <Navbar
+          analytics={analytics}
+          darkMode={darkMode}
+          onToggleDarkMode={() => setDarkMode(prev => !prev)}
+          onOpenSmartParser={() => setSmartParserOpen(true)}
+          onOpenQuickTx={() => setQuickTxOpen(true)}
+          onOpenSnapshot={() => setSnapshotOpen(true)}
+          onOpenImageOcr={() => setImageOcrOpen(true)}
+          onReload={loadAllData}
         />
 
-        {/* Center Main Content Page */}
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full overflow-x-hidden">
+        {/* Main Content Area */}
+        <main className="flex-1 p-3.5 sm:p-4 overflow-y-auto">
           {loading ? (
-            <div className="flex items-center justify-center h-96">
-              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-emerald-500"></div>
+            <div className="flex items-center justify-center h-80">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-500"></div>
             </div>
           ) : (
             <>
@@ -141,6 +139,7 @@ export function App() {
                   onOpenSmartParser={() => setSmartParserOpen(true)}
                   onOpenQuickTx={() => setQuickTxOpen(true)}
                   onOpenSnapshot={() => setSnapshotOpen(true)}
+                  onOpenImageOcr={() => setImageOcrOpen(true)}
                   onNavigateTo={(p) => setCurrentPage(p)}
                 />
               )}
@@ -218,9 +217,27 @@ export function App() {
             </>
           )}
         </main>
+
+        {/* Mobile Bottom Navigation Bar */}
+        <MobileBottomNav
+          currentPage={currentPage}
+          onSelectPage={(p) => setCurrentPage(p)}
+          onOpenSmartParser={() => setSmartParserOpen(true)}
+          onOpenQuickTx={() => setQuickTxOpen(true)}
+          onOpenSnapshot={() => setSnapshotOpen(true)}
+          onOpenImageOcr={() => setImageOcrOpen(true)}
+        />
       </div>
 
-      {/* Global Action Modals */}
+      {/* Modals */}
+      <ImageOcrModal
+        isOpen={imageOcrOpen}
+        onClose={() => setImageOcrOpen(false)}
+        onSuccess={loadAllData}
+        accounts={accounts}
+        categories={categories}
+      />
+
       <SmartParserModal
         isOpen={smartParserOpen}
         onClose={() => setSmartParserOpen(false)}

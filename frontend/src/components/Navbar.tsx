@@ -1,14 +1,11 @@
 import React from 'react';
 import { 
   Sparkles, 
-  Plus, 
   Camera, 
   Sun, 
   Moon, 
-  ShieldCheck, 
-  TrendingUp,
-  RotateCcw,
-  Zap
+  Zap,
+  RotateCcw
 } from 'lucide-react';
 import { DashboardAnalytics } from '../types';
 
@@ -19,6 +16,7 @@ interface NavbarProps {
   onOpenSmartParser: () => void;
   onOpenQuickTx: () => void;
   onOpenSnapshot: () => void;
+  onOpenImageOcr: () => void;
   onReload: () => void;
 }
 
@@ -27,84 +25,51 @@ export const Navbar: React.FC<NavbarProps> = ({
   darkMode,
   onToggleDarkMode,
   onOpenSmartParser,
-  onOpenQuickTx,
-  onOpenSnapshot,
+  onOpenImageOcr,
   onReload
 }) => {
   return (
-    <header className="sticky top-0 z-40 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800/80 px-4 lg:px-8 py-3 flex items-center justify-between">
-      {/* Brand & Net Worth preview */}
-      <div className="flex items-center gap-6">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 text-white flex items-center justify-center shadow-lg shadow-emerald-500/20">
-            <Zap className="w-6 h-6 fill-current" />
+    <header className="sticky top-0 z-40 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800/80 px-4 py-2.5 flex items-center justify-between max-w-lg mx-auto w-full pt-[calc(0.5rem+env(safe-area-inset-top))]">
+      {/* Brand & Net Worth Pill */}
+      <div className="flex items-center gap-2.5">
+        <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 text-white flex items-center justify-center shadow-md shadow-emerald-500/20 flex-shrink-0">
+          <Zap className="w-4 h-4 fill-current" />
+        </div>
+        <div>
+          <div className="flex items-center gap-1.5">
+            <span className="font-extrabold text-sm tracking-tight text-slate-900 dark:text-white">
+              极智财务
+            </span>
+            <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300">
+              PRO
+            </span>
           </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="font-extrabold text-base tracking-tight text-slate-900 dark:text-white">
-                极智财务
-              </span>
-              <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300">
-                PRO
-              </span>
-            </div>
-            <div className="text-[11px] text-slate-400 font-medium">
-              SmartWealth 全域资产管家
-            </div>
+          <div className="text-[10px] text-slate-400 font-mono">
+            {analytics ? `净资产: ¥${analytics.net_worth.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}` : '加载中...'}
           </div>
         </div>
-
-        {/* Global Net Worth Ticker */}
-        {analytics && (
-          <div className="hidden md:flex items-center gap-4 pl-6 border-l border-slate-200 dark:border-slate-800">
-            <div>
-              <div className="text-[11px] text-slate-400 font-medium">全局净资产</div>
-              <div className="text-sm font-extrabold text-emerald-600 dark:text-emerald-400 font-mono">
-                ¥{analytics.net_worth.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}
-              </div>
-            </div>
-            <div>
-              <div className="text-[11px] text-slate-400 font-medium">本月结余</div>
-              <div className={`text-sm font-extrabold font-mono ${analytics.month_summary.savings >= 0 ? 'text-slate-800 dark:text-slate-200' : 'text-rose-500'}`}>
-                {analytics.month_summary.savings >= 0 ? '+' : ''}¥{analytics.month_summary.savings.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}
-              </div>
-            </div>
-          </div>
-        )}
       </div>
 
-      {/* Action Buttons & Settings */}
-      <div className="flex items-center gap-2.5">
-        {/* Anti-dropout Smart Parser button */}
+      {/* Top Quick Actions */}
+      <div className="flex items-center gap-1.5">
+        {/* Quick Camera OCR button */}
+        <button
+          type="button"
+          onClick={onOpenImageOcr}
+          className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 transition active:scale-95"
+          title="拍照/图片识别记账"
+        >
+          <Camera className="w-4 h-4" />
+        </button>
+
+        {/* Quick SMS / Clipboard parse */}
         <button
           type="button"
           onClick={onOpenSmartParser}
-          className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold shadow-md shadow-emerald-600/20 flex items-center gap-1.5 transition active:scale-95"
+          className="p-2 rounded-xl bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 text-blue-600 dark:text-blue-400 hover:bg-blue-100 transition active:scale-95"
+          title="粘贴短信/通知记账"
         >
-          <Sparkles className="w-4 h-4 animate-pulse" />
-          <span className="hidden sm:inline">智能短信/通知识别</span>
-          <span className="sm:hidden">智能识别</span>
-        </button>
-
-        {/* Lazy Snapshot mode button */}
-        <button
-          type="button"
-          onClick={onOpenSnapshot}
-          className="px-3 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 text-xs font-bold flex items-center gap-1.5 transition active:scale-95"
-          title="懒人余额快照对账（免逐笔记账）"
-        >
-          <Camera className="w-3.5 h-3.5" />
-          <span className="hidden md:inline">懒人余额快照</span>
-        </button>
-
-        {/* Quick manual transaction */}
-        <button
-          type="button"
-          onClick={onOpenQuickTx}
-          className="px-3 py-1.5 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-slate-100 text-xs font-bold shadow-sm flex items-center gap-1.5 transition active:scale-95"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          <span className="hidden sm:inline">记一笔</span>
+          <Sparkles className="w-4 h-4" />
         </button>
 
         {/* Dark/Light toggle */}
@@ -112,19 +77,19 @@ export const Navbar: React.FC<NavbarProps> = ({
           type="button"
           onClick={onToggleDarkMode}
           className="p-2 rounded-xl text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition"
-          title={darkMode ? '切换到浅色模式' : '切换到深色模式'}
+          title={darkMode ? '浅色模式' : '深色模式'}
         >
           {darkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4" />}
         </button>
 
-        {/* Refresh button */}
+        {/* Refresh */}
         <button
           type="button"
           onClick={onReload}
           className="p-2 rounded-xl text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition"
-          title="刷新数据"
+          title="刷新"
         >
-          <RotateCcw className="w-4 h-4" />
+          <RotateCcw className="w-3.5 h-3.5" />
         </button>
       </div>
     </header>
