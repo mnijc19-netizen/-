@@ -20,7 +20,7 @@ export const QuickTransactionModal: React.FC<QuickTransactionModalProps> = ({
 }) => {
   const [transType, setTransType] = useState<TransactionType>('expense');
   const [amount, setAmount] = useState('');
-  const [accountId, setAccountId] = useState(accounts[0]?.id || '');
+  const [accountId, setAccountId] = useState(accounts[0]?.id || 'acc-1');
   const [toAccountId, setToAccountId] = useState(accounts[1]?.id || '');
   const [categoryId, setCategoryId] = useState('');
   const [date, setDate] = useState(new Date().toISOString().substring(0, 16).replace('T', ' '));
@@ -29,6 +29,18 @@ export const QuickTransactionModal: React.FC<QuickTransactionModalProps> = ({
   const [tagsInput, setTagsInput] = useState('');
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+
+  // Auto-sync accountId when accounts load
+  React.useEffect(() => {
+    if (accounts.length > 0) {
+      if (!accountId || !accounts.find(a => a.id === accountId)) {
+        setAccountId(accounts[0].id);
+      }
+      if (!toAccountId && accounts.length > 1) {
+        setToAccountId(accounts[1].id);
+      }
+    }
+  }, [accounts, isOpen]);
 
   const filteredCategories = categories.filter(c => c.type === (transType === 'income' ? 'income' : 'expense'));
 

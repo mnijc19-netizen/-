@@ -37,10 +37,16 @@ export const ImageOcrModal: React.FC<ImageOcrModalProps> = ({
   const [progressMsg, setProgressMsg] = useState('');
   const [progressPct, setProgressPct] = useState(0);
   const [parsedResult, setParsedResult] = useState<ParsedTransactionResult | null>(null);
-  const [selectedAccountId, setSelectedAccountId] = useState(accounts[0]?.id || '');
+  const [selectedAccountId, setSelectedAccountId] = useState(accounts[0]?.id || 'acc-1');
   const [selectedCategoryId, setSelectedCategoryId] = useState('');
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+
+  React.useEffect(() => {
+    if (accounts.length > 0 && (!selectedAccountId || !accounts.find(a => a.id === selectedAccountId))) {
+      setSelectedAccountId(accounts[0].id);
+    }
+  }, [accounts, isOpen]);
 
   const handleImageSelect = (file: File) => {
     setImageFile(file);

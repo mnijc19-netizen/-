@@ -44,10 +44,16 @@ export const SmartParserModal: React.FC<SmartParserModalProps> = ({
   const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(false);
   const [parsedResult, setParsedResult] = useState<ParsedTransactionResult | null>(null);
-  const [selectedAccountId, setSelectedAccountId] = useState('');
+  const [selectedAccountId, setSelectedAccountId] = useState(accounts[0]?.id || 'acc-1');
   const [selectedCategoryId, setSelectedCategoryId] = useState('');
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+
+  React.useEffect(() => {
+    if (accounts.length > 0 && (!selectedAccountId || !accounts.find(a => a.id === selectedAccountId))) {
+      setSelectedAccountId(accounts[0].id);
+    }
+  }, [accounts, isOpen]);
 
   // Handle parsing text
   const handleParse = async (textToParse: string) => {
