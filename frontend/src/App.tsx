@@ -225,7 +225,7 @@ export function App() {
         />
 
         {/* Main Content Page */}
-        <main className="flex-1 p-3.5 sm:p-4 overflow-y-auto">
+        <main className="flex-1 p-3.5 sm:p-4 pb-28 overflow-y-auto">
           {loading ? (
             <div className="flex items-center justify-center h-80">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-500"></div>
