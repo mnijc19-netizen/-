@@ -8,6 +8,7 @@ export interface AutoIngestResult {
   success: boolean;
   message: string;
   transaction?: Transaction;
+  debugInfo?: string;
 }
 
 export function extractFromRawText(text: string, accounts: any[] = []): { amount: number; merchant: string; category: string; accountId?: string } {
@@ -18,7 +19,6 @@ export function extractFromRawText(text: string, accounts: any[] = []): { amount
 
   let amount = 0;
   let merchant = '';
-  let channel = '微信零钱';
 
   // 1. Try to find amount from bottom up
   for (let i = lines.length - 1; i >= 0; i--) {
@@ -94,11 +94,11 @@ export async function checkAndHandleUrlAutoIngest(): Promise<AutoIngestResult | 
     const searchStr = window.location.search;
     const hashStr = window.location.hash;
 
-    // Check if ?text= or &text= is present in full URL
+    // 1. Try to find raw text parameter
     let rawText = '';
-    const textPrefixMatch = fullHref.match(/[?&#]text=([^&#]*)/i);
-    if (textPrefixMatch) {
-      rawText = textPrefixMatch[1];
+    const textMatch = fullHref.match(/[?&#](?:text|t|sms)=([^&#]*)/i);
+    if (textMatch && textMatch[1]) {
+      rawText = textMatch[1];
     }
 
     const searchParams = new URLSearchParams(searchStr);
@@ -151,7 +151,7 @@ export async function checkAndHandleUrlAutoIngest(): Promise<AutoIngestResult | 
       return {
         triggered: true,
         success: true,
-        message: `🎉 已自动入账：${merchant} ¥${amount.toFixed(2)}`,
+        message: `🎉 已自动记账：${merchant} ¥${amount.toFixed(2)}`,
         transaction: created
       };
     };
@@ -169,7 +169,7 @@ export async function checkAndHandleUrlAutoIngest(): Promise<AutoIngestResult | 
     if (rawText) {
       let decoded = rawText;
       try {
-        decoded = decodeURIComponent(rawText);
+        decoded = decodeURIComponent(rawText.replace(/\+/g, ' '));
       } catch {
         decoded = rawText;
       }
@@ -185,6 +185,13 @@ export async function checkAndHandleUrlAutoIngest(): Promise<AutoIngestResult | 
           extracted.category,
           extracted.accountId
         );
+      } else {
+        return {
+          triggered: true,
+          success: false,
+          message: `未识别到金额。收到文本: ${decoded.substring(0, 30)}...`,
+          debugInfo: decoded
+        };
       }
     }
 
