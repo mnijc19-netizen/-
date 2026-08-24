@@ -6,11 +6,10 @@ import {
   Copy, 
   Check, 
   X, 
-  ArrowRight, 
   MessageSquare, 
   Fingerprint,
-  ExternalLink,
-  ChevronRight
+  Camera,
+  CheckCircle2
 } from 'lucide-react';
 
 interface IphoneShortcutModalProps {
@@ -20,12 +19,13 @@ interface IphoneShortcutModalProps {
 
 export const IphoneShortcutModal: React.FC<IphoneShortcutModalProps> = ({ isOpen, onClose }) => {
   const [copiedUrl, setCopiedUrl] = useState(false);
-  const [activeStep, setActiveStep] = useState<1 | 2 | 3>(1);
+  const [activeTab, setActiveTab] = useState<'screen' | 'sms' | 'clipboard'>('screen');
 
-  const shortcutUrlTemplate = `https://mnijc19-netizen.github.io/-/?text=`;
+  const baseShortcutUrl = `https://mnijc19-netizen.github.io/-/?text=`;
+  const clipboardUrl = `https://mnijc19-netizen.github.io/-/?cb=1`;
 
-  const handleCopyUrl = () => {
-    navigator.clipboard.writeText(shortcutUrlTemplate);
+  const handleCopyUrl = (url: string) => {
+    navigator.clipboard.writeText(url);
     setCopiedUrl(true);
     setTimeout(() => setCopiedUrl(false), 2000);
   };
@@ -43,10 +43,10 @@ export const IphoneShortcutModal: React.FC<IphoneShortcutModalProps> = ({ isOpen
             </div>
             <div>
               <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                iPhone 一键极速自动化记账
+                iPhone 长按直接记账设置
               </h3>
               <p className="text-[11px] text-slate-400">
-                长按操作按钮、轻点背面或收到短信 0 步自动入账
+                付完款长按侧边按键，无需任何点击，直接自动入账！
               </p>
             </div>
           </div>
@@ -62,27 +62,27 @@ export const IphoneShortcutModal: React.FC<IphoneShortcutModalProps> = ({ isOpen
         <div className="grid grid-cols-3 p-1 bg-slate-100 dark:bg-slate-800/80 m-4 mb-0 rounded-2xl text-xs gap-1">
           <button
             type="button"
-            onClick={() => setActiveStep(1)}
+            onClick={() => setActiveTab('screen')}
             className={`py-2 rounded-xl font-bold transition flex items-center justify-center gap-1 ${
-              activeStep === 1 ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-500'
+              activeTab === 'screen' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-500'
             }`}
           >
-            <Fingerprint className="w-3.5 h-3.5" /> 长按按钮
+            <Camera className="w-3.5 h-3.5" /> 截屏直存 (推荐)
           </button>
           <button
             type="button"
-            onClick={() => setActiveStep(2)}
+            onClick={() => setActiveTab('clipboard')}
             className={`py-2 rounded-xl font-bold transition flex items-center justify-center gap-1 ${
-              activeStep === 2 ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-500'
+              activeTab === 'clipboard' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-500'
             }`}
           >
-            <Smartphone className="w-3.5 h-3.5" /> 轻点背面
+            <Fingerprint className="w-3.5 h-3.5" /> 剪贴板直存
           </button>
           <button
             type="button"
-            onClick={() => setActiveStep(3)}
+            onClick={() => setActiveTab('sms')}
             className={`py-2 rounded-xl font-bold transition flex items-center justify-center gap-1 ${
-              activeStep === 3 ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-500'
+              activeTab === 'sms' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-500'
             }`}
           >
             <MessageSquare className="w-3.5 h-3.5" /> 短信全自动
@@ -91,116 +91,126 @@ export const IphoneShortcutModal: React.FC<IphoneShortcutModalProps> = ({ isOpen
 
         {/* Step Guide Content */}
         <div className="p-5 overflow-y-auto space-y-4 flex-1 text-xs">
-          {/* Method 1: Action Button */}
-          {activeStep === 1 && (
+          {/* Method 1: Screen OCR -> Auto Ingest */}
+          {activeTab === 'screen' && (
             <div className="space-y-3.5">
               <div className="p-3 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 text-indigo-900 dark:text-indigo-200 space-y-1">
                 <div className="font-bold flex items-center gap-1.5">
                   <Sparkles className="w-4 h-4 text-indigo-500" />
-                  iPhone 15 Pro / 16 操作按钮 (Action Button)
+                  付完款长按侧边按钮（仅需正确配置 1 个变量）
                 </div>
                 <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
-                  付完款长按侧边按钮，直接抓取屏幕或剪贴板扣款信息，<strong>0 秒瞬间入账</strong>！
+                  系统会自动读取屏幕中的微信/支付宝账单卡片，<strong>打开后无需任何点击，0.5秒直接存入！</strong>
                 </p>
               </div>
 
-              <div className="space-y-3">
-                <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 space-y-2">
+              <div className="space-y-2.5">
+                <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 space-y-1.5">
                   <div className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
                     <span className="w-5 h-5 rounded-full bg-indigo-600 text-white text-center leading-5 text-[10px]">1</span>
-                    打开 iPhone 自带的「快捷指令」App
+                    动作一：获取屏幕文本
                   </div>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400 pl-7">
-                    点击右上角 <strong>「+」</strong> 新建一个快捷指令，命名为 <strong>「极速记账」</strong>。
-                  </p>
+                  <div className="pl-7 text-[11px] text-slate-500 dark:text-slate-400 space-y-1">
+                    <div>• 搜索并添加：<strong>「获取屏幕内容」</strong>（或「获取最新的屏幕快照」）</div>
+                    <div>• 接着添加：<strong>「从图像中提取文本」</strong></div>
+                  </div>
                 </div>
 
-                <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 space-y-2">
+                <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 space-y-1.5">
                   <div className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
                     <span className="w-5 h-5 rounded-full bg-indigo-600 text-white text-center leading-5 text-[10px]">2</span>
-                    添加两个动作：
+                    动作二：打开网址并传入变量 (关键步骤)
                   </div>
-                  <div className="pl-7 space-y-1.5 text-[11px] text-slate-600 dark:text-slate-300">
-                    <div>• 动作一：搜索并添加 <strong>「获取剪贴板」</strong></div>
-                    <div>• 动作二：搜索并添加 <strong>「打开 URL」</strong>，填入下方触发网址并附带剪贴板变量：</div>
-                    <div className="p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 font-mono text-[10px] flex items-center justify-between">
-                      <span className="truncate pr-2">{shortcutUrlTemplate}[剪贴板]</span>
+                  <div className="pl-7 text-[11px] text-slate-600 dark:text-slate-300 space-y-2">
+                    <div>搜索并添加 <strong>「打开 URL」</strong>，在网址框输入前缀后，<strong>点击键盘上方的蓝色「提取的文本」变量</strong>：</div>
+                    <div className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 font-mono text-[10px] flex items-center justify-between">
+                      <span className="truncate pr-2 font-bold text-indigo-600 dark:text-indigo-400">
+                        {baseShortcutUrl}<span className="bg-indigo-100 dark:bg-indigo-900 px-1 py-0.5 rounded text-indigo-700 dark:text-indigo-200">[提取的文本]</span>
+                      </span>
                       <button
                         type="button"
-                        onClick={handleCopyUrl}
+                        onClick={() => handleCopyUrl(baseShortcutUrl)}
                         className="px-2 py-1 rounded bg-indigo-50 dark:bg-indigo-950 text-indigo-600 text-[10px] font-bold flex items-center gap-1 flex-shrink-0"
                       >
                         {copiedUrl ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
-                        {copiedUrl ? '已复制' : '复制网址'}
+                        {copiedUrl ? '已复制前缀' : '复制前缀'}
                       </button>
                     </div>
                   </div>
                 </div>
 
-                <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 space-y-2">
+                <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 space-y-1.5">
                   <div className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
                     <span className="w-5 h-5 rounded-full bg-indigo-600 text-white text-center leading-5 text-[10px]">3</span>
-                    绑定到 iPhone 操作按钮
+                    绑定到 iPhone 操作按钮 / 双击背面
                   </div>
                   <p className="text-[11px] text-slate-500 dark:text-slate-400 pl-7">
-                    打开 iPhone「设置」→「操作按钮」→ 滑动选择 <strong>「快捷指令」</strong> → 选中刚创建的 <strong>「极速记账」</strong> 即可！
+                    打开 iPhone「设置」→「操作按钮」（或「辅助功能」→「触控」→「轻点背面」）绑定该快捷指令！
                   </p>
                 </div>
               </div>
             </div>
           )}
 
-          {/* Method 2: Back Tap */}
-          {activeStep === 2 && (
+          {/* Method 2: Instant Clipboard Ingest */}
+          {activeTab === 'clipboard' && (
             <div className="space-y-3.5">
               <div className="p-3 rounded-2xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 text-blue-900 dark:text-blue-200 space-y-1">
                 <div className="font-bold flex items-center gap-1.5">
                   <Fingerprint className="w-4 h-4 text-blue-500" />
-                  轻点 iPhone 背面两下记账（所有 iPhone 均支持）
+                  最省心：直接打开即读取剪贴板并自动入账
                 </div>
                 <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
-                  即使不是 iPhone 15/16，只要手指在手机背面轻轻敲击两下，即可秒速入账！
+                  只要剪贴板里有微信支付通知或银行短信，打开这个网址<strong>瞬间自动入账</strong>！
                 </p>
               </div>
 
-              <div className="space-y-3">
-                <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 space-y-1.5">
-                  <div className="font-bold text-slate-800 dark:text-slate-200">
-                    设置路径：
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 space-y-2">
+                <div className="font-bold text-slate-800 dark:text-slate-200">
+                  快捷指令只需 1 个动作：
+                </div>
+                <div className="space-y-1.5 text-[11px] text-slate-600 dark:text-slate-300">
+                  <div>添加动作 <strong>「打开 URL」</strong>，填入下方直通网址：</div>
+                  <div className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 font-mono text-[10px] flex items-center justify-between">
+                    <span className="truncate pr-2 font-bold text-blue-600 dark:text-blue-400">
+                      {clipboardUrl}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleCopyUrl(clipboardUrl)}
+                      className="px-2 py-1 rounded bg-blue-50 dark:bg-blue-950 text-blue-600 text-[10px] font-bold flex items-center gap-1 flex-shrink-0"
+                    >
+                      {copiedUrl ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
+                      {copiedUrl ? '已复制' : '复制网址'}
+                    </button>
                   </div>
-                  <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
-                    打开 iPhone <strong>「设置」</strong> → <strong>「辅助功能」</strong> → <strong>「触控」</strong> → 滑到最底部选择 <strong>「轻点背面」</strong> → 选中 <strong>「轻点两下」</strong> → 绑定上面创建的「极速记账」快捷指令！
-                  </p>
                 </div>
               </div>
             </div>
           )}
 
           {/* Method 3: SMS Automation */}
-          {activeStep === 3 && (
+          {activeTab === 'sms' && (
             <div className="space-y-3.5">
               <div className="p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200 space-y-1">
                 <div className="font-bold flex items-center gap-1.5">
                   <MessageSquare className="w-4 h-4 text-emerald-500" />
-                  收到银行短信【0 步全自动入账】
+                  收到银行扣款短信【0步全自动入账】
                 </div>
                 <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
-                  银行短信一到达，iPhone 后台自动提取并写入账本，无需任何按键与操作！
+                  银行短信一到达，手机自动完成记账，无需打开任何界面！
                 </p>
               </div>
 
-              <div className="space-y-3 text-[11px] text-slate-600 dark:text-slate-300">
-                <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 space-y-2">
-                  <div className="font-bold text-slate-800 dark:text-slate-200">
-                    自动化配置步骤：
-                  </div>
+              <div className="space-y-2 text-[11px] text-slate-600 dark:text-slate-300">
+                <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 space-y-1.5">
                   <ol className="list-decimal list-inside space-y-1.5 text-slate-500 dark:text-slate-400">
-                    <li>打开「快捷指令」App 底部中间的 <strong>「自动化」</strong> 标签。</li>
+                    <li>打开「快捷指令」App 底部的 <strong>「自动化」</strong> 标签。</li>
                     <li>点击右上角 <strong>「+」</strong>，选择 <strong>「信息」</strong>。</li>
-                    <li>在发件人或内容包含中填写 <strong>「支出」或「银行」</strong>，勾选 <strong>「立即运行」</strong>。</li>
+                    <li>内容包含中填入 <strong>「支出」或「消费」或「银行」</strong>，勾选 <strong>「立即运行」</strong>。</li>
                     <li>动作添加 <strong>「打开 URL」</strong>，填入：<br />
                       <code className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold break-all">
-                        {shortcutUrlTemplate}[快捷指令输入]
+                        {baseShortcutUrl}[快捷指令输入]
                       </code>
                     </li>
                   </ol>
@@ -213,14 +223,14 @@ export const IphoneShortcutModal: React.FC<IphoneShortcutModalProps> = ({ isOpen
         {/* Footer */}
         <div className="p-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/50">
           <span className="text-[10px] text-slate-400">
-            配合 Apple 原生神经引擎识别，准确率 100%
+            打开后 0 点击自动写入，伴随礼花与提示
           </span>
           <button
             type="button"
             onClick={onClose}
             className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-md active:scale-95"
           >
-            知道了，去设置
+            完成
           </button>
         </div>
       </div>

@@ -1,4 +1,5 @@
 import { parseSmsOrTextInBrowser } from './smsParser';
+import { parseRecognizedBillText } from './imageOcr';
 import { localStore } from './localStore';
 import { api } from '../api/client';
 import { Transaction } from '../types';
@@ -23,96 +24,97 @@ export async function checkAndHandleUrlAutoIngest(): Promise<AutoIngestResult | 
     return null;
   }
 
-  // Clear query params from browser URL so refreshing doesn't re-trigger
+  // Clean URL state immediately to prevent duplicate triggers on manual refresh
   const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
   window.history.replaceState({ path: cleanUrl }, '', cleanUrl);
 
   const accounts = localStore.getAccounts();
   const categories = localStore.getCategories();
 
+  // Helper to save transaction directly
+  const saveAndReturn = async (amount: number, merchant: string, note: string, type: any = 'expense', category?: string, accountId?: string) => {
+    const matchedCategory = category || '餐饮美食';
+    const catObj = categories.find(c => c.name === matchedCategory);
+    const targetAccountId = accountId || accounts[0]?.id || 'acc-1';
+
+    const created = await api.createTransaction({
+      type,
+      amount,
+      account_id: targetAccountId,
+      category_id: catObj?.id,
+      category_name: matchedCategory,
+      date: new Date().toISOString().substring(0, 16).replace('T', ' '),
+      merchant,
+      note,
+      source: 'ios_shortcut'
+    });
+
+    return {
+      triggered: true,
+      success: true,
+      message: `🎉 已自动入账：${merchant} ¥${amount.toFixed(2)}`,
+      transaction: created
+    };
+  };
+
   // Case 1: Direct amount & merchant provided via Shortcut
   if (directAmt) {
     const amount = parseFloat(directAmt);
     if (!isNaN(amount) && amount > 0) {
-      const merchant = directMer || '快捷指令记账';
-      const created = await api.createTransaction({
-        type: directType,
-        amount,
-        account_id: accounts[0]?.id || 'acc-1',
-        category_name: '日常消费',
-        date: new Date().toISOString().substring(0, 16).replace('T', ' '),
-        merchant,
-        note: '通过 iPhone 动作按钮 / 快捷指令自动记录',
-        source: 'ios_shortcut'
-      });
-      return {
-        triggered: true,
-        success: true,
-        message: `已自动记账：${merchant} ¥${amount.toFixed(2)}`,
-        transaction: created
-      };
+      const merchant = directMer || '快捷自动记账';
+      return await saveAndReturn(amount, merchant, '通过 iPhone 动作按钮直接记录');
     }
   }
 
-  // Case 2: Raw text provided via Shortcut (SMS or OCR text)
+  // Case 2: Raw text passed from Screenshot / SMS / Clipboard in URL
   if (rawText) {
-    const parsed = parseSmsOrTextInBrowser(rawText, accounts);
+    const decoded = decodeURIComponent(rawText);
+    // Try SMS & bill card parser
+    let parsed = parseRecognizedBillText(decoded, accounts);
+    if (!parsed.success || !parsed.amount) {
+      parsed = parseSmsOrTextInBrowser(decoded, accounts);
+    }
+
     if (parsed.success && parsed.amount) {
-      const catObj = categories.find(c => c.name === parsed.suggested_category);
-      const created = await api.createTransaction({
-        type: parsed.type || 'expense',
-        amount: parsed.amount,
-        account_id: parsed.matched_account_id || accounts[0]?.id || 'acc-1',
-        category_id: catObj?.id,
-        category_name: parsed.suggested_category || '日常消费',
-        date: parsed.date || new Date().toISOString().substring(0, 16).replace('T', ' '),
-        merchant: parsed.merchant || '智能提取商户',
-        note: parsed.note || '通过 iPhone 快捷指令自动提取',
-        source: 'ios_shortcut',
-        raw_text: rawText
-      });
-      return {
-        triggered: true,
-        success: true,
-        message: `已自动识别入账：${parsed.merchant || '消费'} ¥${parsed.amount.toFixed(2)}`,
-        transaction: created
-      };
+      return await saveAndReturn(
+        parsed.amount, 
+        parsed.merchant || '快捷提取消费', 
+        parsed.note || '通过 iPhone 快捷指令自动识别',
+        parsed.type,
+        parsed.suggested_category,
+        parsed.matched_account_id
+      );
     }
   }
 
-  // Case 3: Trigger automatic clipboard read on launch
+  // Case 3: Automatic clipboard read on launch
   if (autoClipboard) {
     try {
       const clip = await navigator.clipboard.readText();
       if (clip) {
-        const parsed = parseSmsOrTextInBrowser(clip, accounts);
+        let parsed = parseRecognizedBillText(clip, accounts);
+        if (!parsed.success || !parsed.amount) {
+          parsed = parseSmsOrTextInBrowser(clip, accounts);
+        }
         if (parsed.success && parsed.amount) {
-          const created = await api.createTransaction({
-            type: parsed.type || 'expense',
-            amount: parsed.amount,
-            account_id: parsed.matched_account_id || accounts[0]?.id || 'acc-1',
-            category_name: parsed.suggested_category || '日常消费',
-            date: new Date().toISOString().substring(0, 16).replace('T', ' '),
-            merchant: parsed.merchant || '剪贴板提取',
-            source: 'clipboard_auto',
-            raw_text: clip
-          });
-          return {
-            triggered: true,
-            success: true,
-            message: `剪贴板已自动识别入账：${parsed.merchant || '消费'} ¥${parsed.amount.toFixed(2)}`,
-            transaction: created
-          };
+          return await saveAndReturn(
+            parsed.amount, 
+            parsed.merchant || '剪贴板消费', 
+            '由剪贴板一键自动入账',
+            parsed.type,
+            parsed.suggested_category,
+            parsed.matched_account_id
+          );
         }
       }
-    } catch {
-      // Ignore clipboard permission errors
+    } catch (e) {
+      console.warn('Clipboard read error:', e);
     }
   }
 
   return {
     triggered: true,
     success: false,
-    message: '未能从传入参数中识别到有效金额'
+    message: '未能识别到有效金额，请确保截屏或剪贴板包含付款数字'
   };
 }
