@@ -71,12 +71,17 @@ export function App() {
 
   // Sync dark mode class
   useEffect(() => {
+    const metaThemeColor = document.querySelector('meta[name="theme-color"]');
     if (darkMode) {
       document.documentElement.classList.add('dark');
+      document.body.classList.add('dark');
       localStorage.setItem('theme', 'dark');
+      if (metaThemeColor) metaThemeColor.setAttribute('content', '#0b0f19');
     } else {
       document.documentElement.classList.remove('dark');
+      document.body.classList.remove('dark');
       localStorage.setItem('theme', 'light');
+      if (metaThemeColor) metaThemeColor.setAttribute('content', '#f8fafc');
     }
   }, [darkMode]);
 
