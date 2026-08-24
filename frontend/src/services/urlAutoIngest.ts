@@ -9,6 +9,7 @@ export interface AutoIngestResult {
   message: string;
   transaction?: Transaction;
   debugInfo?: string;
+  showClipboardButton?: boolean;
 }
 
 export function extractFromRawText(text: string, accounts: any[] = []): { amount: number; merchant: string; category: string; accountId?: string } {
@@ -174,6 +175,35 @@ export async function checkAndHandleUrlAutoIngest(): Promise<AutoIngestResult | 
         decoded = rawText;
       }
 
+      // If decoded text is empty or just whitespace, it means iOS dropped the content
+      // Fall back to clipboard mode
+      if (!decoded.trim()) {
+        // Try clipboard auto-read first
+        try {
+          const clip = await navigator.clipboard.readText();
+          if (clip && clip.trim()) {
+            const extracted = extractFromRawText(clip, accounts);
+            if (extracted.amount > 0) {
+              return await saveAndReturn(
+                extracted.amount,
+                extracted.merchant,
+                '通过剪贴板自动识别',
+                'expense',
+                extracted.category,
+                extracted.accountId
+              );
+            }
+          }
+        } catch {}
+        // Clipboard auto-read failed, show button
+        return {
+          triggered: true,
+          success: false,
+          message: '',
+          showClipboardButton: true
+        };
+      }
+
       // Use our high-precision multi-line extraction
       const extracted = extractFromRawText(decoded, accounts);
       if (extracted.amount > 0) {
@@ -199,7 +229,7 @@ export async function checkAndHandleUrlAutoIngest(): Promise<AutoIngestResult | 
     if (autoClipboard) {
       try {
         const clip = await navigator.clipboard.readText();
-        if (clip) {
+        if (clip && clip.trim()) {
           const extracted = extractFromRawText(clip, accounts);
           if (extracted.amount > 0) {
             return await saveAndReturn(
@@ -213,8 +243,21 @@ export async function checkAndHandleUrlAutoIngest(): Promise<AutoIngestResult | 
           }
         }
       } catch (e) {
-        console.warn('Clipboard read error:', e);
+        // Clipboard auto-read failed (no user gesture), show button
+        return {
+          triggered: true,
+          success: false,
+          message: '',
+          showClipboardButton: true
+        };
       }
+      // If we get here, clipboard was read but no amount found, show button anyway
+      return {
+        triggered: true,
+        success: false,
+        message: '',
+        showClipboardButton: true
+      };
     }
 
     return {

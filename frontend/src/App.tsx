@@ -21,7 +21,8 @@ import { GoalsPage } from './pages/GoalsPage';
 import { SettingsPage } from './pages/SettingsPage';
 
 import { api } from './api/client';
-import { checkAndHandleUrlAutoIngest } from './services/urlAutoIngest';
+import { localStore } from './services/localStore';
+import { checkAndHandleUrlAutoIngest, extractFromRawText } from './services/urlAutoIngest';
 import { 
   Account, 
   Transaction, 
@@ -53,6 +54,9 @@ export function App() {
 
   // Debug panel for URL auto-ingest diagnostics (visible on page)
   const [debugInfo, setDebugInfo] = useState<string | null>(null);
+
+  // Clipboard overlay: shown when ?cb=1 and auto-read fails
+  const [showClipboardOverlay, setShowClipboardOverlay] = useState(false);
 
   // Core Data States
   const [analytics, setAnalytics] = useState<DashboardAnalytics | null>(null);
@@ -119,42 +123,77 @@ export function App() {
     // Capture the original URL before anything modifies it
     const originalHref = window.location.href;
     const originalSearch = window.location.search;
-    const hasParams = originalSearch.length > 1 || originalHref.includes('?text=') || originalHref.includes('?amt=') || originalHref.includes('?cb=');
 
     const init = async () => {
       try {
-        // If there are URL params, show debug info so user can report what was received
-        if (hasParams) {
-          setDebugInfo(`📡 收到 URL: ${originalHref.substring(0, 200)}\n🔍 search: "${originalSearch}"`);
-        }
-
         const res = await checkAndHandleUrlAutoIngest();
 
         if (res && res.triggered) {
           if (res.success) {
             setAutoToastMsg(res.message);
-            setDebugInfo(null); // Clear debug on success
+            setDebugInfo(null);
             confetti({ particleCount: 80, spread: 60, origin: { y: 0.2 } });
             setTimeout(() => setAutoToastMsg(null), 6000);
+          } else if (res.showClipboardButton) {
+            // Clipboard mode: need user gesture to read clipboard
+            setShowClipboardOverlay(true);
           } else {
-            // Show the failure reason prominently
             setAutoToastMsg(res.message);
-            setDebugInfo(`❌ 自动记账未成功\n原因: ${res.message}\n${res.debugInfo ? `收到文本: ${res.debugInfo.substring(0, 150)}` : ''}\n原始 URL: ${originalHref.substring(0, 200)}`);
             setTimeout(() => setAutoToastMsg(null), 8000);
           }
-        } else if (hasParams) {
-          // Had params but checkAndHandleUrlAutoIngest returned null — the params were not recognized
-          setDebugInfo(`⚠️ URL 有参数但未触发自动记账\nsearch: "${originalSearch}"\nhref: ${originalHref.substring(0, 200)}`);
         }
       } catch (e: any) {
         console.error(e);
-        setDebugInfo(`💥 自动记账出错: ${e.message}\n原始 URL: ${originalHref.substring(0, 200)}`);
       } finally {
         await loadAllData();
       }
     };
     init();
   }, []);
+
+  // Handle clipboard button tap (provides user gesture for clipboard API)
+  const handleClipboardIngest = async () => {
+    setShowClipboardOverlay(false);
+    try {
+      const clipText = await navigator.clipboard.readText();
+      if (clipText && clipText.trim()) {
+        const accounts = localStore.getAccounts();
+        const categories = localStore.getCategories();
+        const extracted = extractFromRawText(clipText, accounts);
+
+        if (extracted.amount > 0) {
+          const catObj = categories.find(c => c.name === extracted.category);
+          const accountId = extracted.accountId || accounts[0]?.id || 'acc-1';
+
+          await api.createTransaction({
+            type: 'expense',
+            amount: extracted.amount,
+            account_id: accountId,
+            category_id: catObj?.id,
+            category_name: extracted.category,
+            date: new Date().toISOString().substring(0, 16).replace('T', ' '),
+            merchant: extracted.merchant,
+            note: '通过剪贴板一键记账',
+            source: 'ios_shortcut'
+          });
+
+          setAutoToastMsg(`🎉 已自动记账：${extracted.merchant} ¥${extracted.amount.toFixed(2)}`);
+          confetti({ particleCount: 80, spread: 60, origin: { y: 0.2 } });
+          setTimeout(() => setAutoToastMsg(null), 6000);
+          await loadAllData();
+        } else {
+          setAutoToastMsg('❌ 剪贴板中未识别到金额');
+          setTimeout(() => setAutoToastMsg(null), 5000);
+        }
+      } else {
+        setAutoToastMsg('❌ 剪贴板为空，请先截屏后再试');
+        setTimeout(() => setAutoToastMsg(null), 5000);
+      }
+    } catch (e: any) {
+      setAutoToastMsg('❌ 无法读取剪贴板，请在弹窗中点「粘贴」');
+      setTimeout(() => setAutoToastMsg(null), 5000);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors duration-200">
@@ -180,6 +219,32 @@ export function App() {
               <pre className="text-[10px] text-yellow-900 dark:text-yellow-100 whitespace-pre-wrap break-all font-mono leading-relaxed">{debugInfo}</pre>
               <button onClick={() => setDebugInfo(null)} className="text-yellow-700 dark:text-yellow-200 font-bold text-sm flex-shrink-0">✕</button>
             </div>
+          </div>
+        )}
+
+        {/* Full-screen clipboard one-tap overlay */}
+        {showClipboardOverlay && (
+          <div className="fixed inset-0 z-[100] bg-gradient-to-b from-emerald-600 to-emerald-800 flex flex-col items-center justify-center p-8">
+            <div className="text-white text-center mb-8">
+              <div className="text-6xl mb-4">📋</div>
+              <h2 className="text-xl font-bold mb-2">截屏已就绪</h2>
+              <p className="text-sm text-emerald-100 leading-relaxed">点击下方按钮，自动从剪贴板<br/>读取截屏文字并记账</p>
+            </div>
+
+            <button
+              onClick={handleClipboardIngest}
+              className="w-64 h-16 bg-white rounded-2xl shadow-2xl flex items-center justify-center gap-3 active:scale-95 transition-transform"
+            >
+              <Zap className="w-6 h-6 text-emerald-600" />
+              <span className="text-emerald-700 font-bold text-lg">一键记账</span>
+            </button>
+
+            <button
+              onClick={() => setShowClipboardOverlay(false)}
+              className="mt-6 text-emerald-200 text-sm underline"
+            >
+              取消
+            </button>
           </div>
         )}
 
