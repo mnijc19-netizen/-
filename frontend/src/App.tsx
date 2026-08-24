@@ -51,6 +51,9 @@ export function App() {
   // Auto Automation Toast
   const [autoToastMsg, setAutoToastMsg] = useState<string | null>(null);
 
+  // Debug panel for URL auto-ingest diagnostics (visible on page)
+  const [debugInfo, setDebugInfo] = useState<string | null>(null);
+
   // Core Data States
   const [analytics, setAnalytics] = useState<DashboardAnalytics | null>(null);
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -113,21 +116,39 @@ export function App() {
 
   // Check URL automation parameter on startup (iPhone Action Button / Shortcuts trigger)
   useEffect(() => {
+    // Capture the original URL before anything modifies it
+    const originalHref = window.location.href;
+    const originalSearch = window.location.search;
+    const hasParams = originalSearch.length > 1 || originalHref.includes('?text=') || originalHref.includes('?amt=') || originalHref.includes('?cb=');
+
     const init = async () => {
       try {
+        // If there are URL params, show debug info so user can report what was received
+        if (hasParams) {
+          setDebugInfo(`📡 收到 URL: ${originalHref.substring(0, 200)}\n🔍 search: "${originalSearch}"`);
+        }
+
         const res = await checkAndHandleUrlAutoIngest();
+
         if (res && res.triggered) {
           if (res.success) {
             setAutoToastMsg(res.message);
+            setDebugInfo(null); // Clear debug on success
             confetti({ particleCount: 80, spread: 60, origin: { y: 0.2 } });
-            setTimeout(() => setAutoToastMsg(null), 4000);
+            setTimeout(() => setAutoToastMsg(null), 6000);
           } else {
+            // Show the failure reason prominently
             setAutoToastMsg(res.message);
-            setTimeout(() => setAutoToastMsg(null), 4000);
+            setDebugInfo(`❌ 自动记账未成功\n原因: ${res.message}\n${res.debugInfo ? `收到文本: ${res.debugInfo.substring(0, 150)}` : ''}\n原始 URL: ${originalHref.substring(0, 200)}`);
+            setTimeout(() => setAutoToastMsg(null), 8000);
           }
+        } else if (hasParams) {
+          // Had params but checkAndHandleUrlAutoIngest returned null — the params were not recognized
+          setDebugInfo(`⚠️ URL 有参数但未触发自动记账\nsearch: "${originalSearch}"\nhref: ${originalHref.substring(0, 200)}`);
         }
-      } catch (e) {
+      } catch (e: any) {
         console.error(e);
+        setDebugInfo(`💥 自动记账出错: ${e.message}\n原始 URL: ${originalHref.substring(0, 200)}`);
       } finally {
         await loadAllData();
       }
@@ -149,6 +170,16 @@ export function App() {
             <button onClick={() => setAutoToastMsg(null)} className="text-white/80 hover:text-white">
               ✕
             </button>
+          </div>
+        )}
+
+        {/* Debug info panel - shows what URL params were received from iPhone Shortcuts */}
+        {debugInfo && (
+          <div className="fixed top-20 left-4 right-4 z-50 max-w-md mx-auto p-3 rounded-xl bg-yellow-100 dark:bg-yellow-900 border-2 border-yellow-400 shadow-xl">
+            <div className="flex justify-between items-start gap-2">
+              <pre className="text-[10px] text-yellow-900 dark:text-yellow-100 whitespace-pre-wrap break-all font-mono leading-relaxed">{debugInfo}</pre>
+              <button onClick={() => setDebugInfo(null)} className="text-yellow-700 dark:text-yellow-200 font-bold text-sm flex-shrink-0">✕</button>
+            </div>
           </div>
         )}
 
