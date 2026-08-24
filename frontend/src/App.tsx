@@ -212,42 +212,6 @@ export function App() {
           </div>
         )}
 
-        {/* Debug info panel - shows what URL params were received from iPhone Shortcuts */}
-        {debugInfo && (
-          <div className="fixed top-20 left-4 right-4 z-50 max-w-md mx-auto p-3 rounded-xl bg-yellow-100 dark:bg-yellow-900 border-2 border-yellow-400 shadow-xl">
-            <div className="flex justify-between items-start gap-2">
-              <pre className="text-[10px] text-yellow-900 dark:text-yellow-100 whitespace-pre-wrap break-all font-mono leading-relaxed">{debugInfo}</pre>
-              <button onClick={() => setDebugInfo(null)} className="text-yellow-700 dark:text-yellow-200 font-bold text-sm flex-shrink-0">✕</button>
-            </div>
-          </div>
-        )}
-
-        {/* Full-screen clipboard one-tap overlay */}
-        {showClipboardOverlay && (
-          <div className="fixed inset-0 z-[100] bg-gradient-to-b from-emerald-600 to-emerald-800 flex flex-col items-center justify-center p-8">
-            <div className="text-white text-center mb-8">
-              <div className="text-6xl mb-4">📋</div>
-              <h2 className="text-xl font-bold mb-2">截屏已就绪</h2>
-              <p className="text-sm text-emerald-100 leading-relaxed">点击下方按钮，自动从剪贴板<br/>读取截屏文字并记账</p>
-            </div>
-
-            <button
-              onClick={handleClipboardIngest}
-              className="w-64 h-16 bg-white rounded-2xl shadow-2xl flex items-center justify-center gap-3 active:scale-95 transition-transform"
-            >
-              <Zap className="w-6 h-6 text-emerald-600" />
-              <span className="text-emerald-700 font-bold text-lg">一键记账</span>
-            </button>
-
-            <button
-              onClick={() => setShowClipboardOverlay(false)}
-              className="mt-6 text-emerald-200 text-sm underline"
-            >
-              取消
-            </button>
-          </div>
-        )}
-
         {/* Top Navbar */}
         <Navbar
           analytics={analytics}
