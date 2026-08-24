@@ -1,5 +1,4 @@
 import React from 'react';
-import ReactECharts from 'echarts-for-react';
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -9,10 +8,10 @@ import {
   ArrowRight, 
   Plus, 
   ReceiptText,
-  Layers,
   ArrowUpRight,
   ArrowDownRight,
-  CheckCircle2,
+  Zap,
+  Fingerprint,
   PieChart
 } from 'lucide-react';
 import { DashboardAnalytics, Transaction, Account } from '../types';
@@ -86,6 +85,31 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </div>
         </div>
       </div>
+
+      {/* iPhone 1-Tap Action Button Automation Banner */}
+      <button
+        type="button"
+        onClick={() => onNavigateTo('iphone_shortcut')}
+        className="w-full p-3.5 rounded-2xl bg-gradient-to-r from-blue-600/15 via-indigo-600/15 to-purple-600/15 border border-indigo-500/30 flex items-center justify-between text-left hover:border-indigo-400 active:scale-98 transition shadow-sm"
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center flex-shrink-0 shadow-md">
+            <Zap className="w-5 h-5 fill-current" />
+          </div>
+          <div>
+            <div className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+              <span>⚡ iPhone 长按按钮 / 双击背面自动记账</span>
+              <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-indigo-100 dark:bg-indigo-950 text-indigo-600 font-bold">
+                0步秒存
+              </span>
+            </div>
+            <p className="text-[10px] text-slate-500 dark:text-slate-400">
+              付完款长按侧边按键，直接将截屏/短信瞬间存入账本
+            </p>
+          </div>
+        </div>
+        <ArrowRight className="w-4 h-4 text-indigo-500 flex-shrink-0" />
+      </button>
 
       {/* Mobile 4-Grid Quick Action Matrix */}
       <div className="grid grid-cols-2 gap-2.5">
@@ -201,7 +225,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               账本已清空，准备就绪
             </div>
             <p className="text-[11px] text-slate-400 max-w-xs mx-auto">
-              点击上方「拍照识别」或「粘贴短信」，开启您的第一笔智能极速记账！
+              点击上方「⚡ iPhone 长按按钮」或「拍照识别」，开启您的第一笔智能极速记账！
             </p>
           </div>
         ) : (

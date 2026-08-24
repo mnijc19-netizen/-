@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import confetti from 'canvas-confetti';
 import { Navbar } from './components/Navbar';
 import { MobileBottomNav } from './components/MobileBottomNav';
 import { SmartParserModal } from './components/SmartParserModal';
 import { QuickTransactionModal } from './components/QuickTransactionModal';
 import { SnapshotModal } from './components/SnapshotModal';
 import { ImageOcrModal } from './components/ImageOcrModal';
+import { IphoneShortcutModal } from './components/IphoneShortcutModal';
 
 // Pages
 import { Dashboard } from './pages/Dashboard';
@@ -19,6 +21,7 @@ import { GoalsPage } from './pages/GoalsPage';
 import { SettingsPage } from './pages/SettingsPage';
 
 import { api } from './api/client';
+import { checkAndHandleUrlAutoIngest } from './services/urlAutoIngest';
 import { 
   Account, 
   Transaction, 
@@ -30,6 +33,7 @@ import {
   DashboardAnalytics 
 } from './types';
 import { PageId } from './components/Sidebar';
+import { CheckCircle2, Zap } from 'lucide-react';
 
 export function App() {
   const [currentPage, setCurrentPage] = useState<PageId>('dashboard');
@@ -42,6 +46,10 @@ export function App() {
   const [quickTxOpen, setQuickTxOpen] = useState(false);
   const [snapshotOpen, setSnapshotOpen] = useState(false);
   const [imageOcrOpen, setImageOcrOpen] = useState(false);
+  const [iphoneShortcutOpen, setIphoneShortcutOpen] = useState(false);
+
+  // Auto Automation Toast
+  const [autoToastMsg, setAutoToastMsg] = useState<string | null>(null);
 
   // Core Data States
   const [analytics, setAnalytics] = useState<DashboardAnalytics | null>(null);
@@ -103,14 +111,39 @@ export function App() {
     }
   };
 
+  // Check URL automation parameter on startup (iPhone Action Button / Shortcuts trigger)
   useEffect(() => {
-    loadAllData();
+    checkAndHandleUrlAutoIngest().then((res) => {
+      if (res && res.triggered) {
+        if (res.success) {
+          setAutoToastMsg(res.message);
+          confetti({ particleCount: 80, spread: 60, origin: { y: 0.2 } });
+          setTimeout(() => setAutoToastMsg(null), 4000);
+        } else {
+          alert(res.message);
+        }
+      }
+      loadAllData();
+    });
   }, []);
 
   return (
     <div className="min-h-screen bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors duration-200">
-      {/* Mobile-First App Wrapper */}
+      {/* Mobile App Shell Wrapper */}
       <div className="w-full max-w-md mx-auto min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col shadow-2xl relative">
+        {/* Top Automation Toast */}
+        {autoToastMsg && (
+          <div className="fixed top-4 left-4 right-4 z-50 max-w-md mx-auto p-4 rounded-2xl bg-emerald-600 text-white font-bold text-xs shadow-2xl flex items-center justify-between gap-2 animate-in slide-in-from-top duration-300">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="w-5 h-5 flex-shrink-0" />
+              <span>{autoToastMsg}</span>
+            </div>
+            <button onClick={() => setAutoToastMsg(null)} className="text-white/80 hover:text-white">
+              ✕
+            </button>
+          </div>
+        )}
+
         {/* Top Navbar */}
         <Navbar
           analytics={analytics}
@@ -123,7 +156,7 @@ export function App() {
           onReload={loadAllData}
         />
 
-        {/* Main Content Area */}
+        {/* Main Content Page */}
         <main className="flex-1 p-3.5 sm:p-4 overflow-y-auto">
           {loading ? (
             <div className="flex items-center justify-center h-80">
@@ -140,7 +173,13 @@ export function App() {
                   onOpenQuickTx={() => setQuickTxOpen(true)}
                   onOpenSnapshot={() => setSnapshotOpen(true)}
                   onOpenImageOcr={() => setImageOcrOpen(true)}
-                  onNavigateTo={(p) => setCurrentPage(p)}
+                  onNavigateTo={(p) => {
+                    if (p === 'iphone_shortcut') {
+                      setIphoneShortcutOpen(true);
+                    } else {
+                      setCurrentPage(p);
+                    }
+                  }}
                 />
               )}
 
@@ -229,7 +268,7 @@ export function App() {
         />
       </div>
 
-      {/* Modals */}
+      {/* Global Modals */}
       <ImageOcrModal
         isOpen={imageOcrOpen}
         onClose={() => setImageOcrOpen(false)}
@@ -259,6 +298,11 @@ export function App() {
         onClose={() => setSnapshotOpen(false)}
         onSuccess={loadAllData}
         accounts={accounts}
+      />
+
+      <IphoneShortcutModal
+        isOpen={iphoneShortcutOpen}
+        onClose={() => setIphoneShortcutOpen(false)}
       />
     </div>
   );
