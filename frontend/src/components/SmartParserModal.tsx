@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Sparkles, Clipboard, CheckCircle2, AlertCircle, ArrowRight, X, Smartphone, Bot, Tag, Calendar, Wallet } from 'lucide-react';
 import { api } from '../api/client';
 import { Account, Category, ParsedTransactionResult } from '../types';
+import { getBeijingDateTimeString } from '../utils/dateUtils';
 
 interface SmartParserModalProps {
   isOpen: boolean;
@@ -121,7 +122,7 @@ export const SmartParserModal: React.FC<SmartParserModalProps> = ({
         account_id: selectedAccountId,
         category_id: selectedCategoryId || undefined,
         category_name: catObj ? catObj.name : parsedResult.suggested_category || '日常消费',
-        date: parsedResult.date || new Date().toISOString().replace('T', ' ').substring(0, 16),
+        date: parsedResult.date || getBeijingDateTimeString(),
         merchant: parsedResult.merchant || '智能记账商户',
         note: parsedResult.note || `由智能文本识别生成`,
         source: 'sms_parser',

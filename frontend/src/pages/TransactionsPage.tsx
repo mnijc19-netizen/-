@@ -21,6 +21,7 @@ import {
 import { Transaction, Account, Category, TransactionType } from '../types';
 import { api } from '../api/client';
 import { TransactionEditModal } from '../components/TransactionEditModal';
+import { getBeijingDateString, getBeijingFileStamp } from '../utils/dateUtils';
 
 interface TransactionsPageProps {
   transactions: Transaction[];
@@ -45,12 +46,12 @@ export const TransactionsPage: React.FC<TransactionsPageProps> = ({
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [timeRange, setTimeRange] = useState<TimeRangePreset>('this_month');
   
-  // Custom date range state
-  const todayStr = new Date().toISOString().substring(0, 10);
+  // Custom date range state using local Beijing time
+  const todayStr = getBeijingDateString();
   const [customStart, setCustomStart] = useState<string>(() => {
     const d = new Date();
     d.setDate(1);
-    return d.toISOString().substring(0, 10);
+    return getBeijingDateString(d);
   });
   const [customEnd, setCustomEnd] = useState<string>(todayStr);
 
@@ -64,16 +65,16 @@ export const TransactionsPage: React.FC<TransactionsPageProps> = ({
       const start = new Date(now);
       start.setDate(now.getDate() - day + 1);
       start.setHours(0, 0, 0, 0);
-      return { start: start.toISOString().substring(0, 10), end: '9999-12-31' };
+      return { start: getBeijingDateString(start), end: '9999-12-31' };
     }
     if (timeRange === 'this_month') {
       const start = new Date(now.getFullYear(), now.getMonth(), 1);
-      return { start: start.toISOString().substring(0, 10), end: '9999-12-31' };
+      return { start: getBeijingDateString(start), end: '9999-12-31' };
     }
     if (timeRange === 'last_month') {
       const start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
       const end = new Date(now.getFullYear(), now.getMonth(), 0);
-      return { start: start.toISOString().substring(0, 10), end: end.toISOString().substring(0, 10) };
+      return { start: getBeijingDateString(start), end: getBeijingDateString(end) };
     }
     if (timeRange === 'custom') {
       return { start: customStart || '0000-01-01', end: customEnd ? customEnd + ' 23:59' : '9999-12-31' };
@@ -159,7 +160,7 @@ export const TransactionsPage: React.FC<TransactionsPageProps> = ({
     else if (timeRange === 'custom') periodLabel = `${customStart}至${customEnd}`;
 
     const catLabel = selectedCategory !== 'all' ? `_${selectedCategory}` : '';
-    const dateLabel = new Date().toISOString().substring(0, 10).replace(/-/g, '');
+    const dateLabel = getBeijingFileStamp();
 
     link.setAttribute('href', url);
     link.setAttribute('download', `财务账单_${periodLabel}${catLabel}_${dateLabel}.csv`);

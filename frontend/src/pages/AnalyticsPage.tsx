@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { DashboardAnalytics, SankeyData } from '../types';
 import { api } from '../api/client';
+import { getBeijingMonthString } from '../utils/dateUtils';
 
 interface AnalyticsPageProps {
   analytics: DashboardAnalytics | null;
@@ -20,7 +21,7 @@ interface AnalyticsPageProps {
 
 export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ analytics }) => {
   const [sankeyData, setSankeyData] = useState<SankeyData | null>(null);
-  const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().substring(0, 7));
+  const [selectedMonth, setSelectedMonth] = useState(() => getBeijingMonthString());
 
   useEffect(() => {
     api.getSankeyFlow(selectedMonth).then(setSankeyData).catch(() => {});

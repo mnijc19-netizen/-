@@ -10,8 +10,9 @@ import {
   TrendingDown,
   X
 } from 'lucide-react';
-import { Budget, Category } from '../types';
 import { api } from '../api/client';
+import { Budget, Category } from '../types';
+import { getBeijingMonthString } from '../utils/dateUtils';
 
 interface BudgetsPageProps {
   budgets: Budget[];
@@ -21,7 +22,7 @@ interface BudgetsPageProps {
 
 export const BudgetsPage: React.FC<BudgetsPageProps> = ({ budgets, categories, onRefresh }) => {
   const [modalOpen, setModalOpen] = useState(false);
-  const [period, setPeriod] = useState(new Date().toISOString().substring(0, 7));
+  const [period, setPeriod] = useState(() => getBeijingMonthString());
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [amount, setAmount] = useState('');
   const [threshold, setThreshold] = useState('0.8');

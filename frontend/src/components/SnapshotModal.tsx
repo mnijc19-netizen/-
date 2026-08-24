@@ -3,6 +3,7 @@ import { Camera, CheckCircle2, TrendingUp, X, Sparkles, AlertCircle, HelpCircle 
 import confetti from 'canvas-confetti';
 import { api } from '../api/client';
 import { Account } from '../types';
+import { getBeijingDateString } from '../utils/dateUtils';
 
 interface SnapshotModalProps {
   isOpen: boolean;
@@ -17,7 +18,7 @@ export const SnapshotModal: React.FC<SnapshotModalProps> = ({
   onSuccess,
   accounts
 }) => {
-  const [snapshotDate, setSnapshotDate] = useState(new Date().toISOString().substring(0, 10));
+  const [snapshotDate, setSnapshotDate] = useState(() => getBeijingDateString());
   const [balances, setBalances] = useState<Record<string, number>>({});
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
@@ -30,7 +31,7 @@ export const SnapshotModal: React.FC<SnapshotModalProps> = ({
         initialMap[a.id] = a.balance;
       });
       setBalances(initialMap);
-      setSnapshotDate(new Date().toISOString().substring(0, 10));
+      setSnapshotDate(getBeijingDateString());
       setNotes('月底资产盘点与余额对账');
     }
   }, [isOpen, accounts]);

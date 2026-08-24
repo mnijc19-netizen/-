@@ -14,6 +14,7 @@ import {
 } from '../types';
 import { localStore } from '../services/localStore';
 import { parseSmsOrTextInBrowser } from '../services/smsParser';
+import { getBeijingDateTimeString } from '../utils/dateUtils';
 
 const API_BASE = '/api';
 
@@ -165,7 +166,7 @@ export const api = {
         account_name: targetAcc?.name || '默认账户',
         to_account_id: data.to_account_id,
         category_name: data.category_name || '日常消费',
-        date: data.date || new Date().toISOString().substring(0, 16).replace('T', ' '),
+        date: data.date || getBeijingDateTimeString(),
         merchant: data.merchant || '消费记录',
         note: data.note,
         source: data.source || 'manual'
@@ -204,7 +205,7 @@ export const api = {
         account_name: targetAcc?.name || '默认账户',
         to_account_id: data.to_account_id,
         category_name: data.category_name || '日常消费',
-        date: data.date || new Date().toISOString().substring(0, 16).replace('T', ' '),
+        date: data.date || getBeijingDateTimeString(),
         merchant: data.merchant || '消费记录',
         note: data.note,
         source: data.source || 'manual'

@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { PlusCircle, ArrowRightLeft, TrendingDown, TrendingUp, X, Check, Tag, Calendar, Wallet } from 'lucide-react';
 import { api } from '../api/client';
-import { Account, Category, TransactionType } from '../types';
+import { Transaction, Account, Category, TransactionType } from '../types';
+import { getBeijingDateTimeString } from '../utils/dateUtils';
 
 interface QuickTransactionModalProps {
   isOpen: boolean;
@@ -23,7 +24,7 @@ export const QuickTransactionModal: React.FC<QuickTransactionModalProps> = ({
   const [accountId, setAccountId] = useState(accounts[0]?.id || 'acc-1');
   const [toAccountId, setToAccountId] = useState(accounts[1]?.id || '');
   const [categoryId, setCategoryId] = useState('');
-  const [date, setDate] = useState(new Date().toISOString().substring(0, 16).replace('T', ' '));
+  const [date, setDate] = useState(() => getBeijingDateTimeString());
   const [merchant, setMerchant] = useState('');
   const [note, setNote] = useState('');
   const [tagsInput, setTagsInput] = useState('');

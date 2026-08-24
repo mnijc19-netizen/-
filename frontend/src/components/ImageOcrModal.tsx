@@ -15,6 +15,7 @@ import {
 import { parseBillImage, parseRecognizedBillText } from '../services/imageOcr';
 import { api } from '../api/client';
 import { Account, Category, ParsedTransactionResult } from '../types';
+import { getBeijingDateTimeString } from '../utils/dateUtils';
 
 interface ImageOcrModalProps {
   isOpen: boolean;
@@ -120,7 +121,7 @@ export const ImageOcrModal: React.FC<ImageOcrModalProps> = ({
         account_id: selectedAccountId || accounts[0]?.id || 'acc-1',
         category_id: selectedCategoryId || undefined,
         category_name: catObj ? catObj.name : parsedResult.suggested_category || '日常消费',
-        date: parsedResult.date || new Date().toISOString().substring(0, 16).replace('T', ' '),
+        date: parsedResult.date || getBeijingDateTimeString(),
         merchant: parsedResult.merchant || '账单图片消费',
         note: parsedResult.note || '由账单图片识别生成',
         source: 'ocr_image',

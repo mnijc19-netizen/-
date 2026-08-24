@@ -17,6 +17,7 @@ import {
 import confetti from 'canvas-confetti';
 import { api } from '../api/client';
 import { RecurringRule, Account, Category } from '../types';
+import { getBeijingDateString } from '../utils/dateUtils';
 
 interface SettingsPageProps {
   accounts: Account[];
@@ -86,7 +87,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ accounts, categories
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `SmartWealth_FullBackup_${new Date().toISOString().substring(0, 10)}.json`;
+      link.download = `SmartWealth_FullBackup_${getBeijingDateString()}.json`;
       link.click();
     } catch (e: any) {
       alert('导出备份失败');

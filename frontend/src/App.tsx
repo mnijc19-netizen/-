@@ -23,6 +23,7 @@ import { SettingsPage } from './pages/SettingsPage';
 import { api } from './api/client';
 import { localStore } from './services/localStore';
 import { checkAndHandleUrlAutoIngest, extractFromRawText } from './services/urlAutoIngest';
+import { getBeijingDateTimeString } from './utils/dateUtils';
 import { 
   Account, 
   Transaction, 
@@ -176,7 +177,7 @@ export function App() {
             account_id: accountId,
             category_id: catObj?.id,
             category_name: extracted.category,
-            date: new Date().toISOString().substring(0, 16).replace('T', ' '),
+            date: getBeijingDateTimeString(),
             merchant: extracted.merchant,
             note: '通过剪贴板一键记账',
             source: 'ios_shortcut'
