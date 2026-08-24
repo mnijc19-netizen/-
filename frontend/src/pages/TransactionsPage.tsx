@@ -129,15 +129,20 @@ export const TransactionsPage: React.FC<TransactionsPageProps> = ({
   }, [filtered, totalExpense]);
 
   const handleExportCSV = () => {
+    if (filtered.length === 0) {
+      alert('当前筛选条件下暂无流水记录可导出');
+      return;
+    }
+
     const headers = ['时间', '类型', '金额', '商户/交易对象', '分类', '账户', '备注', '标签', '来源'];
     const rows = filtered.map(t => [
       t.date,
-      t.type,
+      t.type === 'income' ? '收入' : t.type === 'transfer' ? '转账' : '支出',
       t.amount,
-      `"${t.merchant || ''}"`,
+      `"${(t.merchant || '').replace(/"/g, '""')}"`,
       t.category_name || '',
       t.account_name || '',
-      `"${t.note || ''}"`,
+      `"${(t.note || '').replace(/"/g, '""')}"`,
       `"${(t.tags || []).join(',')}"`,
       t.source || ''
     ]);
@@ -145,8 +150,19 @@ export const TransactionsPage: React.FC<TransactionsPageProps> = ({
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
+    
+    // Dynamic filename based on filters
+    let periodLabel = '全部明细';
+    if (timeRange === 'this_week') periodLabel = '本周明细';
+    else if (timeRange === 'this_month') periodLabel = '本月明细';
+    else if (timeRange === 'last_month') periodLabel = '上月明细';
+    else if (timeRange === 'custom') periodLabel = `${customStart}至${customEnd}`;
+
+    const catLabel = selectedCategory !== 'all' ? `_${selectedCategory}` : '';
+    const dateLabel = new Date().toISOString().substring(0, 10).replace(/-/g, '');
+
     link.setAttribute('href', url);
-    link.setAttribute('download', `财务收支明细_${new Date().toISOString().substring(0, 10)}.csv`);
+    link.setAttribute('download', `财务账单_${periodLabel}${catLabel}_${dateLabel}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
