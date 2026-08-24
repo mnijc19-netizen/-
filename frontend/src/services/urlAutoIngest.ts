@@ -159,9 +159,9 @@ export async function checkAndHandleUrlAutoIngest(): Promise<AutoIngestResult | 
 
     // Case 1: Direct amount & merchant provided via Shortcut
     if (directAmt) {
-      const amount = parseFloat(directAmt);
+      const amount = parseFloat(directAmt.replace(/[¥￥$\s]/g, ''));
       if (!isNaN(amount) && amount > 0) {
-        const merchant = directMer || '快捷自动记账';
+        const merchant = directMer || '快捷记账';
         return await saveAndReturn(amount, merchant, '通过 iPhone 快捷指令直接记录');
       }
     }
