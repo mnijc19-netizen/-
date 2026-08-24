@@ -113,18 +113,26 @@ export function App() {
 
   // Check URL automation parameter on startup (iPhone Action Button / Shortcuts trigger)
   useEffect(() => {
-    checkAndHandleUrlAutoIngest().then((res) => {
-      if (res && res.triggered) {
-        if (res.success) {
-          setAutoToastMsg(res.message);
-          confetti({ particleCount: 80, spread: 60, origin: { y: 0.2 } });
-          setTimeout(() => setAutoToastMsg(null), 4000);
-        } else {
-          alert(res.message);
+    const init = async () => {
+      try {
+        const res = await checkAndHandleUrlAutoIngest();
+        if (res && res.triggered) {
+          if (res.success) {
+            setAutoToastMsg(res.message);
+            confetti({ particleCount: 80, spread: 60, origin: { y: 0.2 } });
+            setTimeout(() => setAutoToastMsg(null), 4000);
+          } else {
+            setAutoToastMsg(res.message);
+            setTimeout(() => setAutoToastMsg(null), 4000);
+          }
         }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        await loadAllData();
       }
-      loadAllData();
-    });
+    };
+    init();
   }, []);
 
   return (
