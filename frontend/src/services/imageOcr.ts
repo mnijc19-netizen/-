@@ -1,6 +1,6 @@
 import { createWorker } from 'tesseract.js';
 import { ParsedTransactionResult } from '../types';
-import { suggestCategory } from './smsParser';
+import { suggestCategory, getLocalDateTimeString } from './smsParser';
 
 // Pre-processes an image on canvas (high contrast, grayscale)
 async function preprocessImage(imageFile: File | string): Promise<string> {
@@ -106,6 +106,45 @@ export async function parseBillImage(
   }
 }
 
+export function cleanMerchantName(raw: string): string {
+  if (!raw) return '微信/支付宝消费';
+  let s = raw
+    .replace(/^[\s"“'‘`]+|[\s"”'’`]+$/g, '') // strip surrounding quotes
+    .replace(/^[Mm]\s+/, '') // strip McDonald's "M " or "m " logo artifact
+    .replace(/^[©®★▲▼■●◆◇✓✔√]+\s*/, '') // strip icon symbols
+    .replace(/^[<>\-_/:：]+\s*/, '') // strip leading brackets/colons
+    .replace(/\s*付款方式.*$/i, '') // strip trailing payment method
+    .replace(/\s*交易详情.*$/i, '') // strip trailing details button
+    .replace(/\s*查看明细.*$/i, '') // strip trailing report button
+    .replace(/\s*更多.*$/i, '') // strip Alipay more button
+    .replace(/^[>vV]\s*/, '') // strip Alipay arrow
+    .replace(/^商户名称[:：]\s*/, '') // strip prefix
+    .replace(/^收款方全称[:：]\s*/, '') // strip prefix
+    .replace(/^交易对方[:：]\s*/, '') // strip prefix
+    .replace(/^商品说明[:：]\s*/, '') // strip prefix
+    .replace(/[\d:：\-_/]/g, ' ') // replace digits/colons
+    .replace(/(?:昨天|今天|上午|下午|晚上)/g, '')
+    .replace(/^[\s"“'‘`]+|[\s"”'’`]+$/g, '') // strip quotes again
+    .trim();
+
+  // If merchant contains known brand, normalize it cleanly
+  const brands = [
+    "麦当劳", "肯德基", "汉堡王", "瑞幸咖啡", "星巴克", "海底捞", "喜茶", "霸王茶姬", 
+    "茶百道", "蜜雪冰城", "美团", "美团外卖", "饿了么", "滴滴出行", "淘宝", "天猫", 
+    "京东", "拼多多", "盒马", "山姆", "永辉超市", "屈臣氏", "7-Eleven", "全家", 
+    "罗森", "便利蜂", "优衣库", "Apple", "生鲜超市"
+  ];
+  for (const b of brands) {
+    if (s.includes(b)) {
+      if (b === "麦当劳" || b === "肯德基" || b === "星巴克" || b === "海底捞" || b === "喜茶" || b === "霸王茶姬") {
+        return b;
+      }
+    }
+  }
+
+  return s || '微信/支付宝消费';
+}
+
 export function parseRecognizedBillText(rawText: string, accountsLookup: any[] = []): ParsedTransactionResult {
   if (!rawText || !rawText.trim()) {
     return {
@@ -118,90 +157,83 @@ export function parseRecognizedBillText(rawText: string, accountsLookup: any[] =
     };
   }
 
-  // Split lines and trim
-  const rawLines = rawText.split(/[\r\n]+/).map(l => l.trim()).filter(l => l.length > 0);
+  const clean = rawText.replace(/[\r\n]+/g, '\n').trim();
+  const rawLines = clean.split('\n').map(l => l.trim()).filter(Boolean);
 
-  // Filter out status bars, dates without amounts, system UI like "微信记账本", "记账日报", "昨日支出", etc.
-  // 1. Check WeChat Pay bubble pattern (Latest card is at the bottom of the screenshot)
-  // Structure: [Merchant Name] -> [使用零钱支付 / 招商银行卡] -> [¥ 14.90] -> [交易详情]
   let detectedAmount = 0;
   let detectedMerchant = '';
-  let detectedAccountName = '';
   let detectedChannel = '微信支付';
+  let matchedAcc = accountsLookup[0];
 
-  // Search from bottom up for the real transaction card
-  for (let i = rawLines.length - 1; i >= 0; i--) {
-    const line = rawLines[i];
+  const isAlipay = /支付宝|花呗|借呗|余额宝|全部账单|账单详情|支付奖励|收单机构|清算机构/.test(clean);
+  const isWechat = /微信支付|微信记账本|使用零钱支付|零钱通/.test(clean);
 
-    // Check if line contains large amount like "¥ 14.90" or "¥14.90" or "-14.90"
-    const amtMatch = line.match(/(?:[¥￥]\s*|[-－]\s*|^[¥￥]?\s*)(\d+\.\d{2})/);
-    if (amtMatch && !line.includes('昨日') && !line.includes('统计') && !line.includes('已支出') && !line.includes('已入账')) {
-      detectedAmount = parseFloat(amtMatch[1]);
-
-      // Look at 1~3 lines above for payment method and merchant
-      for (let j = i - 1; j >= Math.max(0, i - 4); j--) {
-        const prevLine = rawLines[j];
-        if (prevLine.includes('支付') || prevLine.includes('零钱') || prevLine.includes('卡') || prevLine.includes('余额宝') || prevLine.includes('花呗')) {
-          detectedAccountName = prevLine;
-          // The line above payment method is usually the merchant name
-          if (j > 0) {
-            const possibleMerchant = rawLines[j - 1];
-            if (!possibleMerchant.includes('微信') && !possibleMerchant.includes('昨天') && !possibleMerchant.includes('今天') && !possibleMerchant.includes('日报')) {
-              detectedMerchant = possibleMerchant;
-            }
-          }
-        } else if (!detectedMerchant && !prevLine.includes('微信') && !prevLine.includes('昨天') && !prevLine.includes('今天') && !prevLine.includes('日报') && !prevLine.includes('设置') && !prevLine.includes('明细')) {
-          detectedMerchant = prevLine;
-        }
-      }
-      break;
-    }
+  if (isAlipay) {
+    detectedChannel = '支付宝';
+    const alipayAcc = accountsLookup.find(a => a.name.includes('支付宝') || a.id === 'acc-2');
+    if (alipayAcc) matchedAcc = alipayAcc;
+  } else if (isWechat) {
+    detectedChannel = '微信支付';
+    const wxAcc = accountsLookup.find(a => a.name.includes('微信') || a.id === 'acc-1');
+    if (wxAcc) matchedAcc = wxAcc;
   }
 
-  // Fallback 2: If bottom-up search didn't find clear merchant, search text for known brands
-  const textAll = rawLines.join(' ');
-  if (!detectedMerchant || detectedMerchant.length < 2) {
-    const commonBrands = [
-      "麦当劳", "肯德基", "汉堡王", "瑞幸咖啡", "星巴克", "海底捞", "喜茶", "霸王茶姬", 
-      "茶百道", "蜜雪冰城", "美团", "饿了么", "美团外卖", "滴滴出行", "淘宝", "天猫", 
-      "京东", "拼多多", "盒马", "山姆", "永辉超市", "屈臣氏", "7-Eleven", "全家", 
-      "罗森", "便利蜂", "优衣库", "Apple", "Steam", "中国石化", "中国石油", "国家电网"
-    ];
-    for (const b of commonBrands) {
-      if (textAll.includes(b)) {
-        detectedMerchant = b;
+  // 1. Specialized Alipay Bill Details (Top Down)
+  if (isAlipay) {
+    for (let i = 0; i < rawLines.length; i++) {
+      const line = rawLines[i];
+      const alipayAmtMatch = line.match(/^[-－]?\s*([¥￥$]?\s*)(\d+\.\d{2})$/);
+      if (alipayAmtMatch) {
+        detectedAmount = parseFloat(alipayAmtMatch[2]);
+        if (i > 0) {
+          const prev = rawLines[i - 1];
+          if (!prev.includes('账单') && !prev.includes('<') && prev.length > 1) {
+            detectedMerchant = cleanMerchantName(prev);
+          }
+        }
         break;
       }
     }
   }
 
-  // Fallback 3: Clean up merchant name (remove time stamps, icons)
-  if (detectedMerchant) {
-    detectedMerchant = detectedMerchant.replace(/[\d:：\-_/]/g, '').replace(/(?:昨天|今天|上午|下午|晚上)/g, '').trim();
-  }
-  if (!detectedMerchant || detectedMerchant.length < 2) {
-    detectedMerchant = '微信商户消费';
-  }
-
-  // Fallback 4: If amount is still 0, search anywhere for standard decimal
+  // 2. Specialized WeChat Pay Bubble (Bottom Up)
   if (!detectedAmount) {
-    const anyAmt = textAll.match(/(\d+\.\d{2})/);
-    if (anyAmt) {
-      detectedAmount = parseFloat(anyAmt[1]);
+    for (let i = rawLines.length - 1; i >= 0; i--) {
+      const line = rawLines[i];
+      if (line.includes('昨日') || line.includes('统计') || line.includes('已支出') || line.includes('已入账') || line.includes('积分') || line.includes('时间') || line.includes('202')) {
+        continue;
+      }
+      const amtMatch = line.match(/(?:[¥￥$]\s*|[-－]\s*)?(\d+\.\d{2})/);
+      if (amtMatch) {
+        const val = parseFloat(amtMatch[1]);
+        if (val > 0 && val < 1000000 && !line.includes(':')) {
+          detectedAmount = val;
+          // Search surrounding lines for merchant
+          for (let j = Math.max(0, i - 3); j <= Math.min(rawLines.length - 1, i + 1); j++) {
+            const l = rawLines[j];
+            if (j !== i && !l.includes('支付') && !l.includes('零钱') && !l.includes('微信') && !l.includes('支付宝') && !l.includes('详情') && !l.includes('昨天') && !l.includes('今天') && !l.includes('日报') && !l.includes('设置') && !l.includes('明细') && !l.includes('积分') && !l.includes('时间')) {
+              detectedMerchant = cleanMerchantName(l);
+              break;
+            }
+          }
+          break;
+        }
+      }
     }
   }
 
-  // Determine matching account
-  let matchedAcc = accountsLookup.find(a => a.name.includes('微信') || a.type === 'wallet');
-  if (detectedAccountName.includes('支付宝') || detectedAccountName.includes('余额宝')) {
-    matchedAcc = accountsLookup.find(a => a.name.includes('支付宝') || a.type === 'wallet');
-    detectedChannel = '支付宝';
-  } else if (detectedAccountName.includes('卡') || detectedAccountName.includes('银行')) {
-    const cardAcc = accountsLookup.find(a => a.type === 'bank' || a.type === 'credit');
-    if (cardAcc) matchedAcc = cardAcc;
+  // Fallback 3: Search whole text for known brands
+  if (!detectedMerchant || detectedMerchant.length < 2) {
+    detectedMerchant = cleanMerchantName(clean);
   }
 
-  const category = suggestCategory(detectedMerchant, textAll);
+  // Fallback 4: Any amount in text
+  if (!detectedAmount) {
+    const anyAmt = clean.match(/(\d+\.\d{2})/);
+    if (anyAmt) detectedAmount = parseFloat(anyAmt[1]);
+  }
+
+  const category = suggestCategory(detectedMerchant, clean);
 
   return {
     success: detectedAmount > 0,
@@ -209,10 +241,10 @@ export function parseRecognizedBillText(rawText: string, accountsLookup: any[] =
     type: 'expense',
     amount: detectedAmount,
     bank_or_channel: detectedChannel,
-    merchant: detectedMerchant,
+    merchant: detectedMerchant || (isAlipay ? '支付宝消费' : '微信商户消费'),
     suggested_category: category,
-    date: new Date().toISOString().substring(0, 16).replace('T', ' '),
-    raw_text: textAll.substring(0, 100),
+    date: getLocalDateTimeString(),
+    raw_text: clean.substring(0, 100),
     matched_rule: '账单卡片智能逆向提取',
     matched_account_id: matchedAcc?.id,
     matched_account_name: matchedAcc?.name,
