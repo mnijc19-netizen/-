@@ -32,15 +32,17 @@ export const Navbar: React.FC<NavbarProps> = ({
     <header className="sticky top-0 z-40 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800/80 px-4 py-2.5 flex items-center justify-between max-w-lg mx-auto w-full pt-[calc(0.5rem+env(safe-area-inset-top))]">
       {/* Brand & Net Worth Pill */}
       <div className="flex items-center gap-2.5">
-        <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 text-white flex items-center justify-center shadow-md shadow-emerald-500/20 flex-shrink-0">
-          <Zap className="w-4 h-4 fill-current" />
-        </div>
+        <img 
+          src="./logo.png" 
+          alt="斌斌账本" 
+          className="w-8 h-8 rounded-xl object-cover shadow-md shadow-black/20 flex-shrink-0" 
+        />
         <div>
           <div className="flex items-center gap-1.5">
             <span className="font-extrabold text-sm tracking-tight text-slate-900 dark:text-white">
-              极智财务
+              斌斌账本
             </span>
-            <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300">
+            <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300">
               PRO
             </span>
           </div>
