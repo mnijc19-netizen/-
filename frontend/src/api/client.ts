@@ -227,19 +227,89 @@ export const api = {
       return newTx;
     }
   },
+  updateTransaction: async (id: string, data: Partial<Transaction>): Promise<Transaction> => {
+    const txs = localStore.getTransactions();
+    const index = txs.findIndex(t => t.id === id);
+    if (index === -1) throw new Error('未找到该笔流水');
+
+    const oldTx = txs[index];
+    const accs = localStore.getAccounts();
+
+    // 1. Revert old balance effect
+    const oldAcc = accs.find(a => a.id === oldTx.account_id);
+    if (oldAcc) {
+      if (oldTx.type === 'expense') oldAcc.balance += oldTx.amount;
+      else if (oldTx.type === 'income') oldAcc.balance -= oldTx.amount;
+      else if (oldTx.type === 'transfer' || oldTx.type === 'repayment') {
+        oldAcc.balance += oldTx.amount;
+        if (oldTx.to_account_id) {
+          const oldToAcc = accs.find(a => a.id === oldTx.to_account_id);
+          if (oldToAcc) oldToAcc.balance -= oldTx.amount;
+        }
+      }
+    }
+
+    // 2. Apply updated transaction
+    const targetAccId = data.account_id || oldTx.account_id;
+    const targetAcc = accs.find(a => a.id === targetAccId);
+    const updatedTx: Transaction = {
+      ...oldTx,
+      ...data,
+      account_name: targetAcc?.name || oldTx.account_name,
+      to_account_name: data.to_account_id ? accs.find(a => a.id === data.to_account_id)?.name : undefined
+    };
+    txs[index] = updatedTx;
+
+    // 3. Apply new balance effect
+    const newAcc = accs.find(a => a.id === updatedTx.account_id);
+    if (newAcc) {
+      if (updatedTx.type === 'expense') newAcc.balance -= updatedTx.amount;
+      else if (updatedTx.type === 'income') newAcc.balance += updatedTx.amount;
+      else if (updatedTx.type === 'transfer' || updatedTx.type === 'repayment') {
+        newAcc.balance -= updatedTx.amount;
+        if (updatedTx.to_account_id) {
+          const newToAcc = accs.find(a => a.id === updatedTx.to_account_id);
+          if (newToAcc) newToAcc.balance += updatedTx.amount;
+        }
+      }
+    }
+
+    localStore.saveAccounts(accs);
+    localStore.saveTransactions(txs);
+
+    if (!isStaticMode) {
+      request<Transaction>(`/transactions/${id}`, { method: 'PUT', body: JSON.stringify(data) }).catch(() => {});
+    }
+
+    return updatedTx;
+  },
   deleteTransaction: async (id: string) => {
-    if (isStaticMode) {
-      const txs = localStore.getTransactions().filter(t => t.id !== id);
-      localStore.saveTransactions(txs);
-      return { success: true, message: '流水已删除' };
+    const txs = localStore.getTransactions();
+    const target = txs.find(t => t.id === id);
+    if (target) {
+      const accs = localStore.getAccounts();
+      const acc = accs.find(a => a.id === target.account_id);
+      if (acc) {
+        if (target.type === 'expense') acc.balance += target.amount;
+        else if (target.type === 'income') acc.balance -= target.amount;
+        else if (target.type === 'transfer' || target.type === 'repayment') {
+          acc.balance += target.amount;
+          if (target.to_account_id) {
+            const toAcc = accs.find(a => a.id === target.to_account_id);
+            if (toAcc) toAcc.balance -= target.amount;
+          }
+        }
+        localStore.saveAccounts(accs);
+      }
     }
-    try {
-      return await request<{ success: boolean; message: string }>(`/transactions/${id}`, { method: 'DELETE' });
-    } catch {
-      const txs = localStore.getTransactions().filter(t => t.id !== id);
-      localStore.saveTransactions(txs);
-      return { success: true, message: '流水已删除' };
+    const filteredTxs = txs.filter(t => t.id !== id);
+    localStore.saveTransactions(filteredTxs);
+
+    if (!isStaticMode) {
+      request<{ success: boolean; message: string }>(`/transactions/${id}`, { method: 'DELETE' }).catch(() => {});
     }
+
+    return { success: true, message: '流水已删除并还原余额' };
   },
   getCategories: async (): Promise<Category[]> => {
     if (isStaticMode) return localStore.getCategories();

@@ -11,10 +11,13 @@ import {
   Layers, 
   Tag, 
   Calendar, 
-  CreditCard 
+  CreditCard,
+  ChevronRight,
+  Edit2
 } from 'lucide-react';
 import { Transaction, Account, Category, TransactionType } from '../types';
 import { api } from '../api/client';
+import { TransactionEditModal } from '../components/TransactionEditModal';
 
 interface TransactionsPageProps {
   transactions: Transaction[];
@@ -35,6 +38,7 @@ export const TransactionsPage: React.FC<TransactionsPageProps> = ({
   const [selectedType, setSelectedType] = useState<string>('all');
   const [selectedAccount, setSelectedAccount] = useState<string>('all');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [editingTx, setEditingTx] = useState<Transaction | null>(null);
 
   // Filter transactions
   const filtered = transactions.filter(t => {
@@ -193,84 +197,85 @@ export const TransactionsPage: React.FC<TransactionsPageProps> = ({
             filtered.map((t) => (
               <div 
                 key={t.id} 
-                className="p-4 hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition flex items-center justify-between gap-4 group"
+                onClick={() => setEditingTx(t)}
+                className="p-3.5 sm:p-4 hover:bg-slate-50 dark:hover:bg-slate-800/40 active:scale-[0.99] transition flex items-center justify-between gap-3 cursor-pointer group"
               >
-                <div className="flex items-center gap-3.5 min-w-0">
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
                     t.type === 'income' 
                       ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400' 
                       : t.type === 'transfer' || t.type === 'repayment'
                       ? 'bg-blue-100 dark:bg-blue-950 text-blue-600 dark:text-blue-400'
                       : 'bg-rose-100 dark:bg-rose-950 text-rose-600 dark:text-rose-400'
                   }`}>
-                    {t.type === 'income' ? <TrendingUp className="w-5 h-5" /> : t.type === 'transfer' || t.type === 'repayment' ? <Layers className="w-5 h-5" /> : <TrendingDown className="w-5 h-5" />}
+                    {t.type === 'income' ? <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5" /> : t.type === 'transfer' || t.type === 'repayment' ? <Layers className="w-4 h-4 sm:w-5 sm:h-5" /> : <TrendingDown className="w-4 h-4 sm:w-5 sm:h-5" />}
                   </div>
 
                   <div className="min-w-0">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5 flex-wrap">
                       <span className="text-xs font-bold text-slate-900 dark:text-white truncate">
                         {t.merchant || t.category_name || '收支交易'}
                       </span>
+                      {t.source === 'ios_shortcut' && (
+                        <span className="px-1.5 py-0.2 rounded bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 text-[9px] font-mono">
+                          快捷指令
+                        </span>
+                      )}
                       {t.source === 'sms_parser' && (
-                        <span className="px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 text-[10px]">
+                        <span className="px-1.5 py-0.2 rounded bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 text-[9px]">
                           短信识别
                         </span>
                       )}
-                      {t.source === 'wechat_import' && (
-                        <span className="px-1.5 py-0.5 rounded bg-teal-100 dark:bg-teal-950 text-teal-700 dark:text-teal-300 text-[10px]">
-                          微信导入
-                        </span>
-                      )}
-                      {t.source === 'alipay_import' && (
-                        <span className="px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 text-[10px]">
-                          支付宝导入
+                      {t.source === 'ocr_image' && (
+                        <span className="px-1.5 py-0.2 rounded bg-teal-100 dark:bg-teal-950 text-teal-700 dark:text-teal-300 text-[9px]">
+                          图片识别
                         </span>
                       )}
                     </div>
 
-                    <div className="text-[11px] text-slate-400 flex flex-wrap items-center gap-2 mt-0.5">
+                    <div className="text-[10px] sm:text-[11px] text-slate-400 flex flex-wrap items-center gap-1.5 mt-0.5">
                       <span>{t.date}</span>
                       <span>•</span>
-                      <span>{t.account_name || '主账户'}</span>
+                      <span className="font-medium text-slate-600 dark:text-slate-300">{t.account_name || '默认账户'}</span>
                       {t.to_account_name && (
                         <span>→ {t.to_account_name}</span>
                       )}
                       <span>•</span>
-                      <span className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-                        {t.category_name || '未分类'}
+                      <span className="px-1 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                        {t.category_name || '日常消费'}
                       </span>
-                      {t.note && (
-                        <span className="truncate max-w-xs text-slate-400">
-                          {t.note}
-                        </span>
-                      )}
                     </div>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-4 flex-shrink-0">
+                <div className="flex items-center gap-2 flex-shrink-0">
                   <div className="text-right">
-                    <div className={`text-base font-bold font-mono ${
+                    <div className={`text-sm sm:text-base font-bold font-mono ${
                       t.type === 'income' ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-white'
                     }`}>
                       {t.type === 'income' ? '+' : t.type === 'transfer' ? '' : '-'}¥{t.amount.toFixed(2)}
                     </div>
                   </div>
-
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(t.id)}
-                    className="p-1.5 rounded-lg text-slate-300 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950 transition opacity-0 group-hover:opacity-100"
-                    title="删除记录"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-slate-500 transition" />
                 </div>
               </div>
             ))
           )}
         </div>
       </div>
+
+      {/* Transaction Edit & Detail Modal */}
+      <TransactionEditModal
+        isOpen={!!editingTx}
+        transaction={editingTx}
+        accounts={accounts}
+        categories={categories}
+        onClose={() => setEditingTx(null)}
+        onSuccess={() => {
+          onRefresh();
+          setEditingTx(null);
+        }}
+      />
     </div>
   );
 };
