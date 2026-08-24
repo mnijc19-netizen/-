@@ -32,11 +32,11 @@ export const Navbar: React.FC<NavbarProps> = ({
     <header className="sticky top-0 z-40 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800/80 px-4 py-2.5 flex items-center justify-between max-w-lg mx-auto w-full pt-[calc(0.5rem+env(safe-area-inset-top))]">
       {/* Brand & Net Worth Pill */}
       <div className="flex items-center gap-2.5">
-        <div className="w-9 h-9 rounded-xl overflow-hidden shadow-md shadow-amber-500/10 border border-slate-700/50 flex-shrink-0 bg-slate-950 flex items-center justify-center">
+        <div className="w-9 h-9 rounded-xl overflow-hidden shadow-md shadow-amber-500/10 border border-slate-700/50 flex-shrink-0 bg-slate-950 flex items-center justify-center p-1">
           <img 
-            src="./logo.png" 
+            src="./logo-transparent.png" 
             alt="斌斌账本" 
-            className="w-full h-full object-cover scale-110" 
+            className="w-full h-full object-contain" 
           />
         </div>
         <div>
