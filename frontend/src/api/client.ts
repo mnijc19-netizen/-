@@ -14,6 +14,7 @@ import {
 } from '../types';
 import { localStore } from '../services/localStore';
 import { parseSmsOrTextInBrowser } from '../services/smsParser';
+import { parseWithAi } from '../services/aiParser';
 import { getBeijingDateTimeString } from '../utils/dateUtils';
 
 const API_BASE = '/api';
@@ -547,6 +548,14 @@ export const api = {
   },
   parseText: async (text: string): Promise<ParsedTransactionResult> => {
     const accs = localStore.getAccounts();
+    // 1. Check AI Parser first (if enabled in Lab)
+    try {
+      const aiResult = await parseWithAi(text, accs);
+      if (aiResult && aiResult.success && (aiResult.amount ?? 0) > 0) {
+        return aiResult;
+      }
+    } catch {}
+    // 2. Fallback to native bulletproof rule engine
     return parseSmsOrTextInBrowser(text, accs);
   },
   importCsv: async (channel: 'wechat' | 'alipay', accountId: string, file: File) => {

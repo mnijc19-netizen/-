@@ -12,6 +12,22 @@ import {
   RecurringRule 
 } from '../types';
 
+export interface AiConfig {
+  enabled: boolean;
+  provider: string;
+  apiKey: string;
+  baseUrl: string;
+  model: string;
+}
+
+export const DEFAULT_AI_CONFIG: AiConfig = {
+  enabled: false,
+  provider: 'deepseek',
+  apiKey: '',
+  baseUrl: 'https://api.deepseek.com/v1',
+  model: 'deepseek-chat'
+};
+
 const STORAGE_KEYS = {
   ACCOUNTS: 'smartwealth_accounts_v2',
   TRANSACTIONS: 'smartwealth_transactions_v2',
@@ -21,7 +37,8 @@ const STORAGE_KEYS = {
   DEBTS: 'smartwealth_debts_v2',
   GOALS: 'smartwealth_goals_v2',
   SNAPSHOTS: 'smartwealth_snapshots_v2',
-  RECURRING: 'smartwealth_recurring_v2'
+  RECURRING: 'smartwealth_recurring_v2',
+  AI_CONFIG: 'smartwealth_ai_config_v1'
 };
 
 const DEFAULT_CATEGORIES: Category[] = [
@@ -86,6 +103,9 @@ export const localStore = {
 
   getGoals: (): Goal[] => getJson(STORAGE_KEYS.GOALS, []),
   saveGoals: (g: Goal[]) => setJson(STORAGE_KEYS.GOALS, g),
+
+  getAiConfig: (): AiConfig => getJson(STORAGE_KEYS.AI_CONFIG, DEFAULT_AI_CONFIG),
+  saveAiConfig: (cfg: AiConfig) => setJson(STORAGE_KEYS.AI_CONFIG, cfg),
 
   clearAllData: () => {
     localStorage.removeItem(STORAGE_KEYS.ACCOUNTS);
