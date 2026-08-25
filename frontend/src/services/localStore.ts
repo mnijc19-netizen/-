@@ -154,6 +154,12 @@ export const localStore = {
     const catMap: Record<string, number> = {};
 
     txs.forEach(t => {
+      // Exclude balance adjustments / calibration records from living consumption
+      const isAdjustment = t.category_name === '余额校准' || 
+                           (t.merchant && t.merchant.includes('余额校准')) || 
+                           (t.note && t.note.includes('余额校准'));
+      if (isAdjustment) return;
+
       if (t.type === 'income') monthInc += t.amount;
       if (t.type === 'expense') {
         monthExp += t.amount;

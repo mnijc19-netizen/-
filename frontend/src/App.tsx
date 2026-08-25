@@ -303,6 +303,9 @@ export function App() {
                   analytics={analytics}
                   accounts={accounts}
                   transactions={transactions}
+                  budgets={budgets}
+                  goals={goals}
+                  onRefresh={loadAllData}
                   onOpenSmartParser={() => setSmartParserOpen(true)}
                   onOpenQuickTx={() => setQuickTxOpen(true)}
                   onOpenSnapshot={() => setSnapshotOpen(true)}
@@ -390,6 +393,7 @@ export function App() {
                   onRefresh={loadAllData}
                   liquidGlass={liquidGlass}
                   onToggleLiquidGlass={(val) => setLiquidGlass(val)}
+                  onNavigate={(val) => setCurrentPage(val as any)}
                 />
               )}
             </>

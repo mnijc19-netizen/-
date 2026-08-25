@@ -23,7 +23,12 @@ import {
   Check,
   Cpu,
   ChevronRight,
-  Layers
+  Layers,
+  PieChart,
+  Target,
+  CreditCard,
+  TrendingUp,
+  BarChart3
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { api } from '../api/client';
@@ -38,6 +43,7 @@ interface SettingsPageProps {
   onRefresh: () => void;
   liquidGlass?: boolean;
   onToggleLiquidGlass?: (val: boolean) => void;
+  onNavigate?: (page: string) => void;
 }
 
 export const SettingsPage: React.FC<SettingsPageProps> = ({ 
@@ -45,7 +51,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   categories, 
   onRefresh,
   liquidGlass = false,
-  onToggleLiquidGlass
+  onToggleLiquidGlass,
+  onNavigate
 }) => {
   const [recurringRules, setRecurringRules] = useState<RecurringRule[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
@@ -312,6 +319,90 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
           />
           <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-cyan-600"></div>
         </label>
+      </div>
+
+      {/* 📱 Full System Modules Navigation Hub (快捷直达全部功能模块) */}
+      <div className="p-4 sm:p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+            📱 财务系统功能快捷入口
+          </h3>
+          <span className="text-[10px] text-slate-400">点击直达对应模块</span>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+          <button
+            type="button"
+            onClick={() => onNavigate?.('budgets')}
+            className="p-3 rounded-2xl bg-blue-50/60 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900/40 text-left hover:border-blue-400 active:scale-95 transition space-y-1 group"
+          >
+            <div className="w-8 h-8 rounded-xl bg-blue-500/15 text-blue-600 dark:text-blue-400 flex items-center justify-center group-hover:scale-105 transition">
+              <PieChart className="w-4 h-4" />
+            </div>
+            <div className="text-xs font-bold text-slate-900 dark:text-white">📊 月度预算</div>
+            <div className="text-[10px] text-slate-400">餐饮/日常限额预警</div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onNavigate?.('goals')}
+            className="p-3 rounded-2xl bg-purple-50/60 dark:bg-purple-950/30 border border-purple-100 dark:border-purple-900/40 text-left hover:border-purple-400 active:scale-95 transition space-y-1 group"
+          >
+            <div className="w-8 h-8 rounded-xl bg-purple-500/15 text-purple-600 dark:text-purple-400 flex items-center justify-center group-hover:scale-105 transition">
+              <Target className="w-4 h-4" />
+            </div>
+            <div className="text-xs font-bold text-slate-900 dark:text-white">🎯 存钱目标</div>
+            <div className="text-[10px] text-slate-400">心愿单与备用金计划</div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onNavigate?.('analytics')}
+            className="p-3 rounded-2xl bg-teal-50/60 dark:bg-teal-950/30 border border-teal-100 dark:border-teal-900/40 text-left hover:border-teal-400 active:scale-95 transition space-y-1 group"
+          >
+            <div className="w-8 h-8 rounded-xl bg-teal-500/15 text-teal-600 dark:text-teal-400 flex items-center justify-center group-hover:scale-105 transition">
+              <BarChart3 className="w-4 h-4" />
+            </div>
+            <div className="text-xs font-bold text-slate-900 dark:text-white">📈 财务图表</div>
+            <div className="text-[10px] text-slate-400">桑基流向与收支透视</div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onNavigate?.('debts')}
+            className="p-3 rounded-2xl bg-rose-50/60 dark:bg-rose-950/30 border border-rose-100 dark:border-rose-900/40 text-left hover:border-rose-400 active:scale-95 transition space-y-1 group"
+          >
+            <div className="w-8 h-8 rounded-xl bg-rose-500/15 text-rose-600 dark:text-rose-400 flex items-center justify-center group-hover:scale-105 transition">
+              <CreditCard className="w-4 h-4" />
+            </div>
+            <div className="text-xs font-bold text-slate-900 dark:text-white">💳 负债与还款</div>
+            <div className="text-[10px] text-slate-400">雪球/雪崩还债规划</div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onNavigate?.('investments')}
+            className="p-3 rounded-2xl bg-amber-50/60 dark:bg-amber-950/30 border border-amber-100 dark:border-amber-900/40 text-left hover:border-amber-400 active:scale-95 transition space-y-1 group"
+          >
+            <div className="w-8 h-8 rounded-xl bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center group-hover:scale-105 transition">
+              <TrendingUp className="w-4 h-4" />
+            </div>
+            <div className="text-xs font-bold text-slate-900 dark:text-white">💰 投资持仓</div>
+            <div className="text-[10px] text-slate-400">股票基金浮动盈亏</div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onNavigate?.('parser')}
+            className="p-3 rounded-2xl bg-indigo-50/60 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/40 text-left hover:border-indigo-400 active:scale-95 transition space-y-1 group"
+          >
+            <div className="w-8 h-8 rounded-xl bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 flex items-center justify-center group-hover:scale-105 transition">
+              <Bot className="w-4 h-4" />
+            </div>
+            <div className="text-xs font-bold text-slate-900 dark:text-white">🤖 智能识别</div>
+            <div className="text-[10px] text-slate-400">文本与短信自动解析</div>
+          </button>
+        </div>
       </div>
 
       {/* AI Settings Modal Popup */}

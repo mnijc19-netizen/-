@@ -109,15 +109,20 @@ export const TransactionsPage: React.FC<TransactionsPageProps> = ({
     });
   }, [transactions, dateBounds, selectedType, selectedAccount, selectedCategory, keyword]);
 
-  // Totals and category breakdown for the selected period
-  const totalExpense = useMemo(() => filtered.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0), [filtered]);
-  const totalIncome = useMemo(() => filtered.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0), [filtered]);
+  // Totals and category breakdown for the selected period (Excluding non-consumption balance adjustments)
+  const isAdj = (t: Transaction) => t.category_name === '余额校准' || (t.merchant && t.merchant.includes('余额校准')) || (t.note && t.note.includes('余额校准'));
+  
+  const livingExpenseTxs = useMemo(() => filtered.filter(t => t.type === 'expense' && !isAdj(t)), [filtered]);
+  const livingIncomeTxs = useMemo(() => filtered.filter(t => t.type === 'income' && !isAdj(t)), [filtered]);
+  
+  const totalExpense = useMemo(() => livingExpenseTxs.reduce((s, t) => s + t.amount, 0), [livingExpenseTxs]);
+  const totalIncome = useMemo(() => livingIncomeTxs.reduce((s, t) => s + t.amount, 0), [livingIncomeTxs]);
   const netBalance = totalIncome - totalExpense;
 
   const categoryBreakdown = useMemo(() => {
     const map: Record<string, number> = {};
-    filtered.filter(t => t.type === 'expense').forEach(t => {
-      const cat = t.category_name || '未分类';
+    livingExpenseTxs.forEach(t => {
+      const cat = t.category_name || '日常消费';
       map[cat] = (map[cat] || 0) + t.amount;
     });
     return Object.entries(map)
@@ -127,7 +132,7 @@ export const TransactionsPage: React.FC<TransactionsPageProps> = ({
         pct: totalExpense > 0 ? (amount / totalExpense) * 100 : 0
       }))
       .sort((a, b) => b.amount - a.amount);
-  }, [filtered, totalExpense]);
+  }, [livingExpenseTxs, totalExpense]);
 
   const handleExportCSV = () => {
     if (filtered.length === 0) {
