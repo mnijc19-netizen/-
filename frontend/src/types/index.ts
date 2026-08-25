@@ -231,6 +231,7 @@ export interface AgentChatMessage {
   id: string;
   role: 'user' | 'assistant' | 'system';
   content: string;
+  reasoning?: string;
   imageUrl?: string;
   imageUrls?: string[];
   timestamp: string;
@@ -247,6 +248,7 @@ export interface AgentChatMessage {
 
 export interface AgentResponse {
   reply: string;
+  reasoning?: string;
   action: {
     type: string;
     payload?: any;

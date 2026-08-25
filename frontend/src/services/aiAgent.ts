@@ -11,108 +11,258 @@ import {
   AgentResponse 
 } from '../types';
 import { localStore, getModelMaxTokens } from './localStore';
-import { api } from '../api/client';
 import { getBeijingDateTimeString, getBeijingDateString } from '../utils/dateUtils';
 import { optimizeImagesBatch } from './imageOptimizer';
 
 /**
- * Sanitizes raw string by escaping unescaped literal newlines inside JSON strings
+ * Official Function Calling Tools Schema for Financial System Integration
  */
-function sanitizeJsonString(str: string): string {
-  // Replace literal unescaped control characters within quotes
-  return str.replace(/"((?:\\.|[^"\\])*)"/gs, (_, inner) => {
-    const fixed = inner
-      .replace(/\n/g, '\\n')
-      .replace(/\r/g, '\\r')
-      .replace(/\t/g, '\\t');
-    return `"${fixed}"`;
-  });
-}
-
-/**
- * Extracts a JSON object safely from an LLM response, resilient to unescaped newlines
- */
-function extractJsonFromResponse(raw: string): any | null {
-  if (!raw || !raw.trim()) return null;
-
-  let text = raw.trim();
-
-  // Strip markdown code block wrappers ```json ... ```
-  const codeBlockMatch = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
-  if (codeBlockMatch && codeBlockMatch[1]) {
-    text = codeBlockMatch[1].trim();
-  } else {
-    const firstBrace = text.indexOf('{');
-    const lastBrace = text.lastIndexOf('}');
-    if (firstBrace !== -1 && lastBrace > firstBrace) {
-      text = text.substring(firstBrace, lastBrace + 1);
-    }
-  }
-
-  // 1. Direct standard parse
-  try {
-    return JSON.parse(text);
-  } catch {}
-
-  // 2. Parse with unescaped newline sanitation
-  try {
-    const sanitized = sanitizeJsonString(text);
-    return JSON.parse(sanitized);
-  } catch {}
-
-  // 3. Fallback: Structural regex extraction for reply & action
-  try {
-    let reply = '';
-    let action: any = { type: 'none' };
-
-    // Extract "reply": "..."
-    const replyMatch = text.match(/"reply"\s*:\s*"([\s\S]*?)(?:"\s*,\s*"action"|"\s*\})/i);
-    if (replyMatch && replyMatch[1]) {
-      reply = replyMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"');
-    }
-
-    // Extract "action": { ... }
-    const actionIndex = text.indexOf('"action"');
-    if (actionIndex !== -1) {
-      const actionSub = text.substring(actionIndex);
-      const firstActionBrace = actionSub.indexOf('{');
-      if (firstActionBrace !== -1) {
-        let depth = 0;
-        let lastActionBrace = -1;
-        for (let i = firstActionBrace; i < actionSub.length; i++) {
-          if (actionSub[i] === '{') depth++;
-          else if (actionSub[i] === '}') {
-            depth--;
-            if (depth === 0) {
-              lastActionBrace = i;
-              break;
-            }
-          }
-        }
-        if (lastActionBrace !== -1) {
-          const actionJsonStr = actionSub.substring(firstActionBrace, lastActionBrace + 1);
-          try {
-            action = JSON.parse(actionJsonStr);
-          } catch {
-            action = JSON.parse(sanitizeJsonString(actionJsonStr));
-          }
-        }
+export const FINANCIAL_AGENT_TOOLS: any[] = [
+  {
+    type: 'function',
+    function: {
+      name: 'create_transaction',
+      description: '记录单笔真实收支流水、转账或还款',
+      parameters: {
+        type: 'object',
+        properties: {
+          amount: { type: 'number', description: '扣款/收入实际金额（纯数字）' },
+          merchant: { type: 'string', description: '具体商户名或消费对象（如 麦当劳、喜茶、中国电信）' },
+          category: { type: 'string', description: '消费分类，如 餐饮美食、日用百货、交通出行、生活服务等' },
+          type: { type: 'string', enum: ['expense', 'income', 'transfer', 'repayment'], description: '交易类型' },
+          channel: { type: 'string', description: '支付渠道，如 微信支付、支付宝、招商银行、花呗' },
+          date: { type: 'string', description: '日期时间 YYYY-MM-DD HH:mm，如未提及则留空' },
+          note: { type: 'string', description: '简要备注' }
+        },
+        required: ['amount', 'merchant', 'category']
       }
     }
-
-    if (reply || (action && action.type && action.type !== 'none')) {
-      return { reply: reply || '已为您分析完成', action };
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'batch_create_transactions',
+      description: '一句话或多图解析出多笔收支流水时，批量记录多笔交易',
+      parameters: {
+        type: 'object',
+        properties: {
+          items: {
+            type: 'array',
+            description: '多笔交易明细列表',
+            items: {
+              type: 'object',
+              properties: {
+                amount: { type: 'number', description: '交易金额' },
+                merchant: { type: 'string', description: '商户名称' },
+                category: { type: 'string', description: '分类' },
+                type: { type: 'string', enum: ['expense', 'income', 'transfer', 'repayment'] },
+                channel: { type: 'string', description: '支付渠道' },
+                note: { type: 'string', description: '备注' }
+              },
+              required: ['amount', 'merchant', 'category']
+            }
+          }
+        },
+        required: ['items']
+      }
     }
-  } catch {}
-
-  return null;
-}
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'create_account',
+      description: '开立单项资产账户或负债账户（如 微信零钱、支付宝总资产、招商银行储蓄卡、京东白条、美团月付、蚂蚁花呗等）',
+      parameters: {
+        type: 'object',
+        properties: {
+          platform: { type: 'string', description: '平台或银行名称，如 京东白条、美团月付、微信零钱、支付宝-总资产' },
+          balance: { type: 'number', description: '核心金额、可用余额或待还金额' },
+          account_type: { 
+            type: 'string', 
+            enum: ['wallet', 'bank', 'investment', 'baitiao', 'meituan_pay', 'huabei', 'jiebei', 'douyin_pay', 'fenfu', 'credit', 'loan', 'cash'],
+            description: '账户类型代码'
+          },
+          currency: { type: 'string', description: '币种，默认 CNY' },
+          bank_name: { type: 'string', description: '银行名称（如有）' },
+          card_last4: { type: 'string', description: '银行卡号后4位（如有）' },
+          note: { type: 'string', description: '开账备注' }
+        },
+        required: ['platform', 'balance', 'account_type']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'batch_create_accounts',
+      description: '从上传的 1 张或多张截图识别出的多个平台资产或信贷待还中，批量开立多个账户',
+      parameters: {
+        type: 'object',
+        properties: {
+          accounts: {
+            type: 'array',
+            description: '多个待开立的账户列表',
+            items: {
+              type: 'object',
+              properties: {
+                platform: { type: 'string', description: '平台名称，如 京东白条、美团月付、微信零钱、支付宝-总资产、华泰证券' },
+                balance: { type: 'number', description: '核心金额或待还金额' },
+                account_type: { 
+                  type: 'string', 
+                  enum: ['wallet', 'bank', 'investment', 'baitiao', 'meituan_pay', 'huabei', 'jiebei', 'douyin_pay', 'fenfu', 'credit', 'loan', 'cash'],
+                  description: '类别代码'
+                },
+                bank_name: { type: 'string', description: '银行机构' },
+                card_last4: { type: 'string', description: '卡号尾号' },
+                note: { type: 'string', description: '识别说明' }
+              },
+              required: ['platform', 'balance', 'account_type']
+            }
+          }
+        },
+        required: ['accounts']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'update_balance',
+      description: '对已有账户进行快速对账调额或校准余额',
+      parameters: {
+        type: 'object',
+        properties: {
+          platform: { type: 'string', description: '账户名称或平台名称' },
+          balance: { type: 'number', description: '最新校准后的总余额' },
+          account_type: { type: 'string', description: '账户类型' }
+        },
+        required: ['platform', 'balance']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'create_investment',
+      description: '录入证券持仓或基金投资（如 纳指ETF、沪深300、招商银行股票）',
+      parameters: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: '证券或基金名称' },
+          code: { type: 'string', description: '代码，如 159941 或 510300' },
+          shares: { type: 'number', description: '持仓份额/股数' },
+          cost_price: { type: 'number', description: '成本价/买入均价' },
+          account_name: { type: 'string', description: '所属券商或平台，如 华泰证券、天天基金' }
+        },
+        required: ['name', 'shares', 'cost_price']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'create_debt',
+      description: '录入借贷或分期负债',
+      parameters: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: '负债名称，如 房贷、车贷、个人借款' },
+          total_principal: { type: 'number', description: '借款总本金' },
+          monthly_payment: { type: 'number', description: '每月月供金额' },
+          type: { type: 'string', enum: ['mortgage', 'car_loan', 'personal_loan', 'credit_card_stage', 'other'], description: '负债类别' }
+        },
+        required: ['name', 'total_principal']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'set_budget',
+      description: '设置或修改某个消费类别的月度预算',
+      parameters: {
+        type: 'object',
+        properties: {
+          category_name: { type: 'string', description: '类别名称，如 餐饮美食、日用百货、住房物业' },
+          amount: { type: 'number', description: '预算额度金额（元）' }
+        },
+        required: ['category_name', 'amount']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'create_goal',
+      description: '创建存钱心愿目标或储蓄计划',
+      parameters: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: '心愿目标名称，如 买新手机、年度旅游、应急储备金' },
+          target_amount: { type: 'number', description: '目标总金额' },
+          current_amount: { type: 'number', description: '初始已存金额，默认 0' }
+        },
+        required: ['name', 'target_amount']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'create_recurring_rule',
+      description: '创建周期性固定收支规则（如 每月10号自动记房租2800、每月15号发工资）',
+      parameters: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: '规则名称，如 房租、宽带费、健身房月卡' },
+          amount: { type: 'number', description: '每期固定金额' },
+          type: { type: 'string', enum: ['expense', 'income'], description: '类型: expense(扣款支出) / income(收入)' },
+          day_of_period: { type: 'number', description: '每月固定执行的日期 (1-31)' }
+        },
+        required: ['name', 'amount', 'type', 'day_of_period']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'navigate_to',
+      description: '页面导航跳转',
+      parameters: {
+        type: 'object',
+        properties: {
+          page: { type: 'string', enum: ['dashboard', 'accounts', 'transactions', 'budgets', 'goals', 'analytics', 'investments', 'debts', 'settings'], description: '目标页面路由' }
+        },
+        required: ['page']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'export_data',
+      description: '导出全量财务账本数据备份文件',
+      parameters: {
+        type: 'object',
+        properties: {}
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'refresh_investments',
+      description: '刷新股票与基金实时行情行情市值',
+      parameters: {
+        type: 'object',
+        properties: {}
+      }
+    }
+  }
+];
 
 /**
- * Executes a conversation turn with the financial AI Copilot Agent (Full-Spectrum System Controller)
- */
-/**
- * Executes a conversation turn with the financial AI Copilot Agent with ultra-fast SSE Streaming support
+ * Executes a conversation turn with the financial AI Copilot Agent with Native Function Calling & SSE Streaming
  */
 export async function sendAgentMessage(
   userMessage: string,
@@ -126,14 +276,14 @@ export async function sendAgentMessage(
   recurringRules: RecurringRule[] = [],
   investments: Investment[] = [],
   debts: Debt[] = [],
-  onStreamChunk?: (streamedReply: string) => void
+  onStreamChunk?: (streamedReply: string, streamedReasoning?: string) => void
 ): Promise<AgentResponse> {
   const config = localStore.getAiConfig();
   if (!config.apiKey || !config.apiKey.trim()) {
-    throw new Error('请先在【设置 -> AI 智能模型与大脑】中配置并启用 API Key');
+    throw new Error('请先在设置中配置并保存 API Key');
   }
 
-  // Normalize images to string[] and compress them in parallel for 10x-20x speedup
+  // Normalize images to string[] and compress them in parallel
   let rawImages: string[] = [];
   if (typeof imagesInput === 'string' && imagesInput.trim()) {
     rawImages.push(imagesInput);
@@ -141,10 +291,10 @@ export async function sendAgentMessage(
     rawImages.push(...imagesInput.filter(Boolean));
   }
 
-  // Pre-optimize image payloads: 1280px crisp JPEG (shrinks 10MB to 150KB)
+  // Pre-optimize image payloads: 1800px crystal clear JPEG
   const imagesBase64 = rawImages.length > 0 ? await optimizeImagesBatch(rawImages) : [];
 
-  // 1. Build live financial summary context (compact & high-density for faster LLM inference)
+  // 1. Build live financial summary context (high-density factual state)
   const now = new Date();
   const currentMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   
@@ -172,24 +322,21 @@ export async function sendAgentMessage(
   const investmentsSummary = investments.map(i => `${i.name}(代码:${i.code},持仓:${i.shares}份,市值:¥${i.market_value.toFixed(2)})`).join('，') || '暂无';
   const debtsSummary = debts.map(d => `${d.name}(待还:¥${d.remaining_principal},月供:¥${d.monthly_payment})`).join('，') || '暂无';
 
-  const currentModelName = config.model || 'GLM-4.6V';
-  const currentProviderName = config.provider === 'deepseek' ? 'DeepSeek' : config.provider?.includes('zhipu') ? '智谱 BigModel' : 'AI 大模型';
+  const systemPrompt = `你是一个顶级专业、超高精度视觉识别与真实账本操控能力的 AI 财务全能管家（斌斌财务 AI）。
+你拥有强大的工具函数库（Function Calling Tools）。当用户的意图涉及记账、开户、调额、预算、目标、负债、股票基金或页面跳转时，**请直接调用对应的工具函数**，并用亲切、专业、自然的中文向用户说明操作结果。如果是日常问答或财务咨询，直接用中文回复即可。
 
-  const systemPrompt = `你是一个顶级专业、超快响应、具备超高精度视觉识别与真实账本操控能力的 AI 财务全能管家（斌斌财务 AI）。
-【当前底层模型】:【${currentModelName}】（由 ${currentProviderName} 提供服务）。
-
-【平台与账户识别铁律】：
-1. 京东白条 (baitiao): 包含“全部待还账单”、“全部待还 (元)”、“提前结清”、“已出账”、“京东金融” ➔ 平台名「京东白条」，类别【baitiao】(消费信贷负债，金额提取待还总金额)；
-2. 蚂蚁花呗 (huabei): 包含“花呗”、“花呗分期”、“花呗账单” ➔ 平台名「蚂蚁花呗」，类别【huabei】；
-3. 蚂蚁借呗 (jiebei): 包含“借呗”、“网商贷”、“待还本金” ➔ 平台名「蚂蚁借呗」，类别【jiebei】；
-4. 美团月付 (meituan_pay): 包含“美团月付”、“月付额度”、“本月待还” ➔ 平台名「美团月付」，类别【meituan_pay】；
-5. 抖音月付 (douyin_pay): 包含“抖音月付”、“抖音支付”、“本月应还” ➔ 平台名「抖音月付」，类别【douyin_pay】；
-6. 微信分付/微粒贷 (fenfu): 包含“分付”、“微信分付”、“微粒贷” ➔ 类别【fenfu】；
-7. 银行信用卡 (credit): 包含各银行“信用卡”、“本期应还” ➔ 类别【credit】；
-8. 支付宝 (wallet): 平台「支付宝/余额宝」或「支付宝-总资产」；
-9. 微信支付 (wallet): 平台「微信零钱」或「微信支付」；
-10. 证券/基金 (investment): 包含“华泰证券/涨乐财富通/天天基金/股票ETF持仓” ➔ 类别【investment】；
-11. 银行储蓄账户 (bank): 类别【bank】。
+【平台与账户识别规范】：
+1. 京东白条 (baitiao): 包含“全部待还账单”、“全部待还 (元)”、“提前结清”、“已出账”、“京东金融” ➔ platform="京东白条", account_type="baitiao";
+2. 蚂蚁花呗 (huabei): 包含“花呗”、“花呗分期”、“花呗账单” ➔ platform="蚂蚁花呗", account_type="huabei";
+3. 蚂蚁借呗 (jiebei): 包含“借呗”、“网商贷”、“待还本金” ➔ platform="蚂蚁借呗", account_type="jiebei";
+4. 美团月付 (meituan_pay): 包含“美团月付”、“月付额度”、“本月待还” ➔ platform="美团月付", account_type="meituan_pay";
+5. 抖音月付 (douyin_pay): 包含“抖音月付”、“抖音支付”、“本月应还” ➔ platform="抖音月付", account_type="douyin_pay";
+6. 微信分付/微粒贷 (fenfu): 包含“分付”、“微信分付”、“微粒贷” ➔ account_type="fenfu";
+7. 银行信用卡 (credit): 包含各银行“信用卡”、“本期应还” ➔ account_type="credit";
+8. 支付宝 (wallet): 平台「支付宝/余额宝」或「支付宝-总资产」;
+9. 微信支付 (wallet): 平台「微信零钱」或「微信支付」;
+10. 证券/基金 (investment): 包含“华泰证券/天天基金/股票ETF持仓” ➔ account_type="investment";
+11. 银行储蓄账户 (bank): account_type="bank"。
 
 当前用户真实财务态势：
 【资产】:¥${totalAssets.toFixed(2)}，【负债】:¥${totalLiabilities.toFixed(2)}，【净资产】:¥${netWorth.toFixed(2)}
@@ -199,37 +346,11 @@ export async function sendAgentMessage(
 【本月收支(${currentMonthStr})】: 收¥${monthIncome.toFixed(2)}，支¥${monthExpense.toFixed(2)}，结余¥${(monthIncome - monthExpense).toFixed(2)}
 【本月分类支出】: ${catSummary}
 【预算】: ${budgetsSummary}，【目标】: ${goalsSummary}，【周期规则】: ${recurringSummary}
-【最近流水】: ${recentRecentTxs || '暂无'}
-
-【用户指令落地 Action 规范】：
-1. 📸 识图/批量开账/负债入账：
-   - 多平台开账: action="batch_create_accounts", payload={ updates: [ { platform: "美团月付", balance: 289.40, account_type: "meituan_pay" }, ... ] }
-   - 单平台开账: action="create_account", payload={ name: "美团月付", type: "meituan_pay", balance: 289.40, currency: "CNY" }
-   - 调额对账: action="update_balance", payload={ platform: "微信零钱", balance: 1000.00, account_type: "wallet" }
-2. 📈 证券与基金持仓：
-   - action="create_investment", payload={ name: "纳指ETF", code: "159941", shares: 800, cost_price: 1.58, account_name: "华泰证券" }
-3. 💳 负债借贷: action="create_debt", payload={ name: "房贷", total_principal: 100000, monthly_payment: 2000, type: "mortgage" }
-4. 记账: action="create_transaction", payload={ amount: 20, merchant: "瑞幸咖啡", category: "餐饮美食", type: "expense", channel: "微信支付" }
-5. 转账: action="transfer_funds", payload={ from_account: "银行卡", to_account: "微信零钱", amount: 1000 }
-6. 预算: action="set_budget", payload={ category_name: "餐饮美食", amount: 1500 }
-7. 目标: action="create_goal", payload={ name: "买手机", target_amount: 6000 }
-8. 周期: action="create_recurring_rule", payload={ name: "房租", amount: 2800, type: "expense", day_of_period: 10 }
-9. 导航: action="navigate_to", payload={ page: "accounts|transactions|analytics|investments|debts" }
-10. 纯聊天/问答/无修改指令: action={ type: "none" }
-
-【输出格式铁律】：
-直接输出标准的 JSON 对象（禁止用任何 markdown 代码块包裹）：
-{
-  "reply": "你对用户的专业、亲切、准确的中文回复",
-  "action": {
-    "type": "create_account | batch_create_accounts | update_balance | batch_update_balances | create_investment | batch_create_investments | refresh_investments | create_debt | create_transaction | batch_create_transactions | transfer_funds | set_budget | create_goal | create_recurring_rule | navigate_to | export_data | none",
-    "payload": { ... }
-  }
-}`;
+【最近流水】: ${recentRecentTxs || '暂无'}`;
 
   const isVisionModel = /4v|4\.6v|vl|vision|4o|gemini/i.test(config.model || '') || 
-                        config.provider?.includes('vision') || 
-                        config.provider === 'zhipu-4.6v';
+                        config.model === 'glm-4.6v' || 
+                        config.model === 'glm-4v-flash';
 
   // Build user message content
   let userContent: any = userMessage || '请帮我分析处理上传的图片';
@@ -240,8 +361,8 @@ export async function sendAgentMessage(
         { 
           type: 'text', 
           text: userMessage 
-            ? `${userMessage}\n(共上传了 ${imagesBase64.length} 张图片，请逐一识别分析每张图片中的平台、总资产/余额、月付欠款或消费明细，并按指令输出账本动作)` 
-            : `请识别分析我上传的 ${imagesBase64.length} 张图片。提取平台名与金额并批量开账/对账；若是消费账单请提取商户与支出金额。` 
+            ? `${userMessage}\n(共上传了 ${imagesBase64.length} 张图片，请逐一识别分析每张图片中的平台、总资产/余额、月付欠款或消费明细，并调用对应开账或记账工具)` 
+            : `请识别分析我上传的 ${imagesBase64.length} 张图片。提取平台名与金额并调用批量开账/对账工具；若是消费账单请调用记账工具。` 
         }
       ];
 
@@ -274,7 +395,7 @@ export async function sendAgentMessage(
     }
   }
 
-  // 2. Format history (keep last 8 turns to minimize token latency)
+  // 2. Format history (keep last 8 turns)
   const apiMessages: any[] = [
     { role: 'system', content: systemPrompt }
   ];
@@ -291,20 +412,32 @@ export async function sendAgentMessage(
     content: userContent
   });
 
-  // 3. Dispatch REST API call with Streaming Support
+  // 3. Dispatch REST API call with Function Calling & Streaming Support
   let baseUrl = (config.baseUrl || 'https://open.bigmodel.cn/api/paas/v4').replace(/\/+$/, '');
   const url = `${baseUrl}/chat/completions`;
 
-  // For pure text chat with Zhipu, if selected model is 4.6v, we can use 4.6v or fast model
   const activeModel = config.model || 'glm-4.6v';
   const modelMaxTokens = getModelMaxTokens(activeModel);
+
+  // Prepare Tools Array (including web_search for Zhipu models)
+  const toolsList: any[] = [...FINANCIAL_AGENT_TOOLS];
+  if (config.provider === 'zhipu' || config.provider.startsWith('zhipu')) {
+    toolsList.push({
+      type: 'web_search',
+      web_search: {
+        enable: true,
+        search_result: true
+      }
+    });
+  }
 
   const reqBody: any = {
     model: activeModel,
     messages: apiMessages,
+    tools: toolsList,
     temperature: 0.1,
-    max_tokens: modelMaxTokens, // Dynamically adapted to model limit (e.g. 1024 for 4v-flash, 8192 for 4.6v)
-    stream: true // Enable SSE streaming for instant TTFT response
+    max_tokens: modelMaxTokens,
+    stream: true
   };
 
   try {
@@ -328,9 +461,9 @@ export async function sendAgentMessage(
     }
 
     // Process SSE Stream
-    let rawAccumulated = '';
-    let rawReasoning = '';
-    let lastReportedReply = '';
+    let rawAccumulatedContent = '';
+    let rawAccumulatedReasoning = '';
+    const accumulatedToolCalls: Record<number, { id: string; name: string; arguments: string }> = {};
 
     if (response.body) {
       const reader = response.body.getReader();
@@ -354,60 +487,78 @@ export async function sendAgentMessage(
           try {
             const dataJson = JSON.parse(dataStr);
             const deltaObj = dataJson.choices?.[0]?.delta || {};
-            const delta = deltaObj.content || '';
-            const reasoningDelta = deltaObj.reasoning_content || '';
+            const deltaContent = deltaObj.content || '';
+            const deltaReasoning = deltaObj.reasoning_content || '';
+            const deltaToolCalls = deltaObj.tool_calls || [];
 
-            // Handle live reasoning preview for deep thinking models (e.g. GLM-4.6V)
-            if (reasoningDelta) {
-              rawReasoning += reasoningDelta;
-              if (onStreamChunk && !rawAccumulated) {
-                onStreamChunk('🧠 正在深度思考分析账本...\n' + rawReasoning.slice(-150));
-              }
+            // Handle live reasoning preview
+            if (deltaReasoning) {
+              rawAccumulatedReasoning += deltaReasoning;
+              onStreamChunk?.(rawAccumulatedContent, rawAccumulatedReasoning);
             }
 
-            // Handle actual content tokens
-            if (delta) {
-              rawAccumulated += delta;
+            // Handle live conversational content
+            if (deltaContent) {
+              rawAccumulatedContent += deltaContent;
+              onStreamChunk?.(rawAccumulatedContent, rawAccumulatedReasoning);
+            }
 
-              // Dynamically extract live reply preview for typewriter effect
-              if (onStreamChunk) {
-                const replyMatch = rawAccumulated.match(/"reply"\s*:\s*"([^"]*)/);
-                if (replyMatch && replyMatch[1]) {
-                  const currentClean = replyMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"');
-                  if (currentClean !== lastReportedReply) {
-                    lastReportedReply = currentClean;
-                    onStreamChunk(currentClean);
-                  }
-                } else if (!rawAccumulated.startsWith('{')) {
-                  onStreamChunk(rawAccumulated);
+            // Aggregate streamed tool call parameters
+            if (deltaToolCalls.length > 0) {
+              for (const tc of deltaToolCalls) {
+                const idx = tc.index ?? 0;
+                if (!accumulatedToolCalls[idx]) {
+                  accumulatedToolCalls[idx] = { id: tc.id || '', name: '', arguments: '' };
                 }
+                if (tc.id) accumulatedToolCalls[idx].id = tc.id;
+                if (tc.function?.name) accumulatedToolCalls[idx].name += tc.function.name;
+                if (tc.function?.arguments) accumulatedToolCalls[idx].arguments += tc.function.arguments;
               }
             }
           } catch {}
         }
       }
     } else {
-      // Fallback if ReadableStream is unavailable
+      // Non-streaming fallback
       const data = await response.json();
-      rawAccumulated = data.choices?.[0]?.message?.content || data.choices?.[0]?.message?.reasoning_content || '';
+      const msg = data.choices?.[0]?.message || {};
+      rawAccumulatedContent = msg.content || '';
+      rawAccumulatedReasoning = msg.reasoning_content || '';
+      if (msg.tool_calls) {
+        msg.tool_calls.forEach((tc: any, idx: number) => {
+          accumulatedToolCalls[idx] = {
+            id: tc.id || '',
+            name: tc.function?.name || '',
+            arguments: tc.function?.arguments || ''
+          };
+        });
+      }
     }
 
-    // 4. Parse final JSON and action from accumulated text
-    const parsed = extractJsonFromResponse(rawAccumulated);
+    // Parse Tool Calls into structured Actions
+    let action: any = { type: 'none' };
+    const toolCallEntries = Object.values(accumulatedToolCalls);
 
-    if (parsed && typeof parsed.reply === 'string') {
-      return {
-        reply: parsed.reply,
-        action: parsed.action || { type: 'none' }
-      };
+    if (toolCallEntries.length > 0) {
+      const primaryCall = toolCallEntries[0];
+      try {
+        const parsedArgs = JSON.parse(primaryCall.arguments);
+        action = {
+          type: primaryCall.name,
+          payload: parsedArgs
+        };
+      } catch (parseErr) {
+        console.warn('Failed to parse tool call arguments:', primaryCall.arguments);
+      }
     }
 
     return {
-      reply: rawAccumulated.trim() || '已为您处理完成',
-      action: { type: 'none' }
+      reply: rawAccumulatedContent.trim() || (action.type !== 'none' ? '已为您准备好操作卡片，请在下方确认入账：' : '已为您处理完成。'),
+      reasoning: rawAccumulatedReasoning.trim() || undefined,
+      action
     };
   } catch (err: any) {
-    // If streaming fetch fails (e.g. proxy blocks SSE), fallback to standard non-streaming call
+    // If tools-based stream fetch fails, try fallback without stream
     const fallbackBody = { ...reqBody, stream: false, max_tokens: modelMaxTokens };
     const fbResponse = await fetch(url, {
       method: 'POST',
@@ -423,19 +574,25 @@ export async function sendAgentMessage(
     }
 
     const data = await fbResponse.json();
-    const rawContent = (data.choices?.[0]?.message?.content || data.choices?.[0]?.message?.reasoning_content || '').trim();
-    const parsed = extractJsonFromResponse(rawContent);
+    const msg = data.choices?.[0]?.message || {};
+    const content = (msg.content || '').trim();
+    const reasoning = (msg.reasoning_content || '').trim();
 
-    if (parsed && typeof parsed.reply === 'string') {
-      return {
-        reply: parsed.reply,
-        action: parsed.action || { type: 'none' }
-      };
+    let action: any = { type: 'none' };
+    if (msg.tool_calls && msg.tool_calls.length > 0) {
+      const tc = msg.tool_calls[0];
+      try {
+        action = {
+          type: tc.function?.name,
+          payload: JSON.parse(tc.function?.arguments || '{}')
+        };
+      } catch {}
     }
 
     return {
-      reply: rawContent.trim(),
-      action: { type: 'none' }
+      reply: content || (action.type !== 'none' ? '已为您识别并准备好操作卡片：' : '已处理完成。'),
+      reasoning: reasoning || undefined,
+      action
     };
   }
 }

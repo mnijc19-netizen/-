@@ -92,8 +92,13 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
   const [modelSelectorOpen, setModelSelectorOpen] = useState(false);
   const [selectedProviderId, setSelectedProviderId] = useState<string>(() => localStore.getAiConfig().provider || 'zhipu');
   const [modelSwitchToast, setModelSwitchToast] = useState<string>('');
+  const [collapsedReasonings, setCollapsedReasonings] = useState<Record<string, boolean>>({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const toggleReasoningCollapse = (msgId: string) => {
+    setCollapsedReasonings(prev => ({ ...prev, [msgId]: !prev[msgId] }));
+  };
 
   useEffect(() => {
     if (isOpen) {
@@ -572,16 +577,18 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
         recurringRules,
         investments,
         debts,
-        (streamedText) => {
-          // Live typewriter text update in real-time
-          if (streamedText && streamedText.trim()) {
-            setMessages(prev => prev.map(m => {
-              if (m.id === assistantMsgId) {
-                return { ...m, content: streamedText };
-              }
-              return m;
-            }));
-          }
+        (streamedText, streamedReasoning) => {
+          // Live typewriter text update and reasoning capture in real-time
+          setMessages(prev => prev.map(m => {
+            if (m.id === assistantMsgId) {
+              return { 
+                ...m, 
+                content: streamedText || (streamedReasoning ? '🧠 正在深度思考分析账本...' : '✨ 正在处理...'),
+                reasoning: streamedReasoning || m.reasoning
+              };
+            }
+            return m;
+          }));
         }
       );
 
@@ -637,6 +644,7 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
           return {
             ...m,
             content: response.reply,
+            reasoning: response.reasoning || m.reasoning,
             pendingAction,
             actionResult
           };
@@ -871,6 +879,28 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
                         </span>
                       </div>
                     ))}
+                  </div>
+                )}
+
+                {/* Collapsible Deep Reasoning Process */}
+                {m.reasoning && (
+                  <div className="mb-2.5 rounded-2xl bg-black/5 dark:bg-black/30 border border-slate-300/40 dark:border-slate-700/50 overflow-hidden text-[10px]">
+                    <button
+                      type="button"
+                      onClick={() => toggleReasoningCollapse(m.id)}
+                      className="w-full px-3 py-1.5 flex items-center justify-between text-slate-500 dark:text-slate-400 font-mono font-bold hover:bg-black/5 dark:hover:bg-white/5 transition"
+                    >
+                      <span className="flex items-center gap-1.5">
+                        <Sparkles className="w-3 h-3 text-purple-500 flex-shrink-0" />
+                        <span>💭 深度思考推理过程</span>
+                      </span>
+                      <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${collapsedReasonings[m.id] ? '' : 'rotate-180'}`} />
+                    </button>
+                    {!collapsedReasonings[m.id] && (
+                      <div className="px-3 pb-2.5 pt-1 font-mono text-[10px] text-slate-600 dark:text-slate-400 leading-relaxed whitespace-pre-wrap border-t border-black/5 dark:border-white/5">
+                        {m.reasoning}
+                      </div>
+                    )}
                   </div>
                 )}
 
