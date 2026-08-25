@@ -465,45 +465,46 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         </div>
       </div>
 
-      {/* AI Settings Modal Popup */}
+      {/* AI Settings Modal - Premium Redesign */}
       {aiModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3.5 sm:p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[85vh] my-auto">
-            {/* Modal Header */}
-            <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-transparent">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-purple-500/20 text-purple-600 dark:text-purple-400 flex items-center justify-center">
-                  <Bot className="w-5 h-5" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-1.5">
-                    <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                      AI 智能大模型设置
-                    </h3>
-                    <span className="text-[8px] font-mono font-bold px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-600 dark:text-purple-300">
-                      AI
-                    </span>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[90vh] my-auto">
+            {/* Premium Header */}
+            <div className="relative px-5 py-4 border-b border-slate-100 dark:border-slate-800 overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-r from-violet-600/8 via-indigo-500/6 to-purple-500/4 dark:from-violet-600/15 dark:via-indigo-500/10 dark:to-purple-500/5" />
+              <div className="relative flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-violet-600 to-indigo-600 text-white flex items-center justify-center shadow-lg shadow-violet-500/25">
+                    <Bot className="w-5 h-5" />
                   </div>
-                  <p className="text-[11px] text-slate-400">
-                    支持 DeepSeek / 智谱 GLM-4V / OpenAI
-                  </p>
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white tracking-tight">
+                      AI 引擎配置中心
+                    </h3>
+                    <p className="text-[10px] text-slate-400 mt-0.5">
+                      接入智谱 · DeepSeek · OpenAI · 千问 · Kimi
+                    </p>
+                  </div>
                 </div>
+                <button 
+                  onClick={() => setAiModalOpen(false)}
+                  className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+                >
+                  <X className="w-4.5 h-4.5" />
+                </button>
               </div>
-              <button 
-                onClick={() => setAiModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1.5 rounded-lg"
-              >
-                <X className="w-5 h-5" />
-              </button>
             </div>
 
             {/* Modal Body */}
-            <div className="p-5 overflow-y-auto space-y-4 flex-1 text-xs">
-              {/* Master Enable/Disable Toggle */}
-              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex items-center justify-between">
+            <div className="p-4 overflow-y-auto space-y-4 flex-1 text-xs">
+              {/* Master Toggle */}
+              <div className="p-3 rounded-2xl bg-gradient-to-r from-slate-50 to-slate-100/50 dark:from-slate-800/60 dark:to-slate-800/30 border border-slate-200/80 dark:border-slate-700/60 flex items-center justify-between">
                 <div>
-                  <div className="font-bold text-slate-900 dark:text-white text-xs">启用 AI 智能大模型引擎</div>
-                  <div className="text-[10px] text-slate-400 mt-0.5">关闭时平滑回退至内置离线引擎</div>
+                  <div className="font-bold text-slate-900 dark:text-white text-xs flex items-center gap-1.5">
+                    <Zap className="w-3.5 h-3.5 text-amber-500" />
+                    启用 AI 智能引擎
+                  </div>
+                  <div className="text-[10px] text-slate-400 mt-0.5 ml-5">关闭后将使用内置离线引擎</div>
                 </div>
                 <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
                   <input 
@@ -512,107 +513,221 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                     onChange={(e) => handleToggleAi(e.target.checked)}
                     className="sr-only peer"
                   />
-                  <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600"></div>
+                  <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-violet-600"></div>
                 </label>
               </div>
 
-              {/* Provider Selection */}
+              {/* Model Selection - Categorized Cards */}
               <div>
-                <label className="text-slate-500 dark:text-slate-400 block mb-1.5 font-bold">
-                  选择 AI 模型服务商
+                <label className="text-[11px] text-slate-500 dark:text-slate-400 block mb-2 font-bold uppercase tracking-wider">
+                  选择模型
                 </label>
-                <div className="grid grid-cols-1 gap-2">
-                  {AI_PROVIDERS.map(p => (
-                    <button
-                      key={p.id}
-                      type="button"
-                      onClick={() => handleProviderSelect(p.id)}
-                      className={`p-2.5 rounded-xl border text-left transition flex items-center justify-between ${
-                        aiConfig.provider === p.id 
-                          ? 'bg-indigo-50 dark:bg-indigo-950/60 border-indigo-500 text-indigo-900 dark:text-indigo-200 font-bold'
-                          : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 text-slate-700 dark:text-slate-300'
-                      }`}
-                    >
-                      <span className="truncate">{p.name}</span>
-                      {aiConfig.provider === p.id && <Check className="w-3.5 h-3.5 text-indigo-600 flex-shrink-0" />}
-                    </button>
-                  ))}
+
+                {/* Zhipu Models */}
+                <div className="mb-2.5">
+                  <div className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-violet-500"></span>
+                    智谱 BigModel 系列
+                  </div>
+                  <div className="grid grid-cols-1 gap-1.5">
+                    {AI_PROVIDERS.filter(p => p.group === 'zhipu').map(p => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => handleProviderSelect(p.id)}
+                        className={`p-2.5 rounded-xl border text-left transition-all flex items-center gap-2.5 group ${
+                          aiConfig.provider === p.id 
+                            ? 'bg-violet-50 dark:bg-violet-950/50 border-violet-500/60 ring-1 ring-violet-500/20'
+                            : 'border-slate-200/80 dark:border-slate-800 hover:border-violet-300 dark:hover:border-violet-800 hover:bg-violet-50/30 dark:hover:bg-violet-950/20'
+                        }`}
+                      >
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-[11px] font-black ${
+                          aiConfig.provider === p.id 
+                            ? 'bg-violet-600 text-white shadow-md shadow-violet-500/20'
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 group-hover:bg-violet-100 dark:group-hover:bg-violet-900/40 group-hover:text-violet-600'
+                        }`}>
+                          {p.vision ? '👁' : '⚡'}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className={`text-[11px] font-bold ${aiConfig.provider === p.id ? 'text-violet-900 dark:text-violet-200' : 'text-slate-800 dark:text-slate-200'}`}>
+                              {p.name}
+                            </span>
+                            {p.badge && (
+                              <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded-full ${
+                                p.badgeColor === 'emerald' ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400' :
+                                p.badgeColor === 'purple' ? 'bg-violet-100 dark:bg-violet-900/40 text-violet-600 dark:text-violet-400' :
+                                p.badgeColor === 'blue' ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400' :
+                                p.badgeColor === 'amber' ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400' :
+                                'bg-slate-100 dark:bg-slate-800 text-slate-500'
+                              }`}>
+                                {p.badge}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[9px] text-slate-400 mt-0.5 truncate">{p.desc}</p>
+                        </div>
+                        {aiConfig.provider === p.id && <Check className="w-4 h-4 text-violet-600 flex-shrink-0" />}
+                      </button>
+                    ))}
+                  </div>
                 </div>
+
+                {/* Third Party Models */}
+                <div className="mb-2.5">
+                  <div className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-cyan-500"></span>
+                    第三方模型
+                  </div>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {AI_PROVIDERS.filter(p => p.group === 'third').map(p => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => handleProviderSelect(p.id)}
+                        className={`p-2 rounded-xl border text-left transition-all ${
+                          aiConfig.provider === p.id 
+                            ? 'bg-cyan-50 dark:bg-cyan-950/40 border-cyan-500/60 ring-1 ring-cyan-500/20'
+                            : 'border-slate-200/80 dark:border-slate-800 hover:border-cyan-300 dark:hover:border-cyan-800'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className={`text-[10px] font-bold ${aiConfig.provider === p.id ? 'text-cyan-800 dark:text-cyan-200' : 'text-slate-700 dark:text-slate-300'}`}>
+                            {p.name}
+                          </span>
+                          {aiConfig.provider === p.id && <Check className="w-3 h-3 text-cyan-600" />}
+                        </div>
+                        <p className="text-[8px] text-slate-400 mt-0.5">{p.brand}</p>
+                        {p.badge && (
+                          <span className={`text-[7px] font-bold px-1 py-0.5 rounded mt-1 inline-block ${
+                            p.badgeColor === 'cyan' ? 'bg-cyan-100 dark:bg-cyan-900/40 text-cyan-600' : 'bg-slate-100 text-slate-500'
+                          }`}>{p.badge}</span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Custom */}
+                {AI_PROVIDERS.filter(p => p.group === 'custom').map(p => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => handleProviderSelect(p.id)}
+                    className={`w-full p-2.5 rounded-xl border text-left transition-all flex items-center justify-between ${
+                      aiConfig.provider === p.id 
+                        ? 'bg-slate-100 dark:bg-slate-800 border-slate-400/60 ring-1 ring-slate-400/20'
+                        : 'border-slate-200/80 dark:border-slate-800 hover:border-slate-300'
+                    }`}
+                  >
+                    <div>
+                      <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300">🔧 {p.name}</span>
+                      <p className="text-[8px] text-slate-400">{p.desc}</p>
+                    </div>
+                    {aiConfig.provider === p.id && <Check className="w-3.5 h-3.5 text-slate-600" />}
+                  </button>
+                ))}
               </div>
 
-              {/* API Key Input */}
+              {/* Divider */}
+              <div className="border-t border-slate-100 dark:border-slate-800" />
+
+              {/* API Key */}
               <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-slate-500 dark:text-slate-400 font-bold flex items-center gap-1">
-                    <Key className="w-3.5 h-3.5" /> API Key 密钥
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-slate-600 dark:text-slate-300 font-bold flex items-center gap-1 text-[11px]">
+                    <Key className="w-3 h-3" /> API Key
                   </label>
-                  <span className="text-[10px] text-indigo-500">
-                    {AI_PROVIDERS.find(p => p.id === aiConfig.provider)?.hint}
-                  </span>
+                  <a 
+                    href={aiConfig.provider.startsWith('zhipu') ? 'https://open.bigmodel.cn/usercenter/apikeys' : 
+                          aiConfig.provider === 'deepseek' ? 'https://platform.deepseek.com/api_keys' :
+                          aiConfig.provider === 'openai' ? 'https://platform.openai.com/api-keys' : '#'}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[9px] text-violet-500 hover:text-violet-600 font-bold"
+                  >
+                    获取 Key →
+                  </a>
                 </div>
                 <div className="relative">
                   <input
                     type={showApiKey ? "text" : "password"}
                     value={aiConfig.apiKey}
                     onChange={(e) => setAiConfig(prev => ({ ...prev, apiKey: e.target.value }))}
-                    placeholder="在此粘贴您的 API Key (如 sk-...)"
-                    className="w-full pl-3 pr-10 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-mono text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                    placeholder={aiConfig.provider.startsWith('zhipu') ? 'xxxxxxxx.yyyyyyyy（注意中间有英文句号）' : 'sk-...'}
+                    className="w-full pl-3 pr-10 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-mono text-[11px] focus:ring-2 focus:ring-violet-500 focus:border-violet-500 focus:outline-none transition"
                   />
                   <button
                     type="button"
                     onClick={() => setShowApiKey(prev => !prev)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
                   >
-                    {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    {showApiKey ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                   </button>
                 </div>
+                {/* Live Key Format Hint */}
+                {aiConfig.apiKey && aiConfig.provider.startsWith('zhipu') && !aiConfig.apiKey.includes('.') && (
+                  <div className="mt-1.5 p-2 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 text-amber-700 dark:text-amber-300 text-[10px] font-medium">
+                    ⚠️ 智谱 Key 需包含英文句号，格式如：<code className="font-mono bg-amber-100 dark:bg-amber-900/50 px-1 rounded">xxx.yyy</code>
+                    <br />
+                    <a href="https://open.bigmodel.cn/usercenter/apikeys" target="_blank" rel="noopener noreferrer" className="text-amber-600 dark:text-amber-400 underline font-bold">
+                      点此前往智谱控制台复制完整 Key
+                    </a>
+                  </div>
+                )}
+                {/* Provider hint */}
+                <p className="text-[9px] text-slate-400 mt-1 ml-0.5">
+                  {AI_PROVIDERS.find(p => p.id === aiConfig.provider)?.hint}
+                </p>
               </div>
 
-              {/* Base URL & Model Name */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              {/* Advanced: Base URL & Model (collapsible feel) */}
+              <div className="grid grid-cols-1 gap-2">
                 <div>
-                  <label className="text-slate-500 dark:text-slate-400 block mb-1">接口地址 (Base URL)</label>
+                  <label className="text-[10px] text-slate-400 block mb-0.5 ml-0.5">接口地址 (Base URL)</label>
                   <input
                     type="text"
                     value={aiConfig.baseUrl}
                     onChange={(e) => setAiConfig(prev => ({ ...prev, baseUrl: e.target.value }))}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-mono text-xs"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-mono text-[10px] focus:ring-1 focus:ring-violet-500 focus:outline-none"
                   />
                 </div>
                 <div>
-                  <label className="text-slate-500 dark:text-slate-400 block mb-1">模型名称 (Model)</label>
+                  <label className="text-[10px] text-slate-400 block mb-0.5 ml-0.5">模型名称 (Model)</label>
                   <input
                     type="text"
                     value={aiConfig.model}
                     onChange={(e) => setAiConfig(prev => ({ ...prev, model: e.target.value }))}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-mono text-xs"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-mono text-[10px] focus:ring-1 focus:ring-violet-500 focus:outline-none"
                   />
                 </div>
               </div>
 
-              {/* Test Connection Results Badge */}
+              {/* Test Result */}
               {aiTestResult && (
-                <div className={`p-3 rounded-xl text-xs font-bold flex items-center gap-2 ${
+                <div className={`p-3 rounded-xl text-[11px] leading-relaxed whitespace-pre-line ${
                   aiTestResult.success 
-                    ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-300 border border-emerald-500/30'
-                    : 'bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-300 border border-rose-500/30'
+                    ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/50'
+                    : 'bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800/50'
                 }`}>
-                  <Activity className="w-4 h-4 flex-shrink-0" />
-                  <span>{aiTestResult.message}</span>
+                  <div className="flex items-start gap-2">
+                    <Activity className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                    <span>{aiTestResult.message}</span>
+                  </div>
                 </div>
               )}
             </div>
 
-            {/* Modal Footer Actions */}
-            <div className="p-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-800/40">
+            {/* Footer */}
+            <div className="p-3.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/80 dark:bg-slate-800/30">
               <button
                 type="button"
                 disabled={testingAi}
                 onClick={handleTestAi}
-                className="px-3.5 py-2 rounded-xl bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 text-slate-700 dark:text-slate-200 font-bold transition flex items-center gap-1 active:scale-95 text-xs"
+                className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold transition flex items-center gap-1.5 active:scale-95 text-[11px] disabled:opacity-50"
               >
                 <Cpu className="w-3.5 h-3.5" />
-                {testingAi ? '测试中...' : '测试连接'}
+                {testingAi ? '测试中...' : '🔌 测试连接'}
               </button>
               <button
                 type="button"
@@ -620,10 +735,10 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                   handleSaveAi();
                   setTimeout(() => setAiModalOpen(false), 600);
                 }}
-                className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold transition flex items-center gap-1 shadow-md shadow-indigo-500/20 active:scale-95 text-xs"
+                className="px-5 py-2 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold transition flex items-center gap-1.5 shadow-lg shadow-violet-500/20 active:scale-95 text-[11px]"
               >
                 {aiSaved ? <Check className="w-3.5 h-3.5" /> : <Sparkles className="w-3.5 h-3.5" />}
-                {aiSaved ? '已保存！' : '保存配置'}
+                {aiSaved ? '已保存 ✓' : '保存配置'}
               </button>
             </div>
           </div>

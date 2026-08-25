@@ -19,82 +19,190 @@ export interface AiExtractedItem {
 }
 
 export const AI_PROVIDERS = [
+  // ── 智谱 BigModel 系列 ──
   {
     id: 'zhipu-4.6v',
-    name: '智谱 GLM-4.6V (新用户专享600万资源包·最新超强视觉多模态)',
+    name: 'GLM-4.6V',
+    brand: '智谱 AI',
+    desc: '最新旗舰视觉多模态 · 支持截图识别',
+    badge: '600万资源包',
+    badgeColor: 'purple',
     baseUrl: 'https://open.bigmodel.cn/api/paas/v4',
     model: 'glm-4.6v',
-    hint: '使用您账号中赠送的【600万 GLM-4.6V 资源包】，支持超高清图片直接识别与深度记账！'
+    hint: '新用户赠送 600万 GLM-4.6V 资源包',
+    vision: true,
+    group: 'zhipu'
+  },
+  {
+    id: 'zhipu-4v-flash',
+    name: 'GLM-4V-Flash',
+    brand: '智谱 AI',
+    desc: '免费视觉模型 · 支持图片识别',
+    badge: '永久免费',
+    badgeColor: 'emerald',
+    baseUrl: 'https://open.bigmodel.cn/api/paas/v4',
+    model: 'glm-4v-flash',
+    hint: '永久免费视觉大模型，不消耗任何付费额度',
+    vision: true,
+    group: 'zhipu'
   },
   {
     id: 'zhipu-4.5air',
-    name: '智谱 GLM-4.5-Air (新用户专享1200万资源包·极速旗舰)',
+    name: 'GLM-4.5-Air',
+    brand: '智谱 AI',
+    desc: '极速旗舰 · 纯文字最快响应',
+    badge: '1200万资源包',
+    badgeColor: 'blue',
     baseUrl: 'https://open.bigmodel.cn/api/paas/v4',
     model: 'glm-4.5-air',
-    hint: '使用您账号中赠送的【1200万 GLM-4.5-Air 资源包】，响应速度极快、理解力出众！'
-  },
-  {
-    id: 'zhipu-plus',
-    name: '智谱 GLM-4-Plus (新用户专享200万通用资源包·顶配旗舰)',
-    baseUrl: 'https://open.bigmodel.cn/api/paas/v4',
-    model: 'glm-4-plus',
-    hint: '使用您账号中赠送的【200万通用模型推理资源包】，智谱最强推理大模型！'
-  },
-  {
-    id: 'zhipu-vision',
-    name: '智谱 GLM-4V-Flash (永久免费·支持图片视觉直读 + 文本记账)',
-    baseUrl: 'https://open.bigmodel.cn/api/paas/v4',
-    model: 'glm-4v-flash',
-    hint: '智谱开放平台永久免费的视觉大模型，不消耗任何付费额度！'
+    hint: '新用户赠送 1200万 GLM-4.5-Air 资源包',
+    vision: false,
+    group: 'zhipu'
   },
   {
     id: 'zhipu-flash',
-    name: '智谱 GLM-4-Flash (永久免费·极速纯文本记账)',
+    name: 'GLM-4-Flash',
+    brand: '智谱 AI',
+    desc: '免费极速 · 纯文本记账聊天',
+    badge: '永久免费',
+    badgeColor: 'emerald',
     baseUrl: 'https://open.bigmodel.cn/api/paas/v4',
     model: 'glm-4-flash',
-    hint: '智谱开放平台永久免费纯文本模型，不消耗任何付费额度！'
+    hint: '永久免费纯文本模型',
+    vision: false,
+    group: 'zhipu'
   },
   {
+    id: 'zhipu-plus',
+    name: 'GLM-4-Plus',
+    brand: '智谱 AI',
+    desc: '顶配推理旗舰 · 最强理解力',
+    badge: '200万资源包',
+    badgeColor: 'amber',
+    baseUrl: 'https://open.bigmodel.cn/api/paas/v4',
+    model: 'glm-4-plus',
+    hint: '新用户赠送 200万通用推理资源包',
+    vision: false,
+    group: 'zhipu'
+  },
+  // ── 第三方模型 ──
+  {
     id: 'deepseek',
-    name: 'DeepSeek (推荐·超强语义理解与推理)',
+    name: 'DeepSeek-Chat',
+    brand: 'DeepSeek',
+    desc: '超强语义理解 · 性价比之王',
+    badge: '推荐',
+    badgeColor: 'cyan',
     baseUrl: 'https://api.deepseek.com/v1',
     model: 'deepseek-chat',
-    hint: '前往 platform.deepseek.com 获取 sk- 密钥，输入即可直接调用 DeepSeek-Chat！'
+    hint: '前往 platform.deepseek.com 获取 sk- 密钥',
+    vision: false,
+    group: 'third'
   },
   {
     id: 'openai',
-    name: 'OpenAI GPT-4o / GPT-4o-mini (多模态看图 + 语义)',
+    name: 'GPT-4o / 4o-mini',
+    brand: 'OpenAI',
+    desc: '多模态看图 + 语义理解',
+    badge: '',
+    badgeColor: '',
     baseUrl: 'https://api.openai.com/v1',
     model: 'gpt-4o-mini',
-    hint: '前往 platform.openai.com 获取 API Key，支持 GPT-4o 与 4o-mini！'
+    hint: '前往 platform.openai.com 获取 API Key',
+    vision: true,
+    group: 'third'
   },
   {
     id: 'qwen',
-    name: '通义千问 Qwen (阿里云百炼)',
+    name: '通义千问 Qwen',
+    brand: '阿里云百炼',
+    desc: '国产顶级 · 全场景覆盖',
+    badge: '',
+    badgeColor: '',
     baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
     model: 'qwen-plus',
-    hint: '前往阿里云百炼获取 API Key'
+    hint: '前往阿里云百炼获取 API Key',
+    vision: false,
+    group: 'third'
   },
   {
     id: 'kimi',
-    name: '月之暗面 Kimi',
+    name: 'Kimi (Moonshot)',
+    brand: '月之暗面',
+    desc: '超长上下文 · 128K 窗口',
+    badge: '',
+    badgeColor: '',
     baseUrl: 'https://api.moonshot.cn/v1',
     model: 'moonshot-v1-8k',
-    hint: '前往 platform.moonshot.cn 获取密钥'
+    hint: '前往 platform.moonshot.cn 获取密钥',
+    vision: false,
+    group: 'third'
   },
   {
     id: 'custom',
-    name: '自定义通用接口 (OneAPI / 自建中转站 / 任意模型与URL)',
+    name: '自定义接口',
+    brand: 'OneAPI / 中转站',
+    desc: '任意 OpenAI 兼容 API',
+    badge: '高级',
+    badgeColor: 'slate',
     baseUrl: 'https://api.openai.com/v1',
     model: 'gpt-4o',
-    hint: '支持任何标准 OpenAI 兼容的 /chat/completions 接口，可自由填写任意 Base URL 和 Model！'
+    hint: '支持任何标准 /chat/completions 兼容接口',
+    vision: true,
+    group: 'custom'
   }
 ];
+
+/**
+ * Validate API key format for known providers
+ */
+export function validateApiKeyFormat(key: string, provider: string): { valid: boolean; hint: string } {
+  const trimmed = key.trim();
+  if (!trimmed) return { valid: false, hint: '请填入 API Key' };
+
+  if (provider.startsWith('zhipu')) {
+    // Zhipu keys must be in format: {32hex}.{16alphanum}
+    if (!trimmed.includes('.')) {
+      return { 
+        valid: false, 
+        hint: '⚠️ 智谱 API Key 格式不完整！正确格式为 xxxxxxxx.yyyyyyyy（中间有英文句号）。请前往 open.bigmodel.cn 重新复制完整的 Key。'
+      };
+    }
+    const parts = trimmed.split('.');
+    if (parts.length !== 2 || parts[0].length < 8 || parts[1].length < 8) {
+      return { valid: false, hint: '⚠️ 智谱 API Key 格式异常，请确认是否复制完整' };
+    }
+    return { valid: true, hint: '✓ Key 格式正确' };
+  }
+
+  if (provider === 'deepseek') {
+    if (!trimmed.startsWith('sk-')) {
+      return { valid: false, hint: '⚠️ DeepSeek Key 通常以 sk- 开头' };
+    }
+    return { valid: true, hint: '✓ Key 格式正确' };
+  }
+
+  if (provider === 'openai') {
+    if (!trimmed.startsWith('sk-')) {
+      return { valid: false, hint: '⚠️ OpenAI Key 通常以 sk- 开头' };
+    }
+    return { valid: true, hint: '✓ Key 格式正确' };
+  }
+
+  return { valid: true, hint: '' };
+}
 
 export async function testAiConnection(config: AiConfig): Promise<AiTestResult> {
   if (!config.apiKey || !config.apiKey.trim()) {
     return { success: false, message: '请先填入 API Key' };
   }
+
+  // Pre-validate key format
+  const keyCheck = validateApiKeyFormat(config.apiKey, config.provider);
+  if (!keyCheck.valid) {
+    return { success: false, message: keyCheck.hint };
+  }
+
   const startTime = Date.now();
   try {
     const endpoint = `${config.baseUrl.replace(/\/+$/, '')}/chat/completions`;
@@ -105,22 +213,35 @@ export async function testAiConnection(config: AiConfig): Promise<AiTestResult> 
         'Authorization': `Bearer ${config.apiKey.trim()}`
       },
       body: JSON.stringify({
-        model: config.model || 'deepseek-chat',
+        model: config.model || 'glm-4-flash',
         messages: [
-          { role: 'system', content: '严格只输出符合格式的单个 JSON 对象，不要用 markdown 包裹。' },
-          { role: 'user', content: '请解析记账测试：【微信支付 2026-08-25 在瑞幸咖啡消费 9.9 元】返回 {"merchant":"瑞幸咖啡","amount":9.9,"category":"餐饮美食"}' }
+          { role: 'user', content: '请用一句话回复：你好，我是斌斌财务AI' }
         ],
         temperature: 0.1,
-        max_tokens: 80
+        max_tokens: 60
       })
     });
 
     const latencyMs = Date.now() - startTime;
     if (!res.ok) {
-      const errText = await res.text();
+      let errBody = '';
+      try {
+        const errData = await res.json();
+        errBody = errData?.error?.message || JSON.stringify(errData).substring(0, 150);
+      } catch {
+        errBody = await res.text();
+      }
+      
+      // Parse common Zhipu errors
+      if (res.status === 401) {
+        if (errBody.includes('过期') || errBody.includes('expired')) {
+          return { success: false, message: '❌ API Key 已过期或格式不正确\n\n请前往 open.bigmodel.cn/usercenter/apikeys 重新生成完整的 Key（格式为 xxx.yyy，中间有英文句号）', latencyMs };
+        }
+        return { success: false, message: `❌ 认证失败 (401)：API Key 无效\n\n${errBody.substring(0, 100)}`, latencyMs };
+      }
       return { 
         success: false, 
-        message: `连接失败 (${res.status}): ${errText.substring(0, 100)}`,
+        message: `❌ 连接失败 (${res.status}): ${errBody.substring(0, 120)}`,
         latencyMs 
       };
     }
@@ -130,13 +251,13 @@ export async function testAiConnection(config: AiConfig): Promise<AiTestResult> 
     if (replyText) {
       return { 
         success: true, 
-        message: `✅ AI 大模型调用 100% 成功！\n模型:【${config.model}】\n响应耗时: ${latencyMs}ms\n实测解析返回: ${replyText.trim()}`,
+        message: `✅ 连接成功！模型【${config.model}】响应正常\n⏱️ 延迟 ${latencyMs}ms\n💬 ${replyText.trim().substring(0, 80)}`,
         latencyMs 
       };
     }
-    return { success: false, message: 'API 返回内容为空' };
+    return { success: false, message: `⚠️ API 返回内容为空，请确认模型名称 "${config.model}" 是否正确` };
   } catch (err: any) {
-    return { success: false, message: `网络连接异常: ${err.message || '请检查接口地址或网络'}` };
+    return { success: false, message: `❌ 网络异常: ${err.message || '请检查接口地址或网络连接'}` };
   }
 }
 
