@@ -17,15 +17,18 @@ import {
   Images,
   Zap
 } from 'lucide-react';
-import { Account, AccountType } from '../types';
+import { Account, AccountType, Investment } from '../types';
 import { api } from '../api/client';
 import { AccountBalanceAdjustModal } from '../components/AccountBalanceAdjustModal';
 import { BatchBalanceOcrModal } from '../components/BatchBalanceOcrModal';
+import { ArrowRight } from 'lucide-react';
 
 interface AccountsPageProps {
   accounts: Account[];
+  investments?: Investment[];
   onRefresh: () => void;
   onOpenQuickTx: () => void;
+  onNavigate?: (page: string) => void;
 }
 
 const ACCOUNT_TYPE_CONFIG: Record<AccountType, { label: string; icon: any; color: string }> = {
@@ -40,7 +43,13 @@ const ACCOUNT_TYPE_CONFIG: Record<AccountType, { label: string; icon: any; color
   loan: { label: '贷款与按揭', icon: Building, color: 'slate' }
 };
 
-export const AccountsPage: React.FC<AccountsPageProps> = ({ accounts, onRefresh, onOpenQuickTx }) => {
+export const AccountsPage: React.FC<AccountsPageProps> = ({ 
+  accounts, 
+  investments = [], 
+  onRefresh, 
+  onOpenQuickTx,
+  onNavigate 
+}) => {
   const [modalOpen, setModalOpen] = useState(false);
   const [adjustModalOpen, setAdjustModalOpen] = useState(false);
   const [batchOcrOpen, setBatchOcrOpen] = useState(false);
@@ -280,6 +289,32 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({ accounts, onRefresh,
                           {acc.note}
                         </div>
                       )}
+
+                      {/* Linked Holdings for Investment Accounts (華泰证券 / 基金持仓) */}
+                      {acc.type === 'investment' && (() => {
+                        const matchedHoldings = investments.filter(i => i.account_id === acc.id);
+                        return (
+                          <div className="p-2.5 rounded-2xl bg-purple-50/80 dark:bg-purple-950/40 border border-purple-200/80 dark:border-purple-800/80 flex items-center justify-between text-xs gap-2">
+                            <div className="min-w-0 flex-1">
+                              <div className="font-bold text-[11px] text-purple-900 dark:text-purple-200 truncate flex items-center gap-1">
+                                <TrendingUp className="w-3.5 h-3.5 text-purple-600 flex-shrink-0" />
+                                <span>关联持仓: {matchedHoldings.length > 0 ? matchedHoldings.map(h => `${h.name}(¥${h.market_value.toFixed(2)})`).join('、') : '暂无单项标的'}</span>
+                              </div>
+                              <div className="text-[10px] text-purple-600/80 dark:text-purple-300/80 truncate mt-0.5">
+                                市值实时与本账户余额联动对齐，拒绝冲突
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => onNavigate?.('investments')}
+                              className="px-2 py-1 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-[10px] font-bold shadow-sm transition active:scale-95 flex items-center gap-0.5 flex-shrink-0"
+                            >
+                              <span>管理持仓</span>
+                              <ArrowRight className="w-2.5 h-2.5" />
+                            </button>
+                          </div>
+                        );
+                      })()}
 
                       {/* Bottom Action Bar (Permanent on Mobile & Desktop) */}
                       <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between gap-2">

@@ -364,8 +364,10 @@ export function App() {
               {currentPage === 'accounts' && (
                 <AccountsPage
                   accounts={accounts}
+                  investments={investments}
                   onRefresh={loadAllData}
                   onOpenQuickTx={() => setQuickTxOpen(true)}
+                  onNavigate={(p) => setCurrentPage(p as any)}
                 />
               )}
 
@@ -400,6 +402,7 @@ export function App() {
                   investments={investments}
                   accounts={accounts}
                   onRefresh={loadAllData}
+                  onOpenAiChat={() => setAiChatOpen(true)}
                 />
               )}
 

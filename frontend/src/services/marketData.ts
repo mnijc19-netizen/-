@@ -3,8 +3,9 @@
  * Powered by Tencent Finance Real-Time API (支持 A股、公募基金、ETF、港股、美股实时行情与最新净值)
  */
 
-import { Investment } from '../types';
+import { Investment, Account } from '../types';
 import { api } from '../api/client';
+import { localStore } from './localStore';
 
 export interface MarketQuoteResult {
   code: string;
@@ -12,45 +13,41 @@ export interface MarketQuoteResult {
   currentPrice: number;
   changeRate: number;
   lastUpdate: string;
+  suggestedType?: 'fund' | 'stock_a' | 'stock_hk_us' | 'crypto' | 'gold' | 'other';
   rawType?: string;
 }
 
 /**
  * Maps a raw stock or fund code into Tencent Finance ticker format
- * Examples:
- * - '510300' / '513500' -> 'sh510300' (Shanghai ETF)
- * - '159941' / '159915' -> 'sz159941' (Shenzhen ETF)
- * - '600519' -> 'sh600519' (Shanghai A-Share)
- * - '000001' / '300750' -> 'sz000001' / 'sz300750' (Shenzhen A-Share)
- * - '005827' / '110011' (Type: 'fund' or OTC) -> 'jj005827' (Mutual Fund)
- * - 'AAPL' / 'TSLA' -> 'usAAPL' (US Stock)
- * - '00700' / '09988' -> 'r_hk00700' (HK Stock)
  */
 export function formatTencentTicker(code: string, type?: string): string {
   const clean = code.trim();
   if (!clean) return '';
 
-  // If already formatted
+  // If already formatted (e.g. sh510300, sz159941, jj005827, usAAPL)
   if (/^(sh|sz|jj|us|r_hk|hk)/i.test(clean)) {
     return clean.toLowerCase();
   }
 
-  // US Stock (pure english letters)
+  // US Stock (pure english letters, e.g. AAPL, TSLA, NVDA)
   if (/^[A-Za-z]+$/.test(clean)) {
     return `us${clean.toUpperCase()}`;
   }
 
   // Pure digits
   if (/^\d+$/.test(clean)) {
-    // 5-digit HK Stock
+    // 5-digit HK Stock (e.g. 00700, 09988)
     if (clean.length === 5) {
       return `r_hk${clean}`;
     }
 
     if (clean.length === 6) {
-      // Mutual Fund OTC
-      if (type === 'fund' && (clean.startsWith('00') || clean.startsWith('01') || clean.startsWith('11') || clean.startsWith('16') || clean.startsWith('27') || clean.startsWith('05'))) {
-        return `jj${clean}`;
+      // Mutual Fund OTC (00xxxx, 01xxxx, 11xxxx, 16xxxx, 27xxxx, 05xxxx)
+      if (type === 'fund' || clean.startsWith('00') || clean.startsWith('01') || clean.startsWith('11') || clean.startsWith('27') || clean.startsWith('05')) {
+        // If 15xxxx or 51xxxx it is an ETF, otherwise try jj
+        if (!clean.startsWith('15') && !clean.startsWith('51') && !clean.startsWith('56') && !clean.startsWith('58')) {
+          return `jj${clean}`;
+        }
       }
 
       // Shanghai ETF or Stock (5xxxxx, 6xxxxx, 688xxx)
@@ -119,6 +116,7 @@ export function fetchTencentBatchQuotes(tickers: string[]): Promise<Record<strin
                 currentPrice: nav,
                 changeRate,
                 lastUpdate: date,
+                suggestedType: 'fund',
                 rawType: 'fund'
               };
             } else {
@@ -129,6 +127,13 @@ export function fetchTencentBatchQuotes(tickers: string[]): Promise<Record<strin
               const changeRate = parseFloat(parts[32]) || 0;
               const date = parts[30] || '';
 
+              let suggestedType: any = 'stock_a';
+              if (ticker.startsWith('us')) suggestedType = 'stock_hk_us';
+              else if (ticker.startsWith('r_hk')) suggestedType = 'stock_hk_us';
+              else if (ticker.startsWith('sh51') || ticker.startsWith('sz15') || ticker.startsWith('sh56') || ticker.startsWith('sh58')) {
+                suggestedType = 'fund';
+              }
+
               if (currentPrice > 0) {
                 results[ticker] = {
                   code,
@@ -136,6 +141,7 @@ export function fetchTencentBatchQuotes(tickers: string[]): Promise<Record<strin
                   currentPrice,
                   changeRate,
                   lastUpdate: date,
+                  suggestedType,
                   rawType: 'stock_or_etf'
                 };
               }
@@ -158,7 +164,37 @@ export function fetchTencentBatchQuotes(tickers: string[]): Promise<Record<strin
 }
 
 /**
- * Refreshes real-time quotes for all user holdings from Tencent Finance
+ * Real-time Single Quote Search / Identification when typing code
+ */
+export async function querySingleQuote(code: string, type?: string): Promise<MarketQuoteResult | null> {
+  const clean = code.trim();
+  if (!clean || clean.length < 2) return null;
+
+  const candidates: string[] = [];
+  const primary = formatTencentTicker(clean, type);
+  if (primary) candidates.push(primary);
+
+  if (/^\d{6}$/.test(clean)) {
+    if (!primary.startsWith('jj')) candidates.push(`jj${clean}`);
+    if (!primary.startsWith('sh')) candidates.push(`sh${clean}`);
+    if (!primary.startsWith('sz')) candidates.push(`sz${clean}`);
+  } else if (/^[A-Za-z]+$/.test(clean)) {
+    candidates.push(`us${clean.toUpperCase()}`);
+  }
+
+  const quotes = await fetchTencentBatchQuotes(candidates);
+  for (const c of candidates) {
+    if (quotes[c] && quotes[c].currentPrice > 0) {
+      return quotes[c];
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Refreshes real-time quotes for all user holdings and synchronizes linked investment accounts!
+ * ZERO conflict, ZERO double-counting!
  */
 export async function refreshInvestmentQuotes(
   investments: Investment[]
@@ -168,7 +204,7 @@ export async function refreshInvestmentQuotes(
   }
 
   // 1. Build tickers mapping
-  const tickerMap = new Map<string, string>(); // inv.id -> formattedTicker
+  const tickerMap = new Map<string, string>();
   const allTickers: string[] = [];
 
   for (const inv of investments) {
@@ -176,7 +212,6 @@ export async function refreshInvestmentQuotes(
     if (ticker) {
       tickerMap.set(inv.id, ticker);
       allTickers.push(ticker);
-      // For funds, also try ETF prefix as fallback
       if (inv.type === 'fund' && !ticker.startsWith('jj')) {
         allTickers.push(`jj${inv.code}`);
       }
@@ -189,6 +224,7 @@ export async function refreshInvestmentQuotes(
   let updatedCount = 0;
   let totalMarketVal = 0;
   let totalGain = 0;
+  const accountMarketValMap = new Map<string, number>();
 
   // 3. Update each investment record
   for (const inv of investments) {
@@ -198,7 +234,7 @@ export async function refreshInvestmentQuotes(
 
     if (quote && quote.currentPrice > 0) {
       inv.current_price = quote.currentPrice;
-      if (quote.name && (!inv.name || inv.name === '投资标的' || inv.name === '新增标的')) {
+      if (quote.name && (!inv.name || inv.name === '投资标的' || inv.name === '新增标的' || inv.name === '300')) {
         inv.name = quote.name;
       }
       updatedCount++;
@@ -213,7 +249,30 @@ export async function refreshInvestmentQuotes(
     totalMarketVal += inv.market_value;
     totalGain += inv.floating_pnl;
 
+    if (inv.account_id) {
+      accountMarketValMap.set(
+        inv.account_id,
+        (accountMarketValMap.get(inv.account_id) || 0) + inv.market_value
+      );
+    }
+
     await api.updateInvestment(inv.id, inv);
+  }
+
+  // 4. Synchronize linked Investment Accounts in `accounts` table so there is ZERO double-counting!
+  const allAccounts = localStore.getAccounts();
+  let accountsUpdated = false;
+
+  for (const [accId, mVal] of accountMarketValMap.entries()) {
+    const matchedAcc = allAccounts.find(a => a.id === accId && a.type === 'investment');
+    if (matchedAcc) {
+      matchedAcc.balance = Math.round(mVal * 100) / 100;
+      accountsUpdated = true;
+    }
+  }
+
+  if (accountsUpdated) {
+    localStore.saveAccounts(allAccounts);
   }
 
   return { updatedCount, totalMarketVal, totalGain };
