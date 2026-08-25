@@ -1,4 +1,4 @@
-import { ParsedTransactionResult } from '../types';
+import { ParsedTransactionResult, DashboardAnalytics, Transaction } from '../types';
 import { localStore, AiConfig } from './localStore';
 import { getBeijingDateTimeString } from '../utils/dateUtils';
 
@@ -8,10 +8,20 @@ export interface AiTestResult {
   latencyMs?: number;
 }
 
+export interface AiExtractedItem {
+  amount: number;
+  merchant: string;
+  category: string;
+  type: 'expense' | 'income' | 'transfer' | 'repayment';
+  channel: string;
+  date?: string;
+  note?: string;
+}
+
 export const AI_PROVIDERS = [
   {
     id: 'deepseek',
-    name: '🇨🇳 DeepSeek (推荐·极速超省)',
+    name: '🇨🇳 DeepSeek (推荐·超高性价比)',
     baseUrl: 'https://api.deepseek.com/v1',
     model: 'deepseek-chat',
     hint: '前往 platform.deepseek.com 获取 sk- 密钥'
@@ -101,13 +111,14 @@ export async function testAiConnection(config: AiConfig): Promise<AiTestResult> 
   }
 }
 
+// 1. Single Transaction Deep Parsing
 export async function parseWithAi(
   rawText: string,
   accountsLookup: any[] = []
 ): Promise<ParsedTransactionResult | null> {
   const config = localStore.getAiConfig();
   if (!config.enabled || !config.apiKey || !config.apiKey.trim()) {
-    return null; // AI disabled or unconfigured, fall back immediately
+    return null;
   }
 
   const clean = rawText.trim();
@@ -116,9 +127,9 @@ export async function parseWithAi(
   try {
     const endpoint = `${config.baseUrl.replace(/\/+$/, '')}/chat/completions`;
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 6000); // 6s timeout
+    const timeoutId = setTimeout(() => controller.abort(), 6000);
 
-    const prompt = `你是一个智能财务记账助手。请从用户输入的账单、小票、短信或截屏文本中，精准提取交易信息并严格返回纯 JSON 对象（不要包含任何 markdown 代码块或多余解释）：
+    const prompt = `你是一个智能财务记账助手。请从用户输入的账单、小票、短信或截屏文本中，精准提取交易信息并严格返回纯 JSON 对象（不要包含任何 markdown 代码块或解释）：
 {
   "amount": 11.80,
   "merchant": "商户或门店名称（如 清口清汤面(金山店)、麦当劳、淘宝闪购）",
@@ -129,7 +140,7 @@ export async function parseWithAi(
   "note": "订单简要说明"
 }
 
-待提取的文本内容如下：
+待提取内容如下：
 ${clean}`;
 
     const res = await fetch(endpoint, {
@@ -141,7 +152,7 @@ ${clean}`;
       body: JSON.stringify({
         model: config.model || 'deepseek-chat',
         messages: [
-          { role: 'system', content: '严格只输出符合格式的 JSON 对象，不加任何前后缀。' },
+          { role: 'system', content: '严格只输出符合格式的单个 JSON 对象，不要用 markdown 格式包裹。' },
           { role: 'user', content: prompt }
         ],
         temperature: 0.1,
@@ -151,16 +162,11 @@ ${clean}`;
     });
 
     clearTimeout(timeoutId);
-
-    if (!res.ok) {
-      console.warn('AI Parsing failed HTTP:', res.status);
-      return null; // Graceful fallback to regex
-    }
+    if (!res.ok) return null;
 
     const data = await res.json();
     const replyText = data?.choices?.[0]?.message?.content || '';
     
-    // Extract JSON block safely
     const jsonMatch = replyText.match(/\{[\s\S]*\}/);
     if (!jsonMatch) return null;
 
@@ -173,7 +179,6 @@ ${clean}`;
     const transType = parsed.type || 'expense';
     const channel = parsed.channel || '微信/支付宝';
 
-    // Account matching
     let matchedAcc = accountsLookup[0];
     if (/支付宝|花呗/.test(channel)) {
       const acc = accountsLookup.find(a => a.name.includes('支付宝') || a.id === 'acc-2');
@@ -196,13 +201,123 @@ ${clean}`;
       suggested_category: category,
       date: parsed.date || getBeijingDateTimeString(),
       raw_text: clean.substring(0, 100),
-      matched_rule: `🤖 ${config.model} 深度理解`,
+      matched_rule: `🤖 ${config.model} 智能解析`,
       matched_account_id: matchedAcc?.id,
       matched_account_name: matchedAcc?.name,
-      note: parsed.note || `由 ${config.model} 智能解析`
+      note: parsed.note || `由 AI 智能解析`
     };
-  } catch (err: any) {
-    console.warn('AI Parsing exception, falling back:', err.message);
-    return null; // Graceful fallback
+  } catch (err) {
+    return null;
   }
+}
+
+// 2. Multi-Transaction Extraction (One Sentence -> Multiple Transactions)
+export async function parseMultiTransactionsWithAi(
+  text: string,
+  accountsLookup: any[] = []
+): Promise<AiExtractedItem[]> {
+  const config = localStore.getAiConfig();
+  if (!config.apiKey || !config.apiKey.trim()) {
+    throw new Error('请先在设置中启用并配置 AI API Key');
+  }
+
+  const endpoint = `${config.baseUrl.replace(/\/+$/, '')}/chat/completions`;
+  const prompt = `你是一个高级财务记账助手。用户可能输入了一段口语、一句话或多笔混合账单（例如：“中午在沙县吃了25微信付的，下午喝了喜茶19花呗付的，小李微信还了我50”）。
+请将其中包含的每一笔收支拆解，并严格输出 JSON 数组格式（不要包含任何额外文字或 markdown 包裹）：
+[
+  {
+    "amount": 25.0,
+    "merchant": "沙县小吃",
+    "category": "餐饮美食",
+    "type": "expense",
+    "channel": "微信支付",
+    "note": "午餐"
+  }
+]
+
+用户输入如下：
+${text.trim()}`;
+
+  const res = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${config.apiKey.trim()}`
+    },
+    body: JSON.stringify({
+      model: config.model || 'deepseek-chat',
+      messages: [
+        { role: 'system', content: '严格只输出符合格式的 JSON 数组。' },
+        { role: 'user', content: prompt }
+      ],
+      temperature: 0.1,
+      max_tokens: 600
+    })
+  });
+
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`AI 请求失败 (${res.status}): ${errText.substring(0, 80)}`);
+  }
+
+  const data = await res.json();
+  const replyText = data?.choices?.[0]?.message?.content || '';
+  const jsonMatch = replyText.match(/\[[\s\S]*\]/);
+  if (!jsonMatch) {
+    throw new Error('AI 未能返回有效的记账明细列表');
+  }
+
+  const parsedArray: AiExtractedItem[] = JSON.parse(jsonMatch[0]);
+  return parsedArray.filter(item => item.amount && item.amount > 0);
+}
+
+// 3. AI Financial Health Diagnosis & Savings Advice
+export async function diagnoseFinancesWithAi(
+  analytics: DashboardAnalytics,
+  recentTransactions: Transaction[]
+): Promise<string> {
+  const config = localStore.getAiConfig();
+  if (!config.apiKey || !config.apiKey.trim()) {
+    throw new Error('请先在设置中配置 AI API Key');
+  }
+
+  const endpoint = `${config.baseUrl.replace(/\/+$/, '')}/chat/completions`;
+  const prompt = `你是一个资深个人财务规划师。请根据用户的财务概况与近期流水，给出 300 字以内的精炼财务诊断与 3 条针对性的省钱/资产优化建议：
+
+【用户财务概况】：
+- 净资产总额：¥${analytics.net_worth.toFixed(2)}
+- 总资产：¥${analytics.total_assets.toFixed(2)}，总负债：¥${analytics.total_liabilities.toFixed(2)} (负债率: ${analytics.debt_ratio.toFixed(1)}%)
+- 本月总收入：¥${analytics.month_summary.income.toFixed(2)}
+- 本月总支出：¥${analytics.month_summary.expense.toFixed(2)} (储蓄率: ${analytics.month_summary.savings_rate.toFixed(1)}%)
+- 支出分类构成：${JSON.stringify(analytics.asset_breakdown)}
+
+【近期典型账单 (最近 6 笔)】：
+${recentTransactions.slice(0, 6).map(t => `- ${t.date.substring(5, 10)} ${t.merchant} ¥${t.amount} (${t.category_name || '日常'})`).join('\n')}
+
+请用温馨、专业、极具洞察力的语气，格式清晰地输出诊断结论与 3 条具体优化建议。`;
+
+  const res = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${config.apiKey.trim()}`
+    },
+    body: JSON.stringify({
+      model: config.model || 'deepseek-chat',
+      messages: [
+        { role: 'system', content: 'You are an expert personal financial advisor. Be concise, practical and supportive.' },
+        { role: 'user', content: prompt }
+      ],
+      temperature: 0.6,
+      max_tokens: 800
+    })
+  });
+
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`AI 请求失败 (${res.status}): ${errText.substring(0, 80)}`);
+  }
+
+  const data = await res.json();
+  return data?.choices?.[0]?.message?.content || '暂无财务分析建议。';
 }

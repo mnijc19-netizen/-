@@ -5,7 +5,8 @@ import {
   Sun, 
   Moon, 
   Zap,
-  RotateCcw
+  RotateCcw,
+  Bot
 } from 'lucide-react';
 import { DashboardAnalytics } from '../types';
 
@@ -17,6 +18,7 @@ interface NavbarProps {
   onOpenQuickTx: () => void;
   onOpenSnapshot: () => void;
   onOpenImageOcr: () => void;
+  onOpenAiHub: () => void;
   onReload: () => void;
 }
 
@@ -26,6 +28,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onToggleDarkMode,
   onOpenSmartParser,
   onOpenImageOcr,
+  onOpenAiHub,
   onReload
 }) => {
   return (
@@ -56,6 +59,16 @@ export const Navbar: React.FC<NavbarProps> = ({
 
       {/* Top Quick Actions */}
       <div className="flex items-center gap-1.5">
+        {/* Quick AI Hub button */}
+        <button
+          type="button"
+          onClick={onOpenAiHub}
+          className="p-2 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 transition active:scale-95 shadow-sm"
+          title="斌斌 AI 财务智能大脑"
+        >
+          <Bot className="w-4 h-4" />
+        </button>
+
         {/* Quick Camera OCR button */}
         <button
           type="button"

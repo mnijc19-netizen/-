@@ -13,7 +13,8 @@ import {
   Zap, 
   Fingerprint, 
   PieChart,
-  ClipboardCheck
+  ClipboardCheck,
+  Bot
 } from 'lucide-react';
 import { DashboardAnalytics, Transaction, Account } from '../types';
 
@@ -25,6 +26,7 @@ interface DashboardProps {
   onOpenQuickTx: () => void;
   onOpenSnapshot: () => void;
   onOpenImageOcr: () => void;
+  onOpenAiHub: () => void;
   onClipboardIngest: () => void;
   onNavigateTo: (page: any) => void;
 }
@@ -37,6 +39,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onOpenQuickTx,
   onOpenSnapshot,
   onOpenImageOcr,
+  onOpenAiHub,
   onClipboardIngest,
   onNavigateTo
 }) => {
@@ -112,6 +115,31 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </div>
         </div>
         <ArrowRight className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+      </button>
+
+      {/* 🤖 AI Financial Copilot & Laboratory Hero Card */}
+      <button
+        type="button"
+        onClick={onOpenAiHub}
+        className="w-full p-3.5 rounded-2xl bg-gradient-to-r from-indigo-950/40 via-purple-950/30 to-slate-900 border border-indigo-500/40 flex items-center justify-between text-left hover:border-indigo-400 active:scale-98 transition shadow-md group"
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-600 text-white flex items-center justify-center flex-shrink-0 shadow-md shadow-indigo-500/30 group-hover:scale-105 transition">
+            <Bot className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+              <span>✨ 斌斌 AI 财务智能大脑 & 实验室</span>
+              <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-indigo-100 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-300 font-bold">
+                智能管家
+              </span>
+            </div>
+            <p className="text-[10px] text-slate-500 dark:text-slate-400">
+              一句话自动拆解记多笔 • AI 财务深度体检与省钱建议
+            </p>
+          </div>
+        </div>
+        <ArrowRight className="w-4 h-4 text-indigo-500 flex-shrink-0" />
       </button>
 
       {/* Mobile 4-Grid Quick Action Matrix */}

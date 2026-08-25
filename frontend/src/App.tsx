@@ -7,6 +7,7 @@ import { QuickTransactionModal } from './components/QuickTransactionModal';
 import { SnapshotModal } from './components/SnapshotModal';
 import { ImageOcrModal } from './components/ImageOcrModal';
 import { IphoneShortcutModal } from './components/IphoneShortcutModal';
+import { AiHubModal } from './components/AiHubModal';
 
 // Pages
 import { Dashboard } from './pages/Dashboard';
@@ -49,6 +50,7 @@ export function App() {
   const [snapshotOpen, setSnapshotOpen] = useState(false);
   const [imageOcrOpen, setImageOcrOpen] = useState(false);
   const [iphoneShortcutOpen, setIphoneShortcutOpen] = useState(false);
+  const [aiHubOpen, setAiHubOpen] = useState(false);
 
   // Auto Automation Toast
   const [autoToastMsg, setAutoToastMsg] = useState<string | null>(null);
@@ -244,6 +246,7 @@ export function App() {
           onOpenQuickTx={() => setQuickTxOpen(true)}
           onOpenSnapshot={() => setSnapshotOpen(true)}
           onOpenImageOcr={() => setImageOcrOpen(true)}
+          onOpenAiHub={() => setAiHubOpen(true)}
           onReload={loadAllData}
         />
 
@@ -264,6 +267,7 @@ export function App() {
                   onOpenQuickTx={() => setQuickTxOpen(true)}
                   onOpenSnapshot={() => setSnapshotOpen(true)}
                   onOpenImageOcr={() => setImageOcrOpen(true)}
+                  onOpenAiHub={() => setAiHubOpen(true)}
                   onClipboardIngest={handleClipboardIngest}
                   onNavigateTo={(p) => {
                     if (p === 'iphone_shortcut') {
@@ -395,6 +399,16 @@ export function App() {
       <IphoneShortcutModal
         isOpen={iphoneShortcutOpen}
         onClose={() => setIphoneShortcutOpen(false)}
+      />
+
+      <AiHubModal
+        isOpen={aiHubOpen}
+        onClose={() => setAiHubOpen(false)}
+        onSuccess={loadAllData}
+        accounts={accounts}
+        categories={categories}
+        analytics={analytics}
+        transactions={transactions}
       />
     </div>
   );
