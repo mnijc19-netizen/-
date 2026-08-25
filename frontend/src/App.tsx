@@ -218,14 +218,18 @@ export function App() {
     <div className="min-h-screen bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors duration-200">
       {/* Mobile App Shell Wrapper */}
       <div className="w-full max-w-md mx-auto min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col shadow-2xl relative">
-        {/* Top Automation Toast */}
+        {/* Top Automation Toast (Safe from Dynamic Island) */}
         {autoToastMsg && (
-          <div className="fixed top-4 left-4 right-4 z-50 max-w-md mx-auto p-4 rounded-2xl bg-emerald-600 text-white font-bold text-xs shadow-2xl flex items-center justify-between gap-2 animate-in slide-in-from-top duration-300">
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="w-5 h-5 flex-shrink-0" />
-              <span>{autoToastMsg}</span>
+          <div className="fixed top-[calc(env(safe-area-inset-top,48px)+0.75rem)] left-4 right-4 z-50 max-w-md mx-auto p-3.5 sm:p-4 rounded-2xl bg-emerald-600/95 dark:bg-emerald-600/95 backdrop-blur-md text-white font-bold text-xs shadow-2xl shadow-emerald-500/25 border border-emerald-400/30 flex items-center justify-between gap-2.5 animate-in slide-in-from-top duration-300">
+            <div className="flex items-center gap-2 min-w-0">
+              <CheckCircle2 className="w-5 h-5 flex-shrink-0 text-emerald-100" />
+              <span className="truncate">{autoToastMsg}</span>
             </div>
-            <button onClick={() => setAutoToastMsg(null)} className="text-white/80 hover:text-white">
+            <button 
+              type="button"
+              onClick={() => setAutoToastMsg(null)} 
+              className="p-1 rounded-lg text-white/80 hover:text-white hover:bg-white/20 transition flex-shrink-0"
+            >
               ✕
             </button>
           </div>
