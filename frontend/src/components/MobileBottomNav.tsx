@@ -23,7 +23,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
   onOpenQuickTx
 }) => {
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl border-t border-slate-200/80 dark:border-slate-800/80 px-2 py-1.5 flex items-center justify-around max-w-md mx-auto shadow-2xl pb-[calc(0.4rem+env(safe-area-inset-bottom))]">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white/96 dark:bg-slate-900/96 backdrop-blur-2xl border-t border-slate-200/90 dark:border-slate-800/90 px-3 py-2 flex items-center justify-around max-w-md mx-auto shadow-[0_-8px_30px_rgba(0,0,0,0.08)] dark:shadow-[0_-8px_30px_rgba(0,0,0,0.5)] pb-[calc(0.6rem+env(safe-area-inset-bottom,20px))]">
       {/* Tab 1: Home */}
       <button
         type="button"

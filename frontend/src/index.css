@@ -157,27 +157,24 @@ html.liquid-glass-theme .dark .dark\:text-slate-300 {
 
 /* Liquid Glass Navigation & Dock (Apple Chrome Material) */
 html.liquid-glass-theme nav,
-html.liquid-glass-theme header,
-html.liquid-glass-theme footer {
-  background: rgba(255, 255, 255, 0.92) !important;
-  backdrop-filter: blur(26px) saturate(160%) !important;
-  -webkit-backdrop-filter: blur(26px) saturate(160%) !important;
-  border-color: rgba(255, 255, 255, 0.8) !important;
-  box-shadow: 0 4px 24px 0 rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
+html.liquid-glass-theme header {
+  background: rgba(255, 255, 255, 0.96) !important;
+  backdrop-filter: blur(28px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(180%) !important;
+  border-color: rgba(255, 255, 255, 0.85) !important;
+  box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 1) !important;
 }
 
 html.liquid-glass-theme.dark nav,
 html.liquid-glass-theme.dark header,
-html.liquid-glass-theme.dark footer,
 html.liquid-glass-theme .dark nav,
-html.liquid-glass-theme .dark header,
-html.liquid-glass-theme .dark footer {
-  background: rgba(15, 23, 42, 0.94) !important;
-  backdrop-filter: blur(26px) saturate(170%) !important;
-  -webkit-backdrop-filter: blur(26px) saturate(170%) !important;
+html.liquid-glass-theme .dark header {
+  background: rgba(15, 23, 42, 0.96) !important;
+  backdrop-filter: blur(28px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(180%) !important;
   border-top: 1px solid rgba(255, 255, 255, 0.16) !important;
   border-color: rgba(255, 255, 255, 0.14) !important;
-  box-shadow: 0 -4px 24px 0 rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.18) !important;
+  box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.18) !important;
 }
 
 /* Liquid Glass Modals (Apple Thick Material) */

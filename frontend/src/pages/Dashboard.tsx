@@ -54,7 +54,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const recentTransactions = transactions.slice(0, 8);
 
   return (
-    <div className="space-y-4 pb-20 animate-in fade-in duration-200 max-w-lg mx-auto">
+    <div className="space-y-4 pb-36 animate-in fade-in duration-200 max-w-lg mx-auto">
       {/* Mobile Hero Card: Net Worth & Monthly Flow */}
       <div className="p-5 rounded-3xl bg-gradient-to-br from-emerald-600 via-teal-600 to-indigo-700 text-white shadow-xl shadow-emerald-500/15 relative overflow-hidden space-y-4">
         <div className="flex items-center justify-between text-emerald-100 text-xs">
@@ -121,25 +121,25 @@ export const Dashboard: React.FC<DashboardProps> = ({
       <button
         type="button"
         onClick={onOpenAiHub}
-        className="w-full p-3.5 rounded-2xl bg-gradient-to-r from-indigo-950/40 via-purple-950/30 to-slate-900 border border-indigo-500/40 flex items-center justify-between text-left hover:border-indigo-400 active:scale-98 transition shadow-md group"
+        className="w-full p-3.5 rounded-2xl bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-pink-500/10 dark:from-indigo-950/50 dark:via-purple-950/40 dark:to-slate-900/80 border border-indigo-300/60 dark:border-indigo-500/30 flex items-center justify-between text-left hover:border-indigo-400 active:scale-98 transition shadow-sm group"
       >
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-600 text-white flex items-center justify-center flex-shrink-0 shadow-md shadow-indigo-500/30 group-hover:scale-105 transition">
             <Bot className="w-5 h-5" />
           </div>
           <div>
-            <div className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+            <div className="text-xs font-bold text-indigo-950 dark:text-white flex items-center gap-1.5">
               <span>✨ 斌斌 AI 财务智能大脑 & 实验室</span>
-              <span className="text-[9px] font-mono font-bold px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-400">
+              <span className="text-[9px] font-mono font-bold px-1.5 py-0.2 rounded bg-indigo-500/15 dark:bg-purple-500/25 text-indigo-700 dark:text-purple-300">
                 AI
               </span>
             </div>
-            <p className="text-[10px] text-slate-400">
+            <p className="text-[10px] text-slate-600 dark:text-slate-300 mt-0.5">
               一句话自动记多笔 • AI 财务体检 • 智能看图
             </p>
           </div>
         </div>
-        <ArrowRight className="w-4 h-4 text-indigo-500 flex-shrink-0" />
+        <ArrowRight className="w-4 h-4 text-indigo-600 dark:text-indigo-400 flex-shrink-0" />
       </button>
 
       {/* Mobile 4-Grid Quick Action Matrix */}
