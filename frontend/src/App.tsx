@@ -232,7 +232,7 @@ export function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors duration-200 relative overflow-x-hidden">
+    <div className="min-h-screen bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors duration-200">
       {/* 🧪 Dynamic Floating Liquid Ambient Glow Orbs for iOS Liquid Glass Mode */}
       {liquidGlass && (
         <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
@@ -393,19 +393,15 @@ export function App() {
         </main>
       </div>
 
-      {/* Mobile Bottom Navigation Bar (Guaranteed fixed to viewport on all pages) */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 pointer-events-none">
-        <div className="w-full max-w-md mx-auto pointer-events-auto">
-          <MobileBottomNav
-            currentPage={currentPage}
-            onSelectPage={(p) => setCurrentPage(p)}
-            onOpenSmartParser={() => setSmartParserOpen(true)}
-            onOpenQuickTx={() => setQuickTxOpen(true)}
-            onOpenSnapshot={() => setSnapshotOpen(true)}
-            onOpenImageOcr={() => setImageOcrOpen(true)}
-          />
-        </div>
-      </div>
+      {/* Mobile Bottom Navigation Bar (Directly viewport-fixed with z-50) */}
+      <MobileBottomNav
+        currentPage={currentPage}
+        onSelectPage={(p) => setCurrentPage(p)}
+        onOpenSmartParser={() => setSmartParserOpen(true)}
+        onOpenQuickTx={() => setQuickTxOpen(true)}
+        onOpenSnapshot={() => setSnapshotOpen(true)}
+        onOpenImageOcr={() => setImageOcrOpen(true)}
+      />
 
       {/* Global Modals */}
       <ImageOcrModal
