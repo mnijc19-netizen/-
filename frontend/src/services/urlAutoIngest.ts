@@ -71,66 +71,167 @@ export function detectPaymentChannel(clean: string): 'wechat' | 'alipay' {
   return 'wechat';
 }
 
-export function extractFromRawText(text: string, accounts: any[] = []): { amount: number; merchant: string; category: string; accountId?: string } {
-  if (!text) return { amount: 0, merchant: '消费', category: '日常消费' };
+export function suggestCategory(merchant: string, fullText: string = ''): string {
+  const combined = (merchant + ' ' + fullText).toLowerCase();
   
-  const clean = text.replace(/[\r\n]+/g, '\n').trim();
-  const lines = clean.split('\n').map(l => l.trim()).filter(Boolean);
+  if (/餐饮|美食|清汤面|面|饭|餐|吃|外卖|美团|饿了么|麦当劳|肯德基|汉堡|火锅|烧烤|牛肉|海鲜|咖啡|奶茶|茶|霸王茶姬|星巴克|瑞幸|喜茶|早餐|午餐|晚餐|夜宵|甜品|小吃/.test(combined)) {
+    return '餐饮美食';
+  }
+  if (/生鲜|超市|便利店|百货|水果|良田|菜市|日用|屈臣氏|全家|罗森|7-eleven|便利蜂|永辉|盒马|山姆/.test(combined)) {
+    return '日用百货';
+  }
+  if (/滴滴|打车|出租车|地铁|公交|高铁|火车|机票|加油|中石化|中石油|停车|高速|出行|交通/.test(combined)) {
+    return '交通出行';
+  }
+  if (/淘宝|天猫|京东|拼多多|唯品会|服装|衣服|鞋|包|数码|手机|电脑|电器|饰品|闪购|购物/.test(combined)) {
+    return '购物消费';
+  }
+  if (/电影|影城|ktv|酒吧|网吧|游戏|充值|门票|旅游|休闲|娱乐/.test(combined)) {
+    return '休闲娱乐';
+  }
+  if (/医院|门诊|药房|药店|医疗|体检|就医|挂号|药品/.test(combined)) {
+    return '医疗健康';
+  }
+  if (/房租|水费|电费|燃气|物业|宽带|话费|充值/.test(combined)) {
+    return '生活服务';
+  }
+  return '日常消费';
+}
+
+export function extractFromRawText(text: string, accounts: any[] = []): { amount: number; merchant: string; category: string; date?: string; accountId?: string } {
+  if (!text) return { amount: 0, merchant: '日常消费', category: '日常消费' };
+  
+  const rawClean = text.replace(/[\r\n]+/g, '\n').trim();
+  const allLines = rawClean.split('\n').map(l => l.trim()).filter(Boolean);
 
   let amount = 0;
   let merchant = '';
   let category = '';
+  let date = '';
   let targetAccId: string | undefined;
 
   // 1. Channel Detection via robust scoring
-  const channel = detectPaymentChannel(clean);
-  const isAlipay = channel === 'alipay';
+  const isAlipay = /支付宝|花呗|借呗|余额宝|蚂蚁|全部账单|账单详情|支付奖励|淘|闪购|蜂鸟|饿了么/.test(rawClean);
+  const isWechat = /微信支付|微信记账本|使用零钱支付|零钱通|微信/.test(rawClean);
 
   if (isAlipay) {
-    const alipayAcc = accounts.find(a => a.name.includes('支付宝') || a.id === 'acc-2');
+    const alipayAcc = accounts.find(a => a.name && (a.name.includes('支付宝') || a.name.includes('花呗'))) || accounts.find(a => a.id === 'acc-2');
     targetAccId = alipayAcc?.id || 'acc-2';
   } else {
-    const wxAcc = accounts.find(a => a.name.includes('微信') || a.id === 'acc-1');
+    const wxAcc = accounts.find(a => a.name && (a.name.includes('微信') || a.name.includes('零钱'))) || accounts.find(a => a.id === 'acc-1');
     targetAccId = wxAcc?.id || 'acc-1';
   }
 
-  // 2. Specialized Alipay Bill Details Parser (Top Down)
-  if (isAlipay) {
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-      const alipayAmtMatch = line.match(/^[-－]?\s*([¥￥$]?\s*)(\d+\.\d{2})$/);
-      if (alipayAmtMatch) {
-        amount = parseFloat(alipayAmtMatch[2]);
-        if (i > 0) {
-          let prevLine = lines[i - 1];
-          if (!prevLine.includes('账单') && !prevLine.includes('<') && prevLine.length > 1) {
-            merchant = cleanMerchantName(prevLine);
-          }
+  // 2. Specialized Check: Bank SMS text (【中国工商银行】等)
+  const smsMatch = rawClean.match(/(?:支出|消费|扣款|转出|付款|人民币|RMB|支出\(消费\))\s*(?:人民币|RMB|[¥￥$])?\s*(\d+(?:\.\d{1,2})?)\s*元?/i);
+  if (smsMatch && !rawClean.includes('服务消息') && !rawClean.includes('支付消息') && !rawClean.includes('账单详情')) {
+    amount = parseFloat(smsMatch[1]);
+    const bankNameMatch = rawClean.match(/【([^】]+)】/);
+    if (bankNameMatch) {
+      merchant = cleanMerchantName(bankNameMatch[1]);
+    }
+  }
+
+  // 3. Specialized Check: Food delivery / E-commerce Order Detail (e.g. 淘宝闪购 / 饿了么 / 美团实付)
+  if (!amount) {
+    const paidMatch = rawClean.match(/(?:实付|合计|应付|总计)\s*[¥￥$]?\s*(\d+(?:\.\d{1,2})?)/);
+    if (paidMatch) {
+      amount = parseFloat(paidMatch[1]);
+      for (const line of allLines) {
+        if (line.includes('闪购') || (line.includes('店') && !line.includes('设置') && !line.includes('订单') && !line.includes('备注'))) {
+          merchant = cleanMerchantName(line);
+          break;
         }
-        break;
       }
     }
   }
 
-  // 3. Specialized WeChat Bill Parser / Fallback (Bottom Up)
-  if (!amount) {
-    for (let i = lines.length - 1; i >= 0; i--) {
-      const line = lines[i];
-      if (line.includes('昨日') || line.includes('已支出') || line.includes('已入账') || line.includes('统计') || line.includes('共') || line.includes('积分') || line.includes('时间') || line.includes('202')) {
+  // 4. Specialized Check: Alipay Payment Messages List (支付消息列表 - 识别第一条最新付款)
+  if (!amount && (rawClean.includes('支付消息') || rawClean.includes('服务消息') || rawClean.includes('付款成功') || rawClean.includes('支付成功'))) {
+    const validLines: string[] = [];
+    for (let idx = 0; idx < allLines.length; idx++) {
+      const l = allLines[idx];
+      // Skip top monthly stat bars
+      if (l.includes('统计支出') || l.includes('本月支出') || l.includes('大额消费') || l.includes('自动扣款') || l.includes('分期付款')) {
         continue;
       }
-      const match = line.match(/(?:[¥￥$]\s*|[-－]\s*)?(\d+\.\d{2})/);
+      if (l.includes('服务消息') || l.includes('支付消息')) {
+        continue;
+      }
+      validLines.push(l);
+    }
+
+    // Find the FIRST "付款成功" / "支付成功" from top to bottom
+    for (let i = 0; i < validLines.length; i++) {
+      const line = validLines[i];
+      if (line === '付款成功' || line.includes('付款成功') || line === '支付成功' || line.includes('支付成功')) {
+        // Amount is immediately below
+        for (let j = i; j <= Math.min(validLines.length - 1, i + 2); j++) {
+          const amtM = validLines[j].match(/^[¥￥$]?\s*(\d+\.\d{1,2})$/);
+          if (amtM) {
+            amount = parseFloat(amtM[1]);
+            break;
+          }
+        }
+        // Merchant is immediately above
+        for (let k = i - 1; k >= Math.max(0, i - 4); k--) {
+          const prev = validLines[k];
+          if (!prev.includes('PM') && !prev.includes('AM') && !prev.includes(':') && !prev.includes('昨天') && !prev.includes('今天') && !prev.includes('支付成功') && !prev.includes('付款成功') && !prev.includes('微信记账本') && !prev.includes('微信支付') && prev.length > 1) {
+            merchant = cleanMerchantName(prev);
+            break;
+          }
+        }
+        if (amount > 0) break;
+      }
+    }
+  }
+
+  // 5. Specialized Check: Alipay / WeChat Bill Detail Page (单笔账单详情)
+  if (!amount && (rawClean.includes('账单详情') || rawClean.includes('商品说明') || rawClean.includes('账单分类'))) {
+    const productDescMatch = rawClean.match(/商品说明\s*([^\n\r]+)/);
+    if (productDescMatch) {
+      merchant = cleanMerchantName(productDescMatch[1]);
+    }
+
+    for (let i = 0; i < allLines.length; i++) {
+      const line = allLines[i];
+      const match = line.match(/^[-－]?\s*[¥￥$]?\s*(\d+\.\d{1,2})$/);
       if (match) {
-        const val = parseFloat(match[1]);
-        if (val > 0 && val < 1000000 && !line.includes(':')) {
+        amount = parseFloat(match[1]);
+        if (!merchant && i > 0) {
+          merchant = cleanMerchantName(allLines[i - 1]);
+        }
+        break;
+      }
+    }
+
+    const catMatch = rawClean.match(/账单分类\s*([^\n\r>]+)/);
+    if (catMatch) {
+      const rawCat = catMatch[1].trim();
+      if (/餐饮/.test(rawCat)) category = '餐饮美食';
+      else if (/百货|超市/.test(rawCat)) category = '日用百货';
+      else if (/交通|出行/.test(rawCat)) category = '交通出行';
+      else if (/购物/.test(rawCat)) category = '购物消费';
+    }
+
+    const timeMatch = rawClean.match(/支付时间\s*(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}(?::\d{2})?)/);
+    if (timeMatch) {
+      date = timeMatch[1].substring(0, 16);
+    }
+  }
+
+  // 6. Fallback: Search for any valid amount
+  if (!amount) {
+    for (let i = 0; i < allLines.length; i++) {
+      const l = allLines[i];
+      if (l.includes('积分') || l.includes('订单号') || l.includes('预计') || l.includes(':') || l.length > 15) continue;
+      const m = l.match(/(?:[¥￥$]\s*|[-－]\s*)?(\d+\.\d{1,2})/);
+      if (m) {
+        const val = parseFloat(m[1]);
+        if (val > 0 && val < 1000000) {
           amount = val;
-          // Search surrounding lines for merchant
-          for (let j = Math.max(0, i - 3); j <= Math.min(lines.length - 1, i + 1); j++) {
-            const l = lines[j];
-            if (j !== i && !l.includes('支付') && !l.includes('零钱') && !l.includes('微信') && !l.includes('支付宝') && !l.includes('详情') && !l.includes('昨天') && !l.includes('今天') && !l.includes('日报') && !l.includes('设置') && !l.includes('明细') && !l.includes('积分') && !l.includes('时间')) {
-              merchant = cleanMerchantName(l);
-              break;
-            }
+          if (!merchant && i > 0) {
+            merchant = cleanMerchantName(allLines[i - 1]);
           }
           break;
         }
@@ -138,42 +239,31 @@ export function extractFromRawText(text: string, accounts: any[] = []): { amount
     }
   }
 
-  // 4. Fallback if amount not found
-  if (!amount) {
-    const matchAny = clean.match(/(\d+(?:\.\d{1,2})?)\s*(?:元|块)?/);
-    if (matchAny) amount = parseFloat(matchAny[1]);
-  }
-
-  if (merchant) {
-    merchant = cleanMerchantName(merchant);
-  }
-
-  // Search brand in whole text if merchant not found
-  if (!merchant || merchant.length < 2) {
+  if (!merchant || merchant === '日常消费' || merchant === '消费' || merchant === '支付成功' || merchant === '付款成功') {
     const brands = [
-      "麦当劳", "肯德基", "汉堡王", "瑞幸咖啡", "星巴克", "海底捞", "喜茶", "霸王茶姬", 
-      "茶百道", "蜜雪冰城", "美团", "饿了么", "滴滴出行", "淘宝", "天猫", "京东", 
-      "拼多多", "盒马", "山姆", "永辉超市", "屈臣氏", "7-Eleven", "全家", "优衣库", "Apple",
-      "生鲜超市", "便利店", "良田"
+      "清口清汤面", "淘宝闪购", "淘宝", "麦当劳", "肯德基", "汉堡王", "瑞幸咖啡", "星巴克", 
+      "海底捞", "喜茶", "霸王茶姬", "茶百道", "蜜雪冰城", "美团", "美团外卖", "饿了么", 
+      "滴滴出行", "天猫", "京东", "拼多多", "盒马", "山姆", "永辉超市", "生鲜超市", "万亩良田"
     ];
     for (const b of brands) {
-      if (clean.includes(b)) {
+      if (rawClean.includes(b)) {
         merchant = cleanMerchantName(b);
         break;
       }
     }
   }
 
-  if (!merchant) merchant = isAlipay ? "支付宝消费" : "微信消费";
+  if (!category) {
+    category = suggestCategory(merchant, rawClean);
+  }
 
-  // 5. Match Category
-  if (/生鲜|超市|便利店|百货|水果|良田|菜市|日用/.test(merchant + clean)) category = '日用百货';
-  else if (/牛肉|海鲜|火锅|烧烤|饭|面|餐|吃|麦当劳|肯德基|咖啡|茶|外卖|美团/.test(merchant + clean)) category = '餐饮美食';
-  else if (/滴滴|打车|地铁|公交|高铁|加油|车|出行/.test(merchant + clean)) category = '交通出行';
-  else if (/淘宝|京东|天猫|拼多多|衣服|鞋|数码/.test(merchant + clean)) category = '购物消费';
-  else category = '日常消费';
-
-  return { amount, merchant, category, accountId: targetAccId };
+  return {
+    amount,
+    merchant: merchant || (isAlipay ? '支付宝消费' : '微信商户消费'),
+    category,
+    date,
+    accountId: targetAccId
+  };
 }
 
 export async function checkAndHandleUrlAutoIngest(): Promise<AutoIngestResult | null> {
