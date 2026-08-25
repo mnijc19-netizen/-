@@ -20,18 +20,39 @@ export interface AiExtractedItem {
 
 export const AI_PROVIDERS = [
   {
+    id: 'zhipu-vision',
+    name: '🇨🇳 智谱 GLM-4V-Flash (免费·支持图片识别+文本記账)',
+    baseUrl: 'https://open.bigmodel.cn/api/paas/v4',
+    model: 'glm-4v-flash',
+    hint: '前往 bigmodel.cn 申请免费 Key，支持图片视觉识别与文本記账！'
+  },
+  {
+    id: 'zhipu',
+    name: '🇨🇳 智谱 GLM-4-Flash (免费·纯文本极速版)',
+    baseUrl: 'https://open.bigmodel.cn/api/paas/v4',
+    model: 'glm-4-flash',
+    hint: '前往 bigmodel.cn 申请免费 GLM-4-Flash 密钥'
+  },
+  {
     id: 'deepseek',
-    name: '🇨🇳 DeepSeek (推荐·超高性价比)',
+    name: '🇨🇳 DeepSeek (推荐·超强语义理解与推理)',
     baseUrl: 'https://api.deepseek.com/v1',
     model: 'deepseek-chat',
     hint: '前往 platform.deepseek.com 获取 sk- 密钥'
   },
   {
-    id: 'zhipu',
-    name: '🇨🇳 智谱清言 GLM-4-Flash (免费)',
-    baseUrl: 'https://open.bigmodel.cn/api/paas/v4',
-    model: 'glm-4-flash',
-    hint: '前往 bigmodel.cn 申请免费 GLM-4-Flash 密钥'
+    id: 'openai',
+    name: '🌐 OpenAI GPT-4o-mini (多模态看图+语义)',
+    baseUrl: 'https://api.openai.com/v1',
+    model: 'gpt-4o-mini',
+    hint: '前往 platform.openai.com 获取密钥'
+  },
+  {
+    id: 'qwen',
+    name: '🇨🇳 通义千问 Qwen (阿里云百炼)',
+    baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+    model: 'qwen-plus',
+    hint: '前往阿里云百炼获取 API Key'
   },
   {
     id: 'kimi',
@@ -39,20 +60,6 @@ export const AI_PROVIDERS = [
     baseUrl: 'https://api.moonshot.cn/v1',
     model: 'moonshot-v1-8k',
     hint: '前往 platform.moonshot.cn 获取密钥'
-  },
-  {
-    id: 'qwen',
-    name: '🇨🇳 通义千问 Qwen',
-    baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
-    model: 'qwen-plus',
-    hint: '前往阿里云百炼获取 API Key'
-  },
-  {
-    id: 'openai',
-    name: '🌐 OpenAI (GPT-4o-mini)',
-    baseUrl: 'https://api.openai.com/v1',
-    model: 'gpt-4o-mini',
-    hint: '前往 platform.openai.com 获取密钥'
   },
   {
     id: 'custom',
@@ -339,7 +346,7 @@ export async function parseImageWithAiVision(
 
   // Determine vision model
   let visionModel = config.model;
-  if (config.provider === 'zhipu' && !visionModel.includes('4v')) {
+  if ((config.provider === 'zhipu' || config.provider === 'zhipu-vision') && !visionModel.includes('4v')) {
     visionModel = 'glm-4v-flash'; // Free Vision model
   } else if (config.provider === 'qwen' && !visionModel.includes('vl')) {
     visionModel = 'qwen-vl-plus';
