@@ -2,7 +2,7 @@ import { createWorker } from 'tesseract.js';
 import { ParsedTransactionResult } from '../types';
 import { suggestCategory, getLocalDateTimeString } from './smsParser';
 import { extractFromRawText } from './urlAutoIngest';
-import { parseImageWithAiVision } from './aiParser';
+import { parseImageWithAiVision, parseWithAi } from './aiParser';
 
 // Pre-processes an image on canvas (high contrast, grayscale)
 async function preprocessImage(imageFile: File | string): Promise<string> {
@@ -70,6 +70,18 @@ async function preprocessImage(imageFile: File | string): Promise<string> {
   });
 }
 
+export async function extractOcrRawText(imageSource: File | string): Promise<string> {
+  try {
+    const preprocessed = await preprocessImage(imageSource);
+    const worker = await createWorker('chi_sim+eng', 1);
+    const ret = await worker.recognize(preprocessed);
+    await worker.terminate();
+    return ret.data.text || '';
+  } catch (e) {
+    return '';
+  }
+}
+
 export async function parseBillImage(
   imageSource: File | string,
   accountsLookup: any[] = [],
@@ -105,8 +117,21 @@ export async function parseBillImage(
     await worker.terminate();
 
     const rawText = ret.data.text || '';
-    onProgress?.(0.95, '正在提取商户与交易金额...');
+    onProgress?.(0.9, '正在使用 AI 语言大模型进行语义纠错与要素提取...');
 
+    // 3. Feed the recognized OCR text directly to the AI text LLM (e.g. DeepSeek / GLM-4)
+    try {
+      const aiTextResult = await parseWithAi(rawText, accountsLookup);
+      if (aiTextResult && (aiTextResult.amount ?? 0) > 0) {
+        onProgress?.(1.0, 'AI 语义解析完成！');
+        aiTextResult.matched_rule = `🤖 AI 大模型语义理解 (${aiTextResult.matched_rule || 'LLM'})`;
+        return aiTextResult;
+      }
+    } catch (e) {
+      console.warn('AI Text Parsing fallback to local rules:', e);
+    }
+
+    onProgress?.(1.0, '本地引擎规则提取完成');
     return parseRecognizedBillText(rawText, accountsLookup);
   } catch (error: any) {
     console.error('OCR Error:', error);

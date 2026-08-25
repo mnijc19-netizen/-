@@ -86,11 +86,11 @@ export async function testAiConnection(config: AiConfig): Promise<AiTestResult> 
       body: JSON.stringify({
         model: config.model || 'deepseek-chat',
         messages: [
-          { role: 'system', content: 'You are an AI assistant.' },
-          { role: 'user', content: 'Say pong' }
+          { role: 'system', content: '严格只输出符合格式的单个 JSON 对象，不要用 markdown 包裹。' },
+          { role: 'user', content: '请解析记账测试：【微信支付 2026-08-25 在瑞幸咖啡消费 9.9 元】返回 {"merchant":"瑞幸咖啡","amount":9.9,"category":"餐饮美食"}' }
         ],
         temperature: 0.1,
-        max_tokens: 20
+        max_tokens: 80
       })
     });
 
@@ -99,20 +99,21 @@ export async function testAiConnection(config: AiConfig): Promise<AiTestResult> 
       const errText = await res.text();
       return { 
         success: false, 
-        message: `连接失败 (${res.status}): ${errText.substring(0, 80)}`,
+        message: `连接失败 (${res.status}): ${errText.substring(0, 100)}`,
         latencyMs 
       };
     }
 
     const data = await res.json();
-    if (data && data.choices && data.choices.length > 0) {
+    const replyText = data?.choices?.[0]?.message?.content || '';
+    if (replyText) {
       return { 
         success: true, 
-        message: `✅ AI 连接成功！响应耗时: ${latencyMs}ms (${config.model})`,
+        message: `✅ AI 大模型调用 100% 成功！\n模型:【${config.model}】\n响应耗时: ${latencyMs}ms\n实测解析返回: ${replyText.trim()}`,
         latencyMs 
       };
     }
-    return { success: false, message: 'API 返回格式不符合标准' };
+    return { success: false, message: 'API 返回内容为空' };
   } catch (err: any) {
     return { success: false, message: `网络连接异常: ${err.message || '请检查接口地址或网络'}` };
   }
@@ -529,37 +530,99 @@ export async function parseBalanceScreenshotWithAi(
     });
 
     clearTimeout(timeoutId);
-    if (!res.ok) return null;
+    if (res.ok) {
+      const data = await res.json();
+      const replyText = data?.choices?.[0]?.message?.content || '';
+      const jsonMatch = replyText.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        if (parsed.balance !== undefined && !isNaN(parseFloat(parsed.balance))) {
+          const numBalance = Math.abs(parseFloat(parsed.balance));
+          let validAccountType: 'wallet' | 'bank' | 'investment' | 'crypto' | 'credit' | 'cash' = 'wallet';
+          if (['wallet', 'bank', 'investment', 'crypto', 'credit', 'cash'].includes(parsed.account_type)) {
+            validAccountType = parsed.account_type;
+          } else if (/银行|卡|储蓄/.test(parsed.platform || '')) {
+            validAccountType = 'bank';
+          } else if (/基金|理财|证券|股票|收益/.test(parsed.platform || '')) {
+            validAccountType = 'investment';
+          }
 
-    const data = await res.json();
-    const replyText = data?.choices?.[0]?.message?.content || '';
-    const jsonMatch = replyText.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) return null;
-
-    const parsed = JSON.parse(jsonMatch[0]);
-    if (parsed.balance === undefined || isNaN(parseFloat(parsed.balance))) return null;
-
-    const numBalance = Math.abs(parseFloat(parsed.balance));
-    let validAccountType: 'wallet' | 'bank' | 'investment' | 'crypto' | 'credit' | 'cash' = 'wallet';
-    if (['wallet', 'bank', 'investment', 'crypto', 'credit', 'cash'].includes(parsed.account_type)) {
-      validAccountType = parsed.account_type;
-    } else if (/银行|卡|储蓄/.test(parsed.platform || '')) {
-      validAccountType = 'bank';
-    } else if (/基金|理财|证券|股票|收益/.test(parsed.platform || '')) {
-      validAccountType = 'investment';
+          return {
+            platform: parsed.platform || '平台账户',
+            accountType: validAccountType,
+            balance: numBalance,
+            currency: parsed.currency || 'CNY',
+            bankName: parsed.bank_name || undefined,
+            cardLast4: parsed.card_last4 || undefined,
+            note: parsed.note || `由 ${visionModel} 识别于 ${getBeijingDateTimeString()}`,
+            confidence: 0.99
+          };
+        }
+      }
     }
-
-    return {
-      platform: parsed.platform || '平台账户',
-      accountType: validAccountType,
-      balance: numBalance,
-      currency: parsed.currency || 'CNY',
-      bankName: parsed.bank_name || undefined,
-      cardLast4: parsed.card_last4 || undefined,
-      note: parsed.note || `由 ${visionModel} 识别于 ${getBeijingDateTimeString()}`,
-      confidence: 0.99
-    };
   } catch (e) {
-    return null;
+    // vision call failed or not supported, continue to text-based LLM fallback
   }
+
+  // 2. Fallback: If Vision model is not supported (e.g. DeepSeek-Chat is text-only), run local OCR then ask LLM to extract JSON
+  try {
+    const { extractOcrRawText } = await import('./imageOcr');
+    const ocrText = await extractOcrRawText(base64DataUrl);
+    if (ocrText && ocrText.trim()) {
+      const textPrompt = `你是一个财务资产识别专家。请从以下账户余额截图 OCR 文字中，识别并提取出核心资产余额信息，严格按照 JSON 格式返回（不要用 markdown 代码块包裹）：
+{
+  "platform": "平台或银行具体名称，例如：微信支付-零钱通、微信零钱、支付宝-余额宝、招商银行一卡通、工商银行等",
+  "account_type": "wallet|bank|investment|credit|cash",
+  "balance": 提取当前核心资产总额或可用余额数字（纯数字，例如 12850.50）,
+  "currency": "CNY",
+  "bank_name": "银行名称（无则留空）",
+  "card_last4": "卡号后4位（无则留空）"
+}
+OCR 识别文字如下：
+${ocrText}`;
+
+      const textRes = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${config.apiKey.trim()}`
+        },
+        body: JSON.stringify({
+          model: config.model || 'deepseek-chat',
+          messages: [
+            { role: 'system', content: '严格只输出符合格式的单个 JSON 对象，不要用 markdown 包裹。' },
+            { role: 'user', content: textPrompt }
+          ],
+          temperature: 0.1,
+          max_tokens: 300
+        })
+      });
+
+      if (textRes.ok) {
+        const tData = await textRes.json();
+        const tReply = tData?.choices?.[0]?.message?.content || '';
+        const tJsonMatch = tReply.match(/\{[\s\S]*\}/);
+        if (tJsonMatch) {
+          const tParsed = JSON.parse(tJsonMatch[0]);
+          if (tParsed.balance !== undefined && !isNaN(parseFloat(tParsed.balance))) {
+            const numBal = Math.abs(parseFloat(tParsed.balance));
+            return {
+              platform: tParsed.platform || '平台账户',
+              accountType: ['wallet', 'bank', 'investment', 'crypto', 'credit', 'cash'].includes(tParsed.account_type) ? tParsed.account_type : 'wallet',
+              balance: numBal,
+              currency: tParsed.currency || 'CNY',
+              bankName: tParsed.bank_name || undefined,
+              cardLast4: tParsed.card_last4 || undefined,
+              note: `由 ${config.model} (OCR 文本大模型理解) 识别`,
+              confidence: 0.95
+            };
+          }
+        }
+      }
+    }
+  } catch (ocrErr) {
+    console.warn('OCR Text fallback error:', ocrErr);
+  }
+
+  return null;
 }
