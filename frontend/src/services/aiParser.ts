@@ -347,6 +347,56 @@ ${clean}`;
   }
 }
 
+/**
+ * Local offline rule-based fallback transaction parser
+ */
+export function parseOfflineFallback(
+  rawText: string,
+  accountsLookup: any[] = []
+): ParsedTransactionResult | null {
+  if (!rawText || !rawText.trim()) return null;
+  const clean = rawText.trim();
+  
+  const amtMatch = clean.match(/(?:支出|消费|付了|付款|实付|扣款|打款|收入|转入)?[^\d\n]*[¥￥\s]*([\d,]+\.?\d*)\s*(?:元|块)?/);
+  const amount = amtMatch ? parseFloat(amtMatch[1].replace(/,/g, '')) : 0;
+  if (amount <= 0) return null;
+
+  const isIncome = /收入|到账|转入|收到|工资|兼职|分红|退款/.test(clean);
+  const type = isIncome ? 'income' : 'expense';
+
+  let channel = '微信支付';
+  if (/支付宝|花呗|余额宝/.test(clean)) channel = '支付宝';
+  else if (/银行|招商|工行|建行|农行|中行/.test(clean)) channel = '银行卡';
+
+  let merchant = '日常消费';
+  const merchMatch = clean.match(/(?:在|给|向|于)\s*([^0-9\s,，。]+?)(?:消费|微信|支付宝|付款|买了|吃了|喝了|\d)/);
+  if (merchMatch && merchMatch[1]) {
+    merchant = merchMatch[1].trim();
+  } else if (/喜茶|星巴克|瑞幸|肯德基|麦当劳|外卖|美团|饿了么/.test(clean)) {
+    merchant = clean.match(/(?:喜茶|星巴克|瑞幸|肯德基|麦当劳|美团外卖|饿了么)/)?.[0] || '餐饮美食';
+  }
+
+  let category = isIncome ? '工资薪酬' : '日常消费';
+  if (/喜茶|星巴克|咖啡|奶茶|吃|饭|麦当劳|肯德基|外卖|餐/.test(clean)) category = '餐饮美食';
+  else if (/超市|永辉|盒马|买菜|水果/.test(clean)) category = '日用百货';
+  else if (/打车|滴滴|地铁|公交|加油|高铁|机票/.test(clean)) category = '交通出行';
+  else if (/话费|宽带|电费|水费|燃气|物业/.test(clean)) category = '生活服务';
+
+  return {
+    success: true,
+    confidence: 0.85,
+    type,
+    amount,
+    bank_or_channel: channel,
+    merchant,
+    suggested_category: category,
+    date: getBeijingDateTimeString(),
+    raw_text: clean.substring(0, 100),
+    matched_rule: '⚡ 本地离线规则解析',
+    note: `离线规则解析: ${merchant} ¥${amount}`
+  };
+}
+
 // 2. Multi-Transaction Extraction (One Sentence -> Multiple Transactions)
 export async function parseMultiTransactionsWithAi(
   text: string,

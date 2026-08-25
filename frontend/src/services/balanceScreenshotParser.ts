@@ -70,8 +70,11 @@ export function parseOfflineBalanceScreenshot(rawText: string): ExtractedBalance
   }
 
   // 4. 🦘 美团月付 (Meituan Pay - Credit Liability)
-  if (/美团月付|月付|美团外卖月付/.test(clean) && /待还|本月待还|下月待还|本期应还|额度/.test(clean)) {
-    const mtMatch = clean.match(/(?:本月待还|下月待还|待还总额|本期待还|剩余应还)[^\d\n]*[¥￥\s]*([\d,]+\.\d{2})/i) ||
+  if (
+    /美团月付|月付|美团外卖月付|美团|\d+月账单/.test(clean) && 
+    /待还|本月待还|下月待还|本期应还|分期还款|提前还款|还款日|额度/.test(clean)
+  ) {
+    const mtMatch = clean.match(/(?:本月待还|下月待还|待还总额|本期待还|剩余应还|待还\s*\(?元?\)?|账单总计)[^\d\n]*[¥￥\s]*([\d,]+\.\d{2})/i) ||
                     clean.match(/([\d,]+\.\d{2})/);
     const amt = mtMatch ? parseFloat(mtMatch[1].replace(/,/g, '')) : 0;
     if (amt > 0) {
@@ -129,10 +132,11 @@ export function parseOfflineBalanceScreenshot(rawText: string): ExtractedBalance
     let balance = 0;
     let note = '微信钱包余额';
 
-    const changeMatch = clean.match(/零钱[^\d\n]*[¥￥\s]*([\d,]+\.?\d*)/);
+    const changeMatch = clean.match(/零钱[^\d\n]*[¥￥\s]*([\d,]+\.\d{2})/);
     const changeAmount = changeMatch ? parseFloat(changeMatch[1].replace(/,/g, '')) : 0;
 
-    const tongMatch = clean.match(/零钱通[^\d\n]*[¥￥\s]*(?:收益率[\d\.]+%?[^\d\n]*)?([¥￥\s]*[\d,]+\.?\d*)/);
+    const tongMatch = clean.match(/零钱通[\s\S]{0,35}?[¥￥]\s*([\d,]+\.\d{2})/) ||
+                      clean.match(/零钱通[^\d\n]*[¥￥\s]*([\d,]+\.\d{2})/);
     const tongAmount = tongMatch ? parseFloat(tongMatch[1].replace(/[¥￥\s,]/g, '')) : 0;
 
     if (changeAmount > 0 && tongAmount > 0) {

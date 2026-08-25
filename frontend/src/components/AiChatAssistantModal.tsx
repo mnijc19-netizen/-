@@ -29,7 +29,9 @@ import {
   ArrowUpRight,
   Edit3,
   CheckCheck,
-  ChevronDown
+  ChevronDown,
+  CreditCard,
+  Clock
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { Account, Transaction, Category, Goal, Budget, RecurringRule, Investment, Debt, AgentChatMessage, AccountType } from '../types';
@@ -447,6 +449,53 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
         actionResult = {
           type: 'debt_created',
           data: createdDebt
+        };
+      }
+      // 7. Budget
+      else if (act.type === 'set_budget') {
+        const p = act.payload;
+        const targetCategory = categories.find(c => c.name.includes(p.category_name) || p.category_name.includes(c.name)) || categories[0];
+        const createdBudget = await api.setBudget({
+          category_id: targetCategory?.id || undefined,
+          amount: parseFloat(p.amount) || 2000,
+          period: 'monthly'
+        });
+        actionResult = {
+          type: 'budget_set',
+          data: createdBudget
+        };
+      }
+      // 8. Goal
+      else if (act.type === 'create_goal') {
+        const p = act.payload;
+        const createdGoal = await api.addGoal({
+          name: p.name || '储蓄心愿目标',
+          target_amount: parseFloat(p.target_amount) || 10000,
+          current_amount: parseFloat(p.current_amount) || 0,
+          target_date: p.target_date || '2026-12-31',
+          color: 'indigo'
+        });
+        actionResult = {
+          type: 'goal_created',
+          data: createdGoal
+        };
+      }
+      // 9. Recurring Rule
+      else if (act.type === 'create_recurring_rule') {
+        const p = act.payload;
+        const createdRule = await api.addRecurringRule({
+          name: p.name || '周期性账目',
+          amount: parseFloat(p.amount) || 100,
+          type: p.type || 'expense',
+          category_id: categories[0]?.id || 'cat-1',
+          account_id: accounts[0]?.id || 'acc-1',
+          frequency: 'monthly',
+          day_of_period: parseInt(p.day_of_period) || 10,
+          is_active: 1
+        });
+        actionResult = {
+          type: 'recurring_rule_created',
+          data: createdRule
         };
       }
 
@@ -1340,6 +1389,192 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
                           <Plus className="w-3.5 h-3.5" />
                           <span>添加更多持仓标的</span>
                         </button>
+                      </div>
+                    )}
+
+                    {/* Single & Batch Transaction Staging Card */}
+                    {(m.pendingAction.type === 'create_transaction' || m.pendingAction.type === 'batch_create_transactions') && (
+                      <div className="space-y-2.5 bg-white/90 dark:bg-slate-900/90 p-3 rounded-2xl border border-emerald-300 dark:border-emerald-700 text-xs">
+                        <div className="flex items-center justify-between px-1">
+                          <div className="flex items-center gap-1.5 font-black text-emerald-900 dark:text-emerald-200">
+                            <Receipt className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                            <span>🧾 消费/收支流水待入账：</span>
+                          </div>
+                          <span className="text-[10px] text-slate-400 font-mono">
+                            {(m.pendingAction.payload.items || [m.pendingAction.payload]).length} 笔交易
+                          </span>
+                        </div>
+
+                        <div className="space-y-2">
+                          {(m.pendingAction.payload.items || [m.pendingAction.payload]).map((it: any, idx: number) => (
+                            <div key={idx} className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 grid grid-cols-2 gap-2 text-[11px]">
+                              <div>
+                                <label className="text-[9px] text-slate-400 block mb-0.5">商户/明细</label>
+                                <input
+                                  type="text"
+                                  value={it.merchant || ''}
+                                  onChange={(e) => {
+                                    if (m.pendingAction?.type === 'batch_create_transactions') {
+                                      const cur = [...(m.pendingAction?.payload?.items || [])];
+                                      if (cur[idx]) cur[idx].merchant = e.target.value;
+                                      handleUpdatePendingField(m.id, 'items', cur);
+                                    } else {
+                                      handleUpdatePendingField(m.id, 'merchant', e.target.value);
+                                    }
+                                  }}
+                                  className="w-full px-2 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold text-xs"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[9px] text-slate-400 block mb-0.5">金额 (¥)</label>
+                                <input
+                                  type="number"
+                                  step="any"
+                                  value={it.amount ?? ''}
+                                  onChange={(e) => {
+                                    const v = parseFloat(e.target.value) || 0;
+                                    if (m.pendingAction?.type === 'batch_create_transactions') {
+                                      const cur = [...(m.pendingAction?.payload?.items || [])];
+                                      if (cur[idx]) cur[idx].amount = v;
+                                      handleUpdatePendingField(m.id, 'items', cur);
+                                    } else {
+                                      handleUpdatePendingField(m.id, 'amount', v);
+                                    }
+                                  }}
+                                  className="w-full px-2 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono font-black text-xs text-rose-600 dark:text-rose-400 text-right"
+                                />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Debt Staging Card */}
+                    {m.pendingAction.type === 'create_debt' && (
+                      <div className="space-y-2 bg-white/90 dark:bg-slate-900/90 p-3 rounded-2xl border border-rose-300 dark:border-rose-700 text-xs">
+                        <div className="flex items-center gap-1.5 font-black text-rose-900 dark:text-rose-200">
+                          <CreditCard className="w-4 h-4 text-rose-600 flex-shrink-0" />
+                          <span>💳 负债与分期还款待录入：</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="text-[9px] text-slate-400 block mb-0.5">负债名称</label>
+                            <input
+                              type="text"
+                              value={m.pendingAction.payload.name || ''}
+                              onChange={(e) => handleUpdatePendingField(m.id, 'name', e.target.value)}
+                              placeholder="京东白条分期"
+                              className="w-full px-2 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold text-xs"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[9px] text-slate-400 block mb-0.5">待还本金 (¥)</label>
+                            <input
+                              type="number"
+                              step="any"
+                              value={m.pendingAction.payload.total_principal ?? ''}
+                              onChange={(e) => handleUpdatePendingField(m.id, 'total_principal', parseFloat(e.target.value) || 0)}
+                              className="w-full px-2 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono font-black text-xs text-rose-600 dark:text-rose-400 text-right"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Budget Staging Card */}
+                    {m.pendingAction.type === 'set_budget' && (
+                      <div className="space-y-2 bg-white/90 dark:bg-slate-900/90 p-3 rounded-2xl border border-purple-300 dark:border-purple-700 text-xs">
+                        <div className="flex items-center gap-1.5 font-black text-purple-900 dark:text-purple-200">
+                          <PieChart className="w-4 h-4 text-purple-600 flex-shrink-0" />
+                          <span>🎯 月度预算待设置：</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="text-[9px] text-slate-400 block mb-0.5">预算分类</label>
+                            <input
+                              type="text"
+                              value={m.pendingAction.payload.category_name || ''}
+                              onChange={(e) => handleUpdatePendingField(m.id, 'category_name', e.target.value)}
+                              placeholder="餐饮美食"
+                              className="w-full px-2 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold text-xs"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[9px] text-slate-400 block mb-0.5">月度限额 (¥)</label>
+                            <input
+                              type="number"
+                              step="any"
+                              value={m.pendingAction.payload.amount ?? ''}
+                              onChange={(e) => handleUpdatePendingField(m.id, 'amount', parseFloat(e.target.value) || 0)}
+                              className="w-full px-2 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono font-bold text-xs text-purple-600 dark:text-purple-400 text-right"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Goal Staging Card */}
+                    {m.pendingAction.type === 'create_goal' && (
+                      <div className="space-y-2 bg-white/90 dark:bg-slate-900/90 p-3 rounded-2xl border border-amber-300 dark:border-amber-700 text-xs">
+                        <div className="flex items-center gap-1.5 font-black text-amber-900 dark:text-amber-200">
+                          <Sparkles className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                          <span>✨ 储蓄心愿目标待创建：</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="text-[9px] text-slate-400 block mb-0.5">心愿目标</label>
+                            <input
+                              type="text"
+                              value={m.pendingAction.payload.name || ''}
+                              onChange={(e) => handleUpdatePendingField(m.id, 'name', e.target.value)}
+                              placeholder="买新手机"
+                              className="w-full px-2 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold text-xs"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[9px] text-slate-400 block mb-0.5">目标金额 (¥)</label>
+                            <input
+                              type="number"
+                              step="any"
+                              value={m.pendingAction.payload.target_amount ?? ''}
+                              onChange={(e) => handleUpdatePendingField(m.id, 'target_amount', parseFloat(e.target.value) || 0)}
+                              className="w-full px-2 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono font-bold text-xs text-amber-600 dark:text-amber-400 text-right"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Recurring Rule Staging Card */}
+                    {m.pendingAction.type === 'create_recurring_rule' && (
+                      <div className="space-y-2 bg-white/90 dark:bg-slate-900/90 p-3 rounded-2xl border border-blue-300 dark:border-blue-700 text-xs">
+                        <div className="flex items-center gap-1.5 font-black text-blue-900 dark:text-blue-200">
+                          <Clock className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                          <span>⏱️ 固定周期收支规则待创建：</span>
+                        </div>
+                        <div className="grid grid-cols-3 gap-1.5">
+                          <div className="col-span-2">
+                            <label className="text-[9px] text-slate-400 block mb-0.5">规则名称</label>
+                            <input
+                              type="text"
+                              value={m.pendingAction.payload.name || ''}
+                              onChange={(e) => handleUpdatePendingField(m.id, 'name', e.target.value)}
+                              placeholder="房租 / 工资"
+                              className="w-full px-2 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold text-xs"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[9px] text-slate-400 block mb-0.5">每期金额 (¥)</label>
+                            <input
+                              type="number"
+                              step="any"
+                              value={m.pendingAction.payload.amount ?? ''}
+                              onChange={(e) => handleUpdatePendingField(m.id, 'amount', parseFloat(e.target.value) || 0)}
+                              className="w-full px-2 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono font-bold text-xs text-right"
+                            />
+                          </div>
+                        </div>
                       </div>
                     )}
 
