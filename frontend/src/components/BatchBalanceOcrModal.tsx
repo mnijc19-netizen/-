@@ -24,6 +24,7 @@ import { api } from '../api/client';
 import { parseBalanceScreenshotWithAi, ExtractedBalanceResult } from '../services/aiParser';
 import { localStore } from '../services/localStore';
 import { optimizeImageForAi } from '../services/imageOptimizer';
+import { BrandLogo } from './BrandLogo';
 
 interface BatchBalanceItem {
   id: string;
@@ -364,13 +365,14 @@ export const BatchBalanceOcrModal: React.FC<BatchBalanceOcrModalProps> = ({
                       </div>
 
                       <div className="flex-1 min-w-0 space-y-1">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <BrandLogo type={item.accountType} name={item.platform} size="sm" />
                           <input
                             type="text"
                             value={item.platform}
                             onChange={(e) => updateItem(item.id, { platform: e.target.value })}
                             placeholder="平台/账户名称"
-                            className="text-xs font-bold text-slate-900 dark:text-white bg-transparent border-b border-transparent hover:border-slate-300 focus:border-purple-500 focus:outline-none px-1 py-0.5 max-w-[160px] truncate"
+                            className="text-xs font-bold text-slate-900 dark:text-white bg-transparent border-b border-transparent hover:border-slate-300 focus:border-purple-500 focus:outline-none px-1 py-0.5 max-w-[150px] truncate"
                           />
                           <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold ${
                             item.isNewAccount
@@ -388,10 +390,15 @@ export const BatchBalanceOcrModal: React.FC<BatchBalanceOcrModalProps> = ({
                             onChange={(e) => updateItem(item.id, { accountType: e.target.value as AccountType })}
                             className="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg px-2 py-0.5 text-[11px] border border-slate-200 dark:border-slate-700 focus:outline-none"
                           >
+                            <option value="baitiao">京东白条 (消费信贷)</option>
+                            <option value="meituan_pay">美团月付 (消费信贷)</option>
+                            <option value="douyin_pay">抖音月付 (消费信贷)</option>
+                            <option value="huabei">蚂蚁花呗 (月付信贷)</option>
+                            <option value="jiebei">蚂蚁借呗 (短期借贷)</option>
+                            <option value="fenfu">微信分付/微粒贷</option>
                             <option value="wallet">第三方钱包 (微信/支付宝)</option>
                             <option value="bank">银行储蓄卡</option>
-                            <option value="investment">证券与理财基金</option>
-                            <option value="crypto">加密资产</option>
+                            <option value="investment">证券与基金持仓</option>
                             <option value="credit">信用卡负债</option>
                             <option value="cash">现金</option>
                           </select>

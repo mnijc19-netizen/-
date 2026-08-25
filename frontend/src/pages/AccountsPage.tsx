@@ -21,6 +21,7 @@ import { Account, AccountType, Investment } from '../types';
 import { api } from '../api/client';
 import { AccountBalanceAdjustModal } from '../components/AccountBalanceAdjustModal';
 import { BatchBalanceOcrModal } from '../components/BatchBalanceOcrModal';
+import { BrandLogo } from '../components/BrandLogo';
 import { ArrowRight } from 'lucide-react';
 
 interface AccountsPageProps {
@@ -40,12 +41,12 @@ const ACCOUNT_TYPE_CONFIG: Record<AccountType, { label: string; icon: any; color
   fixed: { label: '实体固定资产', icon: Building, color: 'purple' },
   receivable: { label: '债权与应收', icon: HandCoins, color: 'cyan' },
   credit: { label: '银行信用卡', icon: CreditCard, color: 'rose' },
-  huabei: { label: '🌸 蚂蚁花呗 (月付信贷)', icon: CreditCard, color: 'rose' },
-  baitiao: { label: '🐕 京东白条 (消费信贷)', icon: CreditCard, color: 'rose' },
-  meituan_pay: { label: '🦘 美团月付 (消费信贷)', icon: CreditCard, color: 'amber' },
-  douyin_pay: { label: '🎵 抖音月付 (消费信贷)', icon: CreditCard, color: 'purple' },
-  jiebei: { label: '💰 蚂蚁借呗 (短期借贷)', icon: Building, color: 'slate' },
-  fenfu: { label: '💬 微信分付/微粒贷', icon: HandCoins, color: 'emerald' },
+  huabei: { label: '蚂蚁花呗 (月付信贷)', icon: CreditCard, color: 'rose' },
+  baitiao: { label: '京东白条 (消费信贷)', icon: CreditCard, color: 'rose' },
+  meituan_pay: { label: '美团月付 (消费信贷)', icon: CreditCard, color: 'amber' },
+  douyin_pay: { label: '抖音月付 (消费信贷)', icon: CreditCard, color: 'purple' },
+  jiebei: { label: '蚂蚁借呗 (短期借贷)', icon: Building, color: 'slate' },
+  fenfu: { label: '微信分付/微粒贷', icon: HandCoins, color: 'emerald' },
   loan: { label: '房贷/车贷/大额按揭', icon: Building, color: 'slate' }
 };
 
@@ -260,13 +261,7 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({
                       {/* Top Row: Icon + Name + Balance Display */}
                       <div className="flex items-start justify-between gap-2.5">
                         <div className="flex items-center gap-3 min-w-0">
-                          <div className={`w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-sm ${
-                            isLiability 
-                              ? 'bg-rose-100 dark:bg-rose-950 text-rose-600 dark:text-rose-400' 
-                              : 'bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400'
-                          }`}>
-                            <Icon className="w-5 h-5" />
-                          </div>
+                          <BrandLogo type={acc.type} name={acc.name} size="lg" />
                           <div className="min-w-0">
                             <h4 className="text-sm font-bold text-slate-900 dark:text-white truncate">
                               {acc.name}
@@ -443,12 +438,17 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-slate-500 block mb-1">当前余额</label>
+                  <label className="text-slate-500 block mb-1">
+                    {['credit', 'loan', 'huabei', 'baitiao', 'meituan_pay', 'douyin_pay', 'jiebei', 'fenfu'].includes(type)
+                      ? '待还负债金额 (¥)'
+                      : '当前资产余额 (¥)'}
+                  </label>
                   <input
                     type="number"
                     step="0.01"
                     value={balance}
                     onChange={(e) => setBalance(e.target.value)}
+                    placeholder="0.00"
                     className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-mono font-bold"
                   />
                 </div>

@@ -12,6 +12,7 @@ import confetti from 'canvas-confetti';
 import { Account } from '../types';
 import { api } from '../api/client';
 import { getBeijingDateTimeString } from '../utils/dateUtils';
+import { BrandLogo } from './BrandLogo';
 
 interface AccountBalanceAdjustModalProps {
   isOpen: boolean;
@@ -46,6 +47,7 @@ export const AccountBalanceAdjustModal: React.FC<AccountBalanceAdjustModalProps>
   if (!isOpen || !account) return null;
 
   const currentBalance = account.balance;
+  const isLiability = ['credit', 'loan', 'huabei', 'baitiao', 'meituan_pay', 'douyin_pay', 'jiebei', 'fenfu'].includes(account.type);
   
   // Calculate resulting balance and diff
   let targetBalance = currentBalance;
@@ -68,24 +70,27 @@ export const AccountBalanceAdjustModal: React.FC<AccountBalanceAdjustModalProps>
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (saving) return;
+
     setSaving(true);
     try {
       // 1. Update account balance
       await api.updateAccount(account.id, {
+        ...account,
         balance: targetBalance
       });
 
       // 2. Optionally create a balance adjustment transaction for bookkeeping traceability
       if (createTxRecord && Math.abs(diff) > 0.001) {
         await api.createTransaction({
-          type: diff > 0 ? 'income' : 'expense',
+          type: isLiability ? 'repayment' : (diff > 0 ? 'income' : 'expense'),
           amount: Math.abs(diff),
           account_id: account.id,
-          category_name: '平账与校准',
+          category_name: '余额校准',
           date: getBeijingDateTimeString(),
-          merchant: '余额校准平账',
-          note: note || `余额从 ¥${currentBalance.toFixed(2)} 校准至 ¥${targetBalance.toFixed(2)}`,
-          source: 'reconciliation'
+          merchant: `${account.name}余额校准`,
+          note: `${note} (原¥${currentBalance.toFixed(2)} -> 现¥${targetBalance.toFixed(2)})`,
+          source: 'balance_adjust'
         });
       }
 
@@ -105,9 +110,7 @@ export const AccountBalanceAdjustModal: React.FC<AccountBalanceAdjustModalProps>
         {/* Header */}
         <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/30">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center flex-shrink-0 shadow-sm">
-              <Wallet className="w-5 h-5" />
-            </div>
+            <BrandLogo type={account.type} name={account.name} size="lg" />
             <div>
               <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <span>{account.name}</span>
@@ -116,7 +119,10 @@ export const AccountBalanceAdjustModal: React.FC<AccountBalanceAdjustModalProps>
                 </span>
               </h3>
               <div className="text-[11px] text-slate-400">
-                当前账面余额: <span className="font-mono font-bold text-slate-700 dark:text-slate-200">¥{currentBalance.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}</span>
+                {isLiability ? '当前账面待还: ' : '当前账面余额: '}
+                <span className={`font-mono font-bold ${isLiability ? 'text-rose-600 dark:text-rose-400' : 'text-slate-700 dark:text-slate-200'}`}>
+                  ¥{currentBalance.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}
+                </span>
               </div>
             </div>
           </div>
@@ -161,7 +167,7 @@ export const AccountBalanceAdjustModal: React.FC<AccountBalanceAdjustModalProps>
             /* Mode 1: Set Total Direct Balance */
             <div className="space-y-2">
               <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block">
-                输入此账户最新实际余额 (CNY)
+                {isLiability ? '输入此账户最新实际待还金额 (CNY)' : '输入此账户最新实际余额 (CNY)'}
               </label>
               <div className="relative">
                 <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-base font-bold text-slate-400">

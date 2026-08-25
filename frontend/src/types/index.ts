@@ -234,6 +234,11 @@ export interface AgentChatMessage {
   imageUrl?: string;
   imageUrls?: string[];
   timestamp: string;
+  pendingAction?: {
+    type: string;
+    status: 'staged' | 'committed' | 'cancelled';
+    payload: any;
+  };
   actionResult?: {
     type: string;
     data?: any;

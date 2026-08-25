@@ -9,10 +9,34 @@ export function parseOfflineBalanceScreenshot(rawText: string): ExtractedBalance
   if (!rawText || !rawText.trim()) return null;
 
   const text = rawText.replace(/\r\n/g, '\n');
-  const clean = text.replace(/,/g, ''); // remove comma in 1,144.45
+  const clean = text.replace(/,/g, ''); // remove comma in 2,691.41
 
-  // 1. 🌸 蚂蚁花呗 (Alipay Huabei - Credit Liability)
-  if (/花呗|花呗分期|花呗账单/.test(clean) && /待还|本月应还|下月应还|下月待还|总额度|账单/.test(clean)) {
+  // 1. 🐕 京东白条 (JD Baitiao - "全部待还 (元)" / "全部待还账单" / "提前结清" / "白条")
+  if (
+    /全部待还账单|全部待还|京东白条|白条|京东金融|京东收银台/.test(clean) &&
+    /待还|已出账|提前结清|还款日|预授权冻结/.test(clean)
+  ) {
+    const totalMatch = clean.match(/(?:全部待还\s*\(?元?\)?|待还总额|本月应还|本期应还|下月待还|待还金额)[^\d\n]*[¥￥\s]*([\d,]+\.\d{2})/i) ||
+                      clean.match(/(?:全部待还\s*\(?元?\)?[\s\S]{1,30}?)([\d,]+\.\d{2})/i) ||
+                      clean.match(/([\d,]+\.\d{2})/);
+    const amt = totalMatch ? parseFloat(totalMatch[1].replace(/,/g, '')) : 0;
+    if (amt > 0) {
+      return {
+        platform: '京东白条',
+        accountType: 'baitiao',
+        balance: amt,
+        currency: 'CNY',
+        note: `京东白条全部待还款 ¥${amt.toFixed(2)} (消费信贷负债)`,
+        confidence: 0.99
+      };
+    }
+  }
+
+  // 2. 🌸 蚂蚁花呗 (Alipay Huabei - "花呗" / "花呗分期" / "花呗账单")
+  if (
+    /花呗|花呗分期|花呗账单|蚂蚁花呗/.test(clean) && 
+    /待还|本月应还|下月应还|下月待还|总额度|账单/.test(clean)
+  ) {
     const dueMatch = clean.match(/(?:本月应还|待还总额|本期待还|下月待还|下月应还|应还本金|待还)[^\d\n]*[¥￥\s]*([\d,]+\.\d{2})/i) ||
                      clean.match(/([\d,]+\.\d{2})/);
     const amt = dueMatch ? parseFloat(dueMatch[1].replace(/,/g, '')) : 0;
@@ -28,7 +52,7 @@ export function parseOfflineBalanceScreenshot(rawText: string): ExtractedBalance
     }
   }
 
-  // 2. 💰 蚂蚁借呗 (Alipay Jiebei - Loan Liability)
+  // 3. 💰 蚂蚁借呗 (Alipay Jiebei - Loan Liability)
   if (/借呗|网商贷|蚂蚁借呗/.test(clean) && /待还|借款|还款|本金/.test(clean)) {
     const loanMatch = clean.match(/(?:待还总额|总待还|借款本金|本期应还|剩余待还)[^\d\n]*[¥￥\s]*([\d,]+\.\d{2})/i) ||
                       clean.match(/([\d,]+\.\d{2})/);
@@ -40,23 +64,6 @@ export function parseOfflineBalanceScreenshot(rawText: string): ExtractedBalance
         balance: amt,
         currency: 'CNY',
         note: `借呗待还本金 ¥${amt.toFixed(2)} (借贷负债)`,
-        confidence: 0.99
-      };
-    }
-  }
-
-  // 3. 🐕 京东白条 (JD Baitiao - Credit Liability)
-  if (/京东白条|白条|京东金融/.test(clean) && /待还|本月应还|本期账单|可用额度|下月待还/.test(clean)) {
-    const btMatch = clean.match(/(?:本月应还|待还总额|本期应还|下月应还|待还金额|剩余待还)[^\d\n]*[¥￥\s]*([\d,]+\.\d{2})/i) ||
-                    clean.match(/([\d,]+\.\d{2})/);
-    const amt = btMatch ? parseFloat(btMatch[1].replace(/,/g, '')) : 0;
-    if (amt > 0) {
-      return {
-        platform: '京东白条',
-        accountType: 'baitiao',
-        balance: amt,
-        currency: 'CNY',
-        note: `京东白条待还款 ¥${amt.toFixed(2)} (信用消费负债)`,
         confidence: 0.99
       };
     }
@@ -161,7 +168,7 @@ export function parseOfflineBalanceScreenshot(rawText: string): ExtractedBalance
   // 8. Alipay Assets (支付宝总资产 / 余额宝)
   if (
     /我的资产|资产概览|总资产|余额宝|理财资产|活期资产|稳健理财|进阶理财|蚂蚁财富/.test(clean) &&
-    !/微信/.test(clean)
+    !/微信|全部待还/.test(clean)
   ) {
     let platform = '支付宝-总资产';
     let balance = 0;
