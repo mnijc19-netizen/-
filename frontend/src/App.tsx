@@ -461,7 +461,12 @@ export function App() {
         categories={categories}
         transactions={transactions}
         goals={goals}
+        budgets={budgets}
         onRefresh={loadAllData}
+        onNavigate={(page) => {
+          setAiChatOpen(false);
+          setCurrentPage(page as any);
+        }}
         onOpenSettings={() => {
           setAiChatOpen(false);
           setCurrentPage('settings');
