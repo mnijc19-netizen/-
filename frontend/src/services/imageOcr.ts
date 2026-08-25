@@ -148,17 +148,24 @@ export function cleanMerchantName(raw: string): string {
 
   // If merchant contains known brand, normalize it cleanly
   const brands = [
-    "中国石化", "中国电信", "中国移动", "中国联通", "万亩良田生鲜超市", "万亩良田", "抖音生活服务", "抖音",
+    "铁路12306", "中国铁路", "12306", "中国石化", "中国电信", "中国移动", "中国联通", "万亩良田生鲜超市", "万亩良田", "抖音生活服务", "抖音",
     "清口清汤面", "麦当劳", "肯德基", "汉堡王", "瑞幸咖啡", "星巴克", "海底捞火锅", "海底捞", "喜茶", "霸王茶姬", 
-    "茶百道", "蜜雪冰城", "美团外卖", "美团", "饿了么", "滴滴出行", "滴滴", "曹操出行", "T3出行", "淘宝闪购", "淘宝", "天猫", 
-    "京东", "拼多多", "盒马鲜生", "盒马", "山姆会员商店", "山姆", "永辉超市", "屈臣氏", "7-Eleven", "全家", 
-    "罗森", "便利蜂", "优衣库", "Apple", "生鲜超市", "老乡鸡"
+    "茶百道", "蜜雪冰城", "美团外卖", "美团", "饿了么", "滴滴出行", "滴滴", "曹操出行", "T3出行", "哈啰单车", "哈啰", "淘宝闪购", "淘宝", "天猫", 
+    "京东商城", "京东", "拼多多", "盒马鲜生", "盒马", "山姆会员商店", "山姆", "永辉超市", "屈臣氏", "7-Eleven", "全家", "FamilyMart",
+    "罗森", "便利蜂", "优衣库", "Apple", "生鲜超市", "老乡鸡", "医院", "门诊"
   ];
   for (const b of brands) {
     if (raw.includes(b) || s.includes(b)) {
+      if (b === 'FamilyMart') return '全家便利店';
+      if (b === '12306' || b === '中国铁路') return '铁路12306';
       return b;
     }
   }
+
+  // Alias mapper
+  if (raw.includes('寻梦')) return '拼多多';
+  if (raw.includes('协和')) return '北京协和医院';
+  if (raw.includes('哈啰')) return '哈啰单车';
 
   // Filter pure symbol/garbage OCR outputs
   if (s.startsWith('@') || /^[a-zA-Z\s@#*]+$/.test(s) && s.length < 10) {
@@ -166,6 +173,7 @@ export function cleanMerchantName(raw: string): string {
     if (raw.includes('移动')) return '中国移动';
     if (raw.includes('联通')) return '中国联通';
     if (raw.includes('万亩') || raw.includes('良田')) return '万亩良田生鲜超市';
+    if (raw.includes('铁路')) return '铁路12306';
   }
 
   return s || '微信/支付宝消费';

@@ -39,17 +39,24 @@ export function cleanMerchantName(raw: string): string {
 
   // If merchant contains known brand, normalize it cleanly
   const brands = [
-    "中国石化", "中国电信", "中国移动", "中国联通", "万亩良田生鲜超市", "万亩良田", "抖音生活服务", "抖音",
+    "铁路12306", "中国铁路", "12306", "中国石化", "中国电信", "中国移动", "中国联通", "万亩良田生鲜超市", "万亩良田", "抖音生活服务", "抖音",
     "清口清汤面", "麦当劳", "肯德基", "汉堡王", "瑞幸咖啡", "星巴克", "海底捞火锅", "海底捞", "喜茶", "霸王茶姬", 
-    "茶百道", "蜜雪冰城", "美团外卖", "美团", "饿了么", "滴滴出行", "滴滴", "曹操出行", "T3出行", "淘宝闪购", "淘宝", "天猫", 
-    "京东", "拼多多", "盒马鲜生", "盒马", "山姆会员商店", "山姆", "永辉超市", "屈臣氏", "7-Eleven", "全家", 
-    "罗森", "便利蜂", "优衣库", "Apple", "生鲜超市", "老乡鸡"
+    "茶百道", "蜜雪冰城", "美团外卖", "美团", "饿了么", "滴滴出行", "滴滴", "曹操出行", "T3出行", "哈啰单车", "哈啰", "淘宝闪购", "淘宝", "天猫", 
+    "京东商城", "京东", "拼多多", "盒马鲜生", "盒马", "山姆会员商店", "山姆", "永辉超市", "屈臣氏", "7-Eleven", "全家", "FamilyMart",
+    "罗森", "便利蜂", "优衣库", "Apple", "生鲜超市", "老乡鸡", "医院", "门诊"
   ];
   for (const b of brands) {
     if (raw.includes(b) || s.includes(b)) {
+      if (b === 'FamilyMart') return '全家便利店';
+      if (b === '12306' || b === '中国铁路') return '铁路12306';
       return b;
     }
   }
+
+  // Alias mapper
+  if (raw.includes('寻梦')) return '拼多多';
+  if (raw.includes('协和')) return '北京协和医院';
+  if (raw.includes('哈啰')) return '哈啰单车';
 
   // Filter pure symbol/garbage OCR outputs
   if (s.startsWith('@') || /^[a-zA-Z\s@#*]+$/.test(s) && s.length < 10) {
@@ -57,6 +64,7 @@ export function cleanMerchantName(raw: string): string {
     if (raw.includes('移动')) return '中国移动';
     if (raw.includes('联通')) return '中国联通';
     if (raw.includes('万亩') || raw.includes('良田')) return '万亩良田生鲜超市';
+    if (raw.includes('铁路')) return '铁路12306';
   }
 
   return s || '日常消费';
@@ -199,13 +207,13 @@ export function extractFromRawText(text: string, accounts: any[] = []): { amount
       validLines.push(l);
     }
 
-    // Find the FIRST "付款成功" / "支付成功" from top to bottom
+    // Find the FIRST "付款成功" / "支付成功" / "扣款成功" from top to bottom
     for (let i = 0; i < validLines.length; i++) {
       const line = validLines[i];
-      if (line === '付款成功' || line.includes('付款成功') || line === '支付成功' || line.includes('支付成功')) {
+      if (line === '付款成功' || line.includes('付款成功') || line === '支付成功' || line.includes('支付成功') || line.includes('付款金额') || line.includes('扣款金额')) {
         // Amount is immediately below
         for (let j = i; j <= Math.min(validLines.length - 1, i + 2); j++) {
-          const amtM = validLines[j].match(/^[¥￥$]?\s*(\d+\.\d{1,2})$/);
+          const amtM = validLines[j].match(/[¥￥$]?\s*(\d+\.\d{1,2})/);
           if (amtM) {
             amount = parseFloat(amtM[1]);
             break;
@@ -215,7 +223,7 @@ export function extractFromRawText(text: string, accounts: any[] = []): { amount
         if (!merchant) {
           for (let k = i - 1; k >= Math.max(0, i - 4); k--) {
             const prev = validLines[k];
-            if (!prev.includes('PM') && !prev.includes('AM') && !prev.includes(':') && !prev.includes('昨天') && !prev.includes('今天') && !prev.includes('支付成功') && !prev.includes('付款成功') && !prev.includes('微信记账本') && !prev.includes('微信支付') && prev.length > 1) {
+            if (!prev.includes('PM') && !prev.includes('AM') && !prev.includes(':') && !prev.includes('昨天') && !prev.includes('今天') && !prev.includes('支付成功') && !prev.includes('付款成功') && !prev.includes('扣款成功') && !prev.includes('行程结束') && !prev.includes('微信记账本') && !prev.includes('微信支付') && !prev.includes('时长') && !prev.includes('分钟') && prev.length > 1) {
               merchant = cleanMerchantName(prev);
               break;
             }
@@ -279,12 +287,12 @@ export function extractFromRawText(text: string, accounts: any[] = []): { amount
     }
   }
 
-  if (!merchant || merchant === '日常消费' || merchant === '消费' || merchant === '支付成功' || merchant === '付款成功' || merchant === '商户消费' || merchant === '快车') {
+  if (!merchant || merchant === '日常消费' || merchant === '消费' || merchant === '支付成功' || merchant === '付款成功' || merchant === '商户消费' || merchant === '快车' || merchant === '美团平台商户' || merchant === '淘宝平台商户' || merchant === '支付宝消费' || merchant === '微信商户消费' || merchant.includes('分钟') || merchant === '行程结束') {
     const brands = [
-      "滴滴出行", "滴滴", "中国电信", "中国移动", "中国联通", "万亩良田生鲜超市", "万亩良田", "抖音生活服务", 
-      "清口清汤面", "淘宝闪购", "淘宝", "麦当劳", "肯德基", "汉堡王", "瑞幸咖啡", "星巴克", 
-      "海底捞火锅", "海底捞", "喜茶", "霸王茶姬", "茶百道", "蜜雪冰城", "美团", "美团外卖", "饿了么", 
-      "天猫", "京东", "拼多多", "盒马", "山姆", "永辉超市", "生鲜超市"
+      "铁路12306", "中国铁路", "12306", "中国石化", "中国电信", "中国移动", "中国联通", "万亩良田生鲜超市", "万亩良田", "抖音生活服务", 
+      "清口清汤面", "老乡鸡", "麦当劳", "肯德基", "汉堡王", "瑞幸咖啡", "星巴克", 
+      "海底捞火锅", "海底捞", "喜茶", "霸王茶姬", "茶百道", "蜜雪冰城", "美团外卖", "美团", "饿了么", 
+      "滴滴出行", "滴滴", "曹操出行", "T3出行", "哈啰单车", "哈啰", "淘宝闪购", "淘宝", "天猫", "京东商城", "京东", "拼多多", "盒马鲜生", "盒马", "山姆会员商店", "山姆", "全家便利店", "全家", "FamilyMart", "永辉超市", "生鲜超市"
     ];
     for (const b of brands) {
       if (rawClean.includes(b)) {
