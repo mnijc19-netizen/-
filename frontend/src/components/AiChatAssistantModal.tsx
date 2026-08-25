@@ -698,18 +698,40 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
 
                     {/* Batch Accounts Staging List */}
                     {(m.pendingAction.type === 'batch_create_accounts' || m.pendingAction.type === 'batch_update_balances') && (
-                      <div className="space-y-1.5 bg-white/80 dark:bg-slate-900/80 p-2.5 rounded-xl border border-amber-200 dark:border-amber-800 text-xs">
-                        {(m.pendingAction.payload.accounts || m.pendingAction.payload.updates || []).map((it: any, idx: number) => (
-                          <div key={idx} className="flex items-center justify-between gap-2 py-1 border-b border-slate-100 dark:border-slate-800 last:border-none">
-                            <div className="flex items-center gap-1.5 min-w-0">
-                              <BrandLogo type={it.account_type || it.type} name={it.platform || it.name} size="sm" />
-                              <span className="font-bold truncate">{it.platform || it.name}</span>
+                      <div className="space-y-2 bg-white/80 dark:bg-slate-900/80 p-2.5 rounded-xl border border-amber-200 dark:border-amber-800 text-xs">
+                        <div className="text-[10px] text-slate-400 font-bold px-1">
+                          共识别出 {(m.pendingAction.payload.accounts || m.pendingAction.payload.updates || []).length} 个账户与持仓：
+                        </div>
+                        {(m.pendingAction.payload.accounts || m.pendingAction.payload.updates || []).map((it: any, idx: number) => {
+                          const isLiab = ['credit', 'loan', 'huabei', 'baitiao', 'meituan_pay', 'douyin_pay', 'jiebei', 'fenfu'].includes(it.account_type || it.type);
+                          return (
+                            <div key={idx} className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-1">
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <BrandLogo type={it.account_type || it.type} name={it.platform || it.name} size="sm" />
+                                  <span className="font-bold truncate text-slate-900 dark:text-white">{it.platform || it.name}</span>
+                                  <span className={`text-[9px] px-1.5 py-0.2 rounded font-bold ${
+                                    isLiab ? 'bg-rose-100 dark:bg-rose-950 text-rose-600 dark:text-rose-400' : 'bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400'
+                                  }`}>
+                                    {isLiab ? '负债' : '资产'}
+                                  </span>
+                                </div>
+                                <span className={`font-mono font-black ${isLiab ? 'text-rose-600 dark:text-rose-400' : 'text-slate-900 dark:text-white'}`}>
+                                  ¥{parseFloat(it.balance || 0).toFixed(2)}
+                                </span>
+                              </div>
+                              {it.holdings && Array.isArray(it.holdings) && it.holdings.length > 0 && (
+                                <div className="text-[10px] text-slate-400 flex flex-wrap gap-1 pt-0.5">
+                                  {it.holdings.map((h: any, hIdx: number) => (
+                                    <span key={hIdx} className="px-1.5 py-0.5 rounded bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 font-mono">
+                                      {h.name} {h.shares ? `(${h.shares}份)` : ''}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
                             </div>
-                            <span className="font-mono font-bold text-rose-600 dark:text-rose-400">
-                              ¥{parseFloat(it.balance).toFixed(2)}
-                            </span>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     )}
 

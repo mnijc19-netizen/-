@@ -16,28 +16,94 @@ import { getBeijingDateTimeString, getBeijingDateString } from '../utils/dateUti
 import { optimizeImagesBatch } from './imageOptimizer';
 
 /**
- * Extracts a JSON object safely from an LLM markdown response
+ * Sanitizes raw string by escaping unescaped literal newlines inside JSON strings
+ */
+function sanitizeJsonString(str: string): string {
+  // Replace literal unescaped control characters within quotes
+  return str.replace(/"((?:\\.|[^"\\])*)"/gs, (_, inner) => {
+    const fixed = inner
+      .replace(/\n/g, '\\n')
+      .replace(/\r/g, '\\r')
+      .replace(/\t/g, '\\t');
+    return `"${fixed}"`;
+  });
+}
+
+/**
+ * Extracts a JSON object safely from an LLM response, resilient to unescaped newlines
  */
 function extractJsonFromResponse(raw: string): any | null {
-  if (!raw) return null;
+  if (!raw || !raw.trim()) return null;
 
-  // 1. Try markdown code block
-  const codeBlockMatch = raw.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+  let text = raw.trim();
+
+  // Strip markdown code block wrappers ```json ... ```
+  const codeBlockMatch = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
   if (codeBlockMatch && codeBlockMatch[1]) {
-    try {
-      return JSON.parse(codeBlockMatch[1].trim());
-    } catch {}
+    text = codeBlockMatch[1].trim();
+  } else {
+    const firstBrace = text.indexOf('{');
+    const lastBrace = text.lastIndexOf('}');
+    if (firstBrace !== -1 && lastBrace > firstBrace) {
+      text = text.substring(firstBrace, lastBrace + 1);
+    }
   }
 
-  // 2. Try outermost braces { ... }
-  const firstBrace = raw.indexOf('{');
-  const lastBrace = raw.lastIndexOf('}');
-  if (firstBrace !== -1 && lastBrace > firstBrace) {
-    const candidate = raw.substring(firstBrace, lastBrace + 1);
-    try {
-      return JSON.parse(candidate);
-    } catch {}
-  }
+  // 1. Direct standard parse
+  try {
+    return JSON.parse(text);
+  } catch {}
+
+  // 2. Parse with unescaped newline sanitation
+  try {
+    const sanitized = sanitizeJsonString(text);
+    return JSON.parse(sanitized);
+  } catch {}
+
+  // 3. Fallback: Structural regex extraction for reply & action
+  try {
+    let reply = '';
+    let action: any = { type: 'none' };
+
+    // Extract "reply": "..."
+    const replyMatch = text.match(/"reply"\s*:\s*"([\s\S]*?)(?:"\s*,\s*"action"|"\s*\})/i);
+    if (replyMatch && replyMatch[1]) {
+      reply = replyMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"');
+    }
+
+    // Extract "action": { ... }
+    const actionIndex = text.indexOf('"action"');
+    if (actionIndex !== -1) {
+      const actionSub = text.substring(actionIndex);
+      const firstActionBrace = actionSub.indexOf('{');
+      if (firstActionBrace !== -1) {
+        let depth = 0;
+        let lastActionBrace = -1;
+        for (let i = firstActionBrace; i < actionSub.length; i++) {
+          if (actionSub[i] === '{') depth++;
+          else if (actionSub[i] === '}') {
+            depth--;
+            if (depth === 0) {
+              lastActionBrace = i;
+              break;
+            }
+          }
+        }
+        if (lastActionBrace !== -1) {
+          const actionJsonStr = actionSub.substring(firstActionBrace, lastActionBrace + 1);
+          try {
+            action = JSON.parse(actionJsonStr);
+          } catch {
+            action = JSON.parse(sanitizeJsonString(actionJsonStr));
+          }
+        }
+      }
+    }
+
+    if (reply || (action && action.type && action.type !== 'none')) {
+      return { reply: reply || '已为您分析完成', action };
+    }
+  } catch {}
 
   return null;
 }
