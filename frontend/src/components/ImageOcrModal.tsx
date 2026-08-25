@@ -146,17 +146,22 @@ export const ImageOcrModal: React.FC<ImageOcrModalProps> = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3.5 sm:p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200">
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[82vh] my-auto">
         {/* Header */}
-        <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-gradient-to-r from-emerald-500/10 to-transparent">
+        <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-gradient-to-r from-purple-500/10 via-emerald-500/10 to-transparent">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
-              <Camera className="w-5 h-5" />
+            <div className="w-9 h-9 rounded-xl bg-purple-500/20 text-purple-600 dark:text-purple-400 flex items-center justify-center">
+              <Sparkles className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                拍照与账单图片识别
-              </h3>
+              <div className="flex items-center gap-1.5">
+                <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                  拍照与账单图片识别
+                </h3>
+                <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-purple-500/20 text-purple-600 dark:text-purple-300 font-bold border border-purple-500/30 flex items-center gap-0.5">
+                  <Sparkles className="w-2.5 h-2.5" /> AI 多模态
+                </span>
+              </div>
               <p className="text-[11px] text-slate-400">
-                拍摄小票或上传微信/支付宝账单截图，自动提取要素
+                支持智谱 GLM-4V / GPT-4o 视觉大模型直连，100% 精准看图
               </p>
             </div>
           </div>
@@ -170,6 +175,19 @@ export const ImageOcrModal: React.FC<ImageOcrModalProps> = ({
 
         {/* Content Body */}
         <div className="p-5 overflow-y-auto space-y-4 flex-1">
+          {/* AI Multimodal Vision Banner */}
+          <div className="p-2.5 rounded-2xl bg-gradient-to-r from-purple-500/15 via-indigo-500/10 to-transparent border border-purple-500/25 flex items-center justify-between text-xs">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-purple-500 flex-shrink-0 animate-pulse" />
+              <span className="text-[11px] font-bold text-purple-950 dark:text-purple-200">
+                ✨ 已接入 GLM-4V-Flash 视觉识别大模型
+              </span>
+            </div>
+            <span className="text-[9px] px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-700 dark:text-purple-300 font-mono font-bold">
+              Vision AI
+            </span>
+          </div>
+
           {/* Upload / Camera Action Buttons */}
           <div className="grid grid-cols-2 gap-3">
             <label className="p-4 rounded-2xl border-2 border-dashed border-emerald-500/40 bg-emerald-50/50 dark:bg-emerald-950/20 hover:bg-emerald-50 flex flex-col items-center justify-center gap-2 cursor-pointer transition active:scale-95 text-center">

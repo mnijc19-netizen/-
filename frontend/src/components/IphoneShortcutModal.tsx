@@ -38,17 +38,22 @@ export const IphoneShortcutModal: React.FC<IphoneShortcutModalProps> = ({ isOpen
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3.5 sm:p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200">
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[82vh] my-auto">
         {/* Header */}
-        <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-gradient-to-r from-blue-600/10 via-indigo-600/10 to-transparent">
+        <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-gradient-to-r from-blue-600/10 via-purple-600/10 to-transparent">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
-              <Zap className="w-5 h-5" />
+            <div className="w-9 h-9 rounded-xl bg-purple-500/20 text-purple-600 dark:text-purple-400 flex items-center justify-center">
+              <Sparkles className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                iPhone 长按直接记账设置
-              </h3>
+              <div className="flex items-center gap-1.5">
+                <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                  iPhone 长按直接记账设置
+                </h3>
+                <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-purple-500/20 text-purple-600 dark:text-purple-300 font-bold border border-purple-500/30 flex items-center gap-0.5">
+                  <Sparkles className="w-2.5 h-2.5" /> AI 赋能
+                </span>
+              </div>
               <p className="text-[11px] text-slate-400">
-                支持 0 步静默入账与直接唤起桌面独立 App！
+                结合 Apple 神经实况文本与 AI 智能大脑，0 步自动入账
               </p>
             </div>
           </div>
