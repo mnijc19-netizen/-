@@ -24,25 +24,29 @@ export function cleanMerchantName(raw: string): string {
     .replace(/\s*查看明细.*$/i, '') // strip trailing report button
     .replace(/\s*更多.*$/i, '') // strip Alipay more button
     .replace(/^[>vV]\s*/, '') // strip Alipay arrow
-    .replace(/^商户名称[:：]\s*/, '') // strip prefix
-    .replace(/^收款方全称[:：]\s*/, '') // strip prefix
-    .replace(/^交易对方[:：]\s*/, '') // strip prefix
-    .replace(/^商品说明[:：]\s*/, '') // strip prefix
-    .replace(/[\d:：\-_/]/g, ' ') // replace digits/colons
+    .replace(/^商户全称[:：\s]*/, '')
+    .replace(/^商户名称[:：\s]*/, '')
+    .replace(/^收款方全称[:：\s]*/, '')
+    .replace(/^收款方[:：\s]*/, '')
+    .replace(/^交易对方[:：\s]*/, '')
+    .replace(/^商品说明[:：\s]*/, '')
+    .replace(/^对方全称[:：\s]*/, '')
+    .replace(/[:：]/g, ' ')
     .replace(/(?:昨天|今天|上午|下午|晚上)/g, '')
-    .replace(/^[\s"“'‘`]+|[\s"”'’`]+$/g, '') // strip quotes again
+    .replace(/[。，,]/g, '')
+    .replace(/^[\s"“'‘`]+|[\s"”'’`]+$/g, '')
     .trim();
 
   // If merchant contains known brand, normalize it cleanly
   const brands = [
-    "中国电信", "中国移动", "中国联通", "万亩良田生鲜超市", "万亩良田", "抖音生活服务", "抖音",
-    "清口清汤面", "麦当劳", "肯德基", "汉堡王", "瑞幸咖啡", "星巴克", "海底捞", "喜茶", "霸王茶姬", 
-    "茶百道", "蜜雪冰城", "美团", "美团外卖", "饿了么", "滴滴出行", "淘宝闪购", "淘宝", "天猫", 
-    "京东", "拼多多", "盒马", "山姆", "永辉超市", "屈臣氏", "7-Eleven", "全家", 
-    "罗森", "便利蜂", "优衣库", "Apple", "生鲜超市"
+    "中国石化", "中国电信", "中国移动", "中国联通", "万亩良田生鲜超市", "万亩良田", "抖音生活服务", "抖音",
+    "清口清汤面", "麦当劳", "肯德基", "汉堡王", "瑞幸咖啡", "星巴克", "海底捞火锅", "海底捞", "喜茶", "霸王茶姬", 
+    "茶百道", "蜜雪冰城", "美团外卖", "美团", "饿了么", "滴滴出行", "滴滴", "曹操出行", "T3出行", "淘宝闪购", "淘宝", "天猫", 
+    "京东", "拼多多", "盒马鲜生", "盒马", "山姆会员商店", "山姆", "永辉超市", "屈臣氏", "7-Eleven", "全家", 
+    "罗森", "便利蜂", "优衣库", "Apple", "生鲜超市", "老乡鸡"
   ];
   for (const b of brands) {
-    if (s.includes(b)) {
+    if (raw.includes(b) || s.includes(b)) {
       return b;
     }
   }
