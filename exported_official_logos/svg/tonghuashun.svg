@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <rect width="1024" height="1024" rx="220" fill="#EE1C24" />
+  <g transform="translate(512, 450)">
+    <path d="M0 -220 C60 -120 180 -120 180 -40 C180 40 80 100 0 200 C-80 100 -180 40 -180 -40 C-180 -120 -60 -120 0 -220 Z" fill="#FFFFFF" />
+    <path d="M-60 160 L60 160 L90 260 L-90 260 Z" fill="#FFFFFF" />
+  </g>
+  <text x="512" y="870" fill="#FFFFFF" font-size="75" font-weight="bold" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif">同花顺</text>
+</svg>

@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="hx_g" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0080CC" />
+      <stop offset="100%" stop-color="#004D80" />
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="220" fill="url(#hx_g)" />
+  <g transform="translate(512, 440)">
+    <!-- Straits Ocean Wave & Seagull / Peaceful Dove (海峡海浪与和平鸽/海鸥) -->
+    <circle cx="0" cy="0" r="280" fill="#FFFFFF"/>
+    <!-- Blue Straits Waves -->
+    <path d="M-220 80 C-120 -100 -20 -100 80 80 C140 180 220 80 220 80 C220 80 140 220 -40 200 C-180 180 -220 80 -220 80 Z" fill="#0066B3"/>
+    <!-- Flying White/Cyan Dove -->
+    <path d="M-80 -120 C-20 -180 100 -120 180 -40 C100 0 20 -40 -80 -120 Z" fill="#00A0E9"/>
+  </g>
+  <text x="512" y="870" fill="#FFFFFF" font-size="70" font-weight="900" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif">福建海峡银行</text>
+</svg>

@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <rect width="1024" height="1024" rx="220" fill="#F29600" />
+  <g transform="translate(512, 450)">
+    <circle cx="0" cy="0" r="280" fill="#1A3B8B"/>
+    <circle cx="0" cy="0" r="180" fill="#F29600"/>
+    <circle cx="0" cy="0" r="80" fill="#FFFFFF"/>
+  </g>
+  <text x="512" y="870" fill="#FFFFFF" font-size="75" font-weight="bold" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif">宁波银行</text>
+</svg>

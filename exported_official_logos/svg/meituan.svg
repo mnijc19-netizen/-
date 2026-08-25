@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="meituan_g" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFD000" />
+      <stop offset="100%" stop-color="#FFC300" />
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="220" fill="url(#meituan_g)" />
+  <path d="M370 120c-45 0-90 150-10 330 40-10 90-40 90-100 0-160-40-230-80-230z" fill="#22242A" />
+  <path d="M654 120c45 0 90 150 10 330-40-10-90-40-90-100 0-160 40-230 80-230z" fill="#22242A" />
+  <path d="M512 360c-190 0-300 150-300 300 0 150 130 260 300 260s300-110 300-260c0-150-110-300-300-300z" fill="#22242A" />
+  <ellipse cx="512" cy="710" rx="150" ry="120" fill="#FFE040" />
+  <ellipse cx="512" cy="650" rx="55" ry="38" fill="#22242A" />
+  <ellipse cx="380" cy="510" rx="38" ry="48" fill="#FFD000" />
+  <ellipse cx="644" cy="510" rx="38" ry="48" fill="#FFD000" />
+</svg>

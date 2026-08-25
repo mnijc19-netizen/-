@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <rect width="1024" height="1024" rx="220" fill="#D81E06" />
+  <g transform="translate(512, 450)">
+    <circle cx="0" cy="0" r="280" fill="none" stroke="#FFFFFF" stroke-width="45"/>
+    <path d="M-120 140 h240 v-40 h-240 z M-90 80 h180 v-40 h-180 z M-60 20 h120 v-30 h-120 z M0 -140 L-40 -40 L40 -40 Z" fill="#FFFFFF"/>
+  </g>
+  <text x="512" y="870" fill="#FFFFFF" font-size="75" font-weight="bold" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif">北京银行</text>
+</svg>

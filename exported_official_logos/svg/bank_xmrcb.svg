@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <rect width="1024" height="1024" rx="220" fill="#009F4D" />
+  <g transform="translate(512, 440)">
+    <circle cx="0" cy="0" r="280" fill="none" stroke="#FFFFFF" stroke-width="45"/>
+    <path d="M-140 100 C-100 -120 0 -180 0 -180 C0 -180 100 -120 140 100 C60 160 -60 160 -140 100 Z" fill="#FFCC00"/>
+    <circle cx="0" cy="-20" r="50" fill="#009F4D"/>
+  </g>
+  <text x="512" y="870" fill="#FFFFFF" font-size="70" font-weight="900" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif">厦门农商银行</text>
+</svg>

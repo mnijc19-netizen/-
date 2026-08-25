@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <rect width="1024" height="1024" rx="220" fill="#C7000B" />
+  <circle cx="512" cy="460" r="300" fill="none" stroke="#FFFFFF" stroke-width="50" />
+  <path d="M340 330 h344 v65 H552 v130 h132 v65 H340 v-65 h132 V395 H340 z" fill="#FFFFFF" />
+  <text x="512" y="870" fill="#FFFFFF" font-size="75" font-weight="bold" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif">中国工商银行</text>
+</svg>

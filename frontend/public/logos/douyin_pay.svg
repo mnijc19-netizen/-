@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <rect width="1024" height="1024" rx="220" fill="#161823" />
+  <g transform="translate(100, 0) scale(0.8)">
+    <path d="M640 200c30 60 80 110 150 130v120c-70-10-130-40-180-90v260c0 130-100 240-230 240S150 750 150 620s110-230 240-230c20 0 40 3 60 8v125c-20-6-40-9-60-9-70 0-120 50-120 120s50 120 120 120 120-50 120-120V200h140z" fill="#25F4EE" transform="translate(-20, -10)" />
+    <path d="M640 200c30 60 80 110 150 130v120c-70-10-130-40-180-90v260c0 130-100 240-230 240S150 750 150 620s110-230 240-230c20 0 40 3 60 8v125c-20-6-40-9-60-9-70 0-120 50-120 120s50 120 120 120 120-50 120-120V200h140z" fill="#FE2C55" transform="translate(20, 10)" />
+    <path d="M640 200c30 60 80 110 150 130v120c-70-10-130-40-180-90v260c0 130-100 240-230 240S150 750 150 620s110-230 240-230c20 0 40 3 60 8v125c-20-6-40-9-60-9-70 0-120 50-120 120s50 120 120 120 120-50 120-120V200h140z" fill="#FFFFFF" />
+  </g>
+  <rect x="220" y="780" width="584" height="110" rx="55" fill="rgba(255,255,255,0.15)" stroke="#FE2C55" stroke-width="6"/>
+  <text x="512" y="858" fill="#FFFFFF" font-size="65" font-weight="900" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif">抖音月付</text>
+</svg>

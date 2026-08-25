@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <rect width="1024" height="1024" rx="220" fill="#009844" />
+  <g transform="translate(512, 450)">
+    <circle cx="0" cy="0" r="280" fill="#FFFFFF"/>
+    <path d="M-80 -160 C-40 -80 -40 80 -80 160 C-140 120 -180 0 -140 -120 Z" fill="#009844"/>
+    <path d="M40 -180 C100 -100 100 100 40 180 C140 140 180 0 120 -140 Z" fill="#002C6C"/>
+  </g>
+  <text x="512" y="870" fill="#FFFFFF" font-size="75" font-weight="bold" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif">民生银行</text>
+</svg>

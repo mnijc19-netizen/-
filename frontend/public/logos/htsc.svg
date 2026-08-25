@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <rect width="1024" height="1024" rx="220" fill="#0F3292" />
+  <polygon points="512,180 820,480 512,780 204,480" fill="#FFFFFF" />
+  <polygon points="512,270 730,480 512,690 294,480" fill="#0F3292" />
+  <polyline points="340,560 460,420 550,500 660,340" fill="none" stroke="#DE001A" stroke-width="50" stroke-linecap="round" stroke-linejoin="round" />
+  <text x="512" y="890" fill="#FFFFFF" font-size="70" font-weight="bold" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif">华泰证券</text>
+</svg>

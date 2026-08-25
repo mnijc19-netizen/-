@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <rect width="1024" height="1024" rx="220" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="12" />
+  <g transform="translate(512, 450) skewX(-12)">
+    <rect x="-280" y="-180" width="170" height="260" rx="30" fill="#E60012" />
+    <rect x="-85" y="-180" width="170" height="260" rx="30" fill="#003B90" />
+    <rect x="110" y="-180" width="170" height="260" rx="30" fill="#00843D" />
+  </g>
+  <text x="512" y="780" fill="#003B90" font-size="90" font-weight="900" font-style="italic" text-anchor="middle" font-family="sans-serif">UnionPay 银联</text>
+</svg>

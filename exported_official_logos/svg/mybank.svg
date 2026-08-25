@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <rect width="1024" height="1024" rx="220" fill="#108EE9" />
+  <g transform="translate(512, 450)">
+    <rect x="-240" y="-160" width="480" height="320" rx="40" fill="#FFFFFF"/>
+    <text x="0" y="60" fill="#108EE9" font-size="160" font-weight="900" text-anchor="middle" font-family="sans-serif">MYbank</text>
+  </g>
+  <text x="512" y="870" fill="#FFFFFF" font-size="75" font-weight="bold" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif">网商银行</text>
+</svg>

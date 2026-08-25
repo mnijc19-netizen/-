@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <rect width="1024" height="1024" rx="220" fill="#ED1B24" />
+  <rect x="260" y="240" width="504" height="420" rx="30" fill="none" stroke="#FFFFFF" stroke-width="40"/>
+  <polyline points="300,560 440,420 540,500 700,320" fill="none" stroke="#FFFFFF" stroke-width="50" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="590,320 700,320 700,430" fill="none" stroke="#FFFFFF" stroke-width="50" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="512" y="865" fill="#FFFFFF" font-size="70" font-weight="bold" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif">东方财富</text>
+</svg>
