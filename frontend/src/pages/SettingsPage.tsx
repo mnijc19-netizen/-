@@ -21,7 +21,8 @@ import {
   EyeOff,
   Activity,
   Check,
-  Cpu
+  Cpu,
+  ChevronRight
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { api } from '../api/client';
@@ -39,6 +40,7 @@ interface SettingsPageProps {
 export const SettingsPage: React.FC<SettingsPageProps> = ({ accounts, categories, onRefresh }) => {
   const [recurringRules, setRecurringRules] = useState<RecurringRule[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
+  const [aiModalOpen, setAiModalOpen] = useState(false);
   const [ruleName, setRuleName] = useState('');
   const [ruleType, setRuleType] = useState('expense');
   const [ruleAmount, setRuleAmount] = useState('');
@@ -237,157 +239,204 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ accounts, categories
         </div>
       )}
 
-      {/* 🧪 Laboratory Feature: AI Large Language Model Integration */}
-      <div className="p-5 sm:p-6 rounded-3xl bg-gradient-to-br from-indigo-950/20 via-purple-950/15 to-slate-900 border border-indigo-500/30 shadow-lg space-y-4 relative overflow-hidden">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-2xl bg-gradient-to-tr from-indigo-600 to-purple-600 text-white flex items-center justify-center shadow-md shadow-indigo-500/20">
-              <Bot className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                  🧪 实验室特性：AI 大模型深度智能解析
-                </h3>
-                <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300">
-                  纯本地直连
-                </span>
-              </div>
-              <p className="text-[11px] text-slate-400 mt-0.5">
-                可接入 DeepSeek / 智谱免费版 / Kimi / Qwen / OpenAI，API Key 仅保存在本地设备
-              </p>
-            </div>
+      {/* 🧪 Laboratory Feature: AI Large Language Model Integration Entry */}
+      <div 
+        onClick={() => setAiModalOpen(true)}
+        className="p-4 sm:p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex items-center justify-between cursor-pointer hover:border-indigo-500/50 active:scale-98 transition group"
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-600 to-purple-600 text-white flex items-center justify-center shadow-md shadow-indigo-500/20 group-hover:scale-105 transition flex-shrink-0">
+            <Bot className="w-5 h-5" />
           </div>
-
-          {/* Master Enable/Disable Switch */}
-          <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
-            <input 
-              type="checkbox" 
-              checked={aiConfig.enabled}
-              onChange={(e) => handleToggleAi(e.target.checked)}
-              className="sr-only peer"
-            />
-            <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600"></div>
-          </label>
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5">
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white truncate">
+                🧪 实验室特性：AI 智能大模型
+              </h3>
+              <span className="text-[8px] font-mono font-bold px-1.5 py-0.2 rounded bg-purple-500/15 text-purple-600 dark:text-purple-400">
+                AI
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-400 mt-0.5 truncate">
+              {aiConfig.enabled && aiConfig.apiKey 
+                ? `已启用 • ${AI_PROVIDERS.find(p => p.id === aiConfig.provider)?.name?.split(' ')[0] || '智谱/DeepSeek'}` 
+                : '未配置 • 点击接入 DeepSeek / 智谱 GLM-4V'}
+            </p>
+          </div>
         </div>
 
-        {/* Configuration Form (Accordion / View) */}
-        {aiConfig.enabled && (
-          <div className="p-4 rounded-2xl bg-white/80 dark:bg-slate-900/80 border border-indigo-500/20 space-y-3.5 animate-in fade-in duration-200 text-xs">
-            {/* Provider presets */}
-            <div>
-              <label className="text-slate-500 dark:text-slate-400 block mb-1.5 font-bold">
-                选择 AI 服务商 (标准 OpenAI 协议)
-              </label>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                {AI_PROVIDERS.map(p => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => handleProviderSelect(p.id)}
-                    className={`p-2.5 rounded-xl border text-left transition flex items-center justify-between ${
-                      aiConfig.provider === p.id 
-                        ? 'bg-indigo-50 dark:bg-indigo-950/60 border-indigo-500 text-indigo-900 dark:text-indigo-200 font-bold'
-                        : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 text-slate-700 dark:text-slate-300'
-                    }`}
-                  >
-                    <span className="truncate">{p.name}</span>
-                    {aiConfig.provider === p.id && <Check className="w-3.5 h-3.5 text-indigo-600 flex-shrink-0" />}
-                  </button>
-                ))}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <span className={`text-xs font-bold ${aiConfig.enabled && aiConfig.apiKey ? 'text-emerald-500' : 'text-slate-400'}`}>
+            {aiConfig.enabled && aiConfig.apiKey ? '已开启' : '去配置'}
+          </span>
+          <ChevronRight className="w-4 h-4 text-slate-400 group-hover:translate-x-0.5 transition" />
+        </div>
+      </div>
+
+      {/* AI Settings Modal Popup */}
+      {aiModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3.5 sm:p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[85vh] my-auto">
+            {/* Modal Header */}
+            <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-transparent">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-purple-500/20 text-purple-600 dark:text-purple-400 flex items-center justify-center">
+                  <Bot className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                      AI 智能大模型设置
+                    </h3>
+                    <span className="text-[8px] font-mono font-bold px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-600 dark:text-purple-300">
+                      AI
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-400">
+                    支持 DeepSeek / 智谱 GLM-4V / OpenAI
+                  </p>
+                </div>
               </div>
+              <button 
+                onClick={() => setAiModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1.5 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
 
-            {/* API Key Input */}
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-slate-500 dark:text-slate-400 font-bold flex items-center gap-1">
-                  <Key className="w-3.5 h-3.5" /> API Key 密钥 (格式如 sk-...)
+            {/* Modal Body */}
+            <div className="p-5 overflow-y-auto space-y-4 flex-1 text-xs">
+              {/* Master Enable/Disable Toggle */}
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex items-center justify-between">
+                <div>
+                  <div className="font-bold text-slate-900 dark:text-white text-xs">启用 AI 智能大模型引擎</div>
+                  <div className="text-[10px] text-slate-400 mt-0.5">关闭时平滑回退至内置离线引擎</div>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
+                  <input 
+                    type="checkbox" 
+                    checked={aiConfig.enabled}
+                    onChange={(e) => handleToggleAi(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600"></div>
                 </label>
-                <span className="text-[10px] text-indigo-500">
-                  {AI_PROVIDERS.find(p => p.id === aiConfig.provider)?.hint}
-                </span>
               </div>
-              <div className="relative">
-                <input
-                  type={showApiKey ? "text" : "password"}
-                  value={aiConfig.apiKey}
-                  onChange={(e) => setAiConfig(prev => ({ ...prev, apiKey: e.target.value }))}
-                  placeholder="在此粘贴您的 API Key (如 sk-xxxxxxxxxxxx)"
-                  className="w-full pl-3 pr-10 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-mono text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowApiKey(prev => !prev)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-                >
-                  {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
+
+              {/* Provider Selection */}
+              <div>
+                <label className="text-slate-500 dark:text-slate-400 block mb-1.5 font-bold">
+                  选择 AI 模型服务商
+                </label>
+                <div className="grid grid-cols-1 gap-2">
+                  {AI_PROVIDERS.map(p => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => handleProviderSelect(p.id)}
+                      className={`p-2.5 rounded-xl border text-left transition flex items-center justify-between ${
+                        aiConfig.provider === p.id 
+                          ? 'bg-indigo-50 dark:bg-indigo-950/60 border-indigo-500 text-indigo-900 dark:text-indigo-200 font-bold'
+                          : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 text-slate-700 dark:text-slate-300'
+                      }`}
+                    >
+                      <span className="truncate">{p.name}</span>
+                      {aiConfig.provider === p.id && <Check className="w-3.5 h-3.5 text-indigo-600 flex-shrink-0" />}
+                    </button>
+                  ))}
+                </div>
               </div>
+
+              {/* API Key Input */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-slate-500 dark:text-slate-400 font-bold flex items-center gap-1">
+                    <Key className="w-3.5 h-3.5" /> API Key 密钥
+                  </label>
+                  <span className="text-[10px] text-indigo-500">
+                    {AI_PROVIDERS.find(p => p.id === aiConfig.provider)?.hint}
+                  </span>
+                </div>
+                <div className="relative">
+                  <input
+                    type={showApiKey ? "text" : "password"}
+                    value={aiConfig.apiKey}
+                    onChange={(e) => setAiConfig(prev => ({ ...prev, apiKey: e.target.value }))}
+                    placeholder="在此粘贴您的 API Key (如 sk-...)"
+                    className="w-full pl-3 pr-10 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-mono text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowApiKey(prev => !prev)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                  >
+                    {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Base URL & Model Name */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div>
+                  <label className="text-slate-500 dark:text-slate-400 block mb-1">接口地址 (Base URL)</label>
+                  <input
+                    type="text"
+                    value={aiConfig.baseUrl}
+                    onChange={(e) => setAiConfig(prev => ({ ...prev, baseUrl: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-mono text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="text-slate-500 dark:text-slate-400 block mb-1">模型名称 (Model)</label>
+                  <input
+                    type="text"
+                    value={aiConfig.model}
+                    onChange={(e) => setAiConfig(prev => ({ ...prev, model: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-mono text-xs"
+                  />
+                </div>
+              </div>
+
+              {/* Test Connection Results Badge */}
+              {aiTestResult && (
+                <div className={`p-3 rounded-xl text-xs font-bold flex items-center gap-2 ${
+                  aiTestResult.success 
+                    ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-300 border border-emerald-500/30'
+                    : 'bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-300 border border-rose-500/30'
+                }`}>
+                  <Activity className="w-4 h-4 flex-shrink-0" />
+                  <span>{aiTestResult.message}</span>
+                </div>
+              )}
             </div>
 
-            {/* Base URL & Model Name */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="text-slate-500 dark:text-slate-400 block mb-1">接口地址 (Base URL)</label>
-                <input
-                  type="text"
-                  value={aiConfig.baseUrl}
-                  onChange={(e) => setAiConfig(prev => ({ ...prev, baseUrl: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-mono text-xs"
-                />
-              </div>
-              <div>
-                <label className="text-slate-500 dark:text-slate-400 block mb-1">模型名称 (Model)</label>
-                <input
-                  type="text"
-                  value={aiConfig.model}
-                  onChange={(e) => setAiConfig(prev => ({ ...prev, model: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-mono text-xs"
-                />
-              </div>
-            </div>
-
-            {/* Test Connection Results Badge */}
-            {aiTestResult && (
-              <div className={`p-3 rounded-xl text-xs font-bold flex items-center gap-2 ${
-                aiTestResult.success 
-                  ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-300 border border-emerald-500/30'
-                  : 'bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-300 border border-rose-500/30'
-              }`}>
-                <Activity className="w-4 h-4 flex-shrink-0" />
-                <span>{aiTestResult.message}</span>
-              </div>
-            )}
-
-            {/* Action Buttons */}
-            <div className="pt-2 flex items-center justify-between border-t border-slate-200 dark:border-slate-800">
-              <span className="text-[10px] text-slate-400">
-                💡 若解析超时或网络不通，系统将 0 延迟自动降级为内置本地引擎
-              </span>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  disabled={testingAi}
-                  onClick={handleTestAi}
-                  className="px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold transition flex items-center gap-1 active:scale-95"
-                >
-                  <Cpu className="w-3.5 h-3.5" />
-                  {testingAi ? '测试中...' : '测试连接'}
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSaveAi}
-                  className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold transition flex items-center gap-1 shadow-md shadow-indigo-500/20 active:scale-95"
-                >
-                  {aiSaved ? <Check className="w-3.5 h-3.5" /> : <Sparkles className="w-3.5 h-3.5" />}
-                  {aiSaved ? '已保存！' : '保存配置'}
-                </button>
-              </div>
+            {/* Modal Footer Actions */}
+            <div className="p-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-800/40">
+              <button
+                type="button"
+                disabled={testingAi}
+                onClick={handleTestAi}
+                className="px-3.5 py-2 rounded-xl bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 text-slate-700 dark:text-slate-200 font-bold transition flex items-center gap-1 active:scale-95 text-xs"
+              >
+                <Cpu className="w-3.5 h-3.5" />
+                {testingAi ? '测试中...' : '测试连接'}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  handleSaveAi();
+                  setTimeout(() => setAiModalOpen(false), 600);
+                }}
+                className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold transition flex items-center gap-1 shadow-md shadow-indigo-500/20 active:scale-95 text-xs"
+              >
+                {aiSaved ? <Check className="w-3.5 h-3.5" /> : <Sparkles className="w-3.5 h-3.5" />}
+                {aiSaved ? '已保存！' : '保存配置'}
+              </button>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Demo Data & Danger Zone */}
       <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">

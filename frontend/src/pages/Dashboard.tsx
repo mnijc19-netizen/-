@@ -105,8 +105,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
           <div>
             <div className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
               <span>📋 快捷指令 / 剪贴板一键极速入账</span>
-              <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-purple-100 dark:bg-purple-950 text-purple-600 dark:text-purple-300 font-bold border border-purple-500/30 flex items-center gap-0.5">
-                <Sparkles className="w-2.5 h-2.5" /> AI 赋能
+              <span className="text-[9px] font-mono font-bold px-1.5 py-0.2 rounded bg-purple-500/15 text-purple-600 dark:text-purple-400">
+                AI
               </span>
             </div>
             <p className="text-[10px] text-slate-500 dark:text-slate-400">
@@ -130,12 +130,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
           <div>
             <div className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
               <span>✨ 斌斌 AI 财务智能大脑 & 实验室</span>
-              <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-purple-500/20 text-purple-400 font-bold border border-purple-500/30">
-                GLM-4V / DeepSeek
+              <span className="text-[9px] font-mono font-bold px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-400">
+                AI
               </span>
             </div>
             <p className="text-[10px] text-slate-400">
-              支持 GLM-4V 多模态看图 • 一句话记多笔 • AI 财务体检
+              一句话自动记多笔 • AI 财务体检 • 智能看图
             </p>
           </div>
         </div>
@@ -148,7 +148,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
         <button
           type="button"
           onClick={onOpenImageOcr}
-          className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex items-center gap-3 text-left hover:border-purple-400 active:scale-95 transition relative overflow-hidden"
+          className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex items-center gap-3 text-left hover:border-purple-400 active:scale-95 transition"
         >
           <div className="w-10 h-10 rounded-xl bg-purple-100 dark:bg-purple-950 text-purple-600 dark:text-purple-400 flex items-center justify-center flex-shrink-0">
             <Camera className="w-5 h-5" />
@@ -156,8 +156,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
           <div className="min-w-0">
             <div className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1">
               <span>📸 拍照/截屏识别</span>
+              <span className="text-[8px] font-mono font-bold px-1 py-0.2 rounded bg-purple-500/15 text-purple-600 dark:text-purple-400">
+                AI
+              </span>
             </div>
-            <div className="text-[10px] text-purple-500 dark:text-purple-400 font-medium truncate">✨ AI 多模态视觉</div>
+            <div className="text-[10px] text-slate-400 truncate">扫小票或账单图片</div>
           </div>
         </button>
 
@@ -171,8 +174,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <Sparkles className="w-5 h-5" />
           </div>
           <div className="min-w-0">
-            <div className="text-xs font-bold text-slate-900 dark:text-white">✨ 智能文本记账</div>
-            <div className="text-[10px] text-blue-500 dark:text-blue-400 font-medium truncate">✨ AI 语义理解</div>
+            <div className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1">
+              <span>✨ 智能文本记账</span>
+              <span className="text-[8px] font-mono font-bold px-1 py-0.2 rounded bg-blue-500/15 text-blue-600 dark:text-blue-400">
+                AI
+              </span>
+            </div>
+            <div className="text-[10px] text-slate-400 truncate">自然语言与短信解析</div>
           </div>
         </button>
 
