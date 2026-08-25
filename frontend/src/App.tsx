@@ -260,6 +260,7 @@ export function App() {
                   onOpenQuickTx={() => setQuickTxOpen(true)}
                   onOpenSnapshot={() => setSnapshotOpen(true)}
                   onOpenImageOcr={() => setImageOcrOpen(true)}
+                  onClipboardIngest={handleClipboardIngest}
                   onNavigateTo={(p) => {
                     if (p === 'iphone_shortcut') {
                       setIphoneShortcutOpen(true);
