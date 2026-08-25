@@ -10,6 +10,7 @@ import { DashboardAnalytics } from '../types';
 interface NavbarProps {
   analytics: DashboardAnalytics | null;
   darkMode: boolean;
+  privacyMode: boolean;
   onToggleDarkMode: () => void;
   onOpenAiChat?: () => void;
   onReload?: () => void;
@@ -18,6 +19,7 @@ interface NavbarProps {
 export const Navbar: React.FC<NavbarProps> = ({
   analytics,
   darkMode,
+  privacyMode,
   onToggleDarkMode,
   onOpenAiChat,
   onReload
@@ -40,7 +42,10 @@ export const Navbar: React.FC<NavbarProps> = ({
             </span>
           </div>
           <div className="text-[10px] text-slate-400 font-mono">
-            {analytics ? `净资产: ¥${analytics.net_worth.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}` : '加载中...'}
+            {analytics 
+              ? `净资产: ${privacyMode ? '••••' : `¥${analytics.net_worth.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}`}` 
+              : '加载中...'
+            }
           </div>
         </div>
       </div>

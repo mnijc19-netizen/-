@@ -49,6 +49,17 @@ export function App() {
   const [liquidGlass, setLiquidGlass] = useState<boolean>(() => {
     return localStore.getLiquidGlass();
   });
+  const [privacyMode, setPrivacyMode] = useState<boolean>(() => {
+    return localStorage.getItem('privacy_mode') !== 'false'; // Defaults to true (masked)
+  });
+
+  const handleTogglePrivacy = () => {
+    setPrivacyMode(prev => {
+      const next = !prev;
+      localStorage.setItem('privacy_mode', String(next));
+      return next;
+    });
+  };
 
   // Modals
   const [universalQuickAddOpen, setUniversalQuickAddOpen] = useState(false);
@@ -284,6 +295,7 @@ export function App() {
         <Navbar
           analytics={analytics}
           darkMode={darkMode}
+          privacyMode={privacyMode}
           onToggleDarkMode={() => setDarkMode(prev => !prev)}
           onOpenAiChat={() => setAiChatOpen(true)}
           onReload={loadAllData}
@@ -302,9 +314,8 @@ export function App() {
                   analytics={analytics}
                   accounts={accounts}
                   transactions={transactions}
-                  budgets={budgets}
-                  goals={goals}
-                  onRefresh={loadAllData}
+                  privacyMode={privacyMode}
+                  onTogglePrivacy={handleTogglePrivacy}
                   onNavigateTo={(p) => {
                     if (p === 'iphone_shortcut') {
                       setIphoneShortcutOpen(true);
