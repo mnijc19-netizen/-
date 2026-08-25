@@ -456,3 +456,110 @@ export async function parseImageWithAiVision(
     return null;
   }
 }
+
+export interface ExtractedBalanceResult {
+  platform: string;
+  accountType: 'wallet' | 'bank' | 'investment' | 'crypto' | 'credit' | 'cash';
+  balance: number;
+  currency: string;
+  bankName?: string;
+  cardLast4?: string;
+  note?: string;
+  confidence: number;
+}
+
+/**
+ * AI Vision: Parse platform balance screenshots (WeChat, Alipay, Banks, Brokerages, etc.)
+ */
+export async function parseBalanceScreenshotWithAi(
+  base64DataUrl: string
+): Promise<ExtractedBalanceResult | null> {
+  const config = localStore.getAiConfig();
+  if (!config.enabled || !config.apiKey || !config.apiKey.trim()) {
+    return null;
+  }
+
+  const endpoint = `${config.baseUrl.replace(/\/+$/, '')}/chat/completions`;
+  const isZhipu = config.provider === 'zhipu' || config.provider === 'zhipu-vision' || config.baseUrl.includes('bigmodel.cn');
+  const visionModel = isZhipu ? 'glm-4v-flash' : config.model || 'glm-4v-flash';
+
+  const prompt = `你是一个专业的财务资产识别专家。请仔细分析这张包含平台资产、钱包余额、银行卡或证券账户的截图。
+请识别并提取出核心资产余额信息，严格按照以下 JSON 格式返回：
+{
+  "platform": "平台或银行具体名称，例如：微信支付-零钱通、微信零钱、支付宝-余额宝、支付宝余额、招商银行一卡通、中国工商银行、东方财富证券、天天基金等",
+  "account_type": "账户类型，仅限其中之一：wallet (钱包/零钱/余额), bank (银行卡/储蓄卡), investment (理财/基金/股票/证券), credit (信用卡/花呗负债), cash (现金)",
+  "balance": 当前资产余额或可用余额数字（纯数字，例如 12850.50，不要包含货币符号和千分位逗号，若为欠款请写正数）,
+  "currency": "货币符号，如 CNY、USD，默认 CNY",
+  "bank_name": "银行名称（如招商银行、中国银行，无则留空）",
+  "card_last4": "卡号后4位（如有，4位数字，无则留空）",
+  "note": "识别说明（例如：微信零钱通可用余额）"
+}
+请直接输出纯 JSON 字符串，不要带任何 markdown 或其他文本。`;
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 25000);
+
+  try {
+    const res = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${config.apiKey.trim()}`
+      },
+      body: JSON.stringify({
+        model: visionModel,
+        messages: [
+          {
+            role: 'user',
+            content: [
+              { type: 'text', text: prompt },
+              {
+                type: 'image_url',
+                image_url: {
+                  url: base64DataUrl
+                }
+              }
+            ]
+          }
+        ],
+        temperature: 0.1,
+        max_tokens: 300
+      }),
+      signal: controller.signal
+    });
+
+    clearTimeout(timeoutId);
+    if (!res.ok) return null;
+
+    const data = await res.json();
+    const replyText = data?.choices?.[0]?.message?.content || '';
+    const jsonMatch = replyText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return null;
+
+    const parsed = JSON.parse(jsonMatch[0]);
+    if (parsed.balance === undefined || isNaN(parseFloat(parsed.balance))) return null;
+
+    const numBalance = Math.abs(parseFloat(parsed.balance));
+    let validAccountType: 'wallet' | 'bank' | 'investment' | 'crypto' | 'credit' | 'cash' = 'wallet';
+    if (['wallet', 'bank', 'investment', 'crypto', 'credit', 'cash'].includes(parsed.account_type)) {
+      validAccountType = parsed.account_type;
+    } else if (/银行|卡|储蓄/.test(parsed.platform || '')) {
+      validAccountType = 'bank';
+    } else if (/基金|理财|证券|股票|收益/.test(parsed.platform || '')) {
+      validAccountType = 'investment';
+    }
+
+    return {
+      platform: parsed.platform || '平台账户',
+      accountType: validAccountType,
+      balance: numBalance,
+      currency: parsed.currency || 'CNY',
+      bankName: parsed.bank_name || undefined,
+      cardLast4: parsed.card_last4 || undefined,
+      note: parsed.note || `由 ${visionModel} 识别于 ${getBeijingDateTimeString()}`,
+      confidence: 0.99
+    };
+  } catch (e) {
+    return null;
+  }
+}

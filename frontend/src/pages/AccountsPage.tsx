@@ -13,10 +13,14 @@ import {
   Sparkles,
   ArrowRightLeft,
   X,
-  Check
+  Check,
+  Images,
+  Zap
 } from 'lucide-react';
 import { Account, AccountType } from '../types';
 import { api } from '../api/client';
+import { AccountBalanceAdjustModal } from '../components/AccountBalanceAdjustModal';
+import { BatchBalanceOcrModal } from '../components/BatchBalanceOcrModal';
 
 interface AccountsPageProps {
   accounts: Account[];
@@ -38,7 +42,12 @@ const ACCOUNT_TYPE_CONFIG: Record<AccountType, { label: string; icon: any; color
 
 export const AccountsPage: React.FC<AccountsPageProps> = ({ accounts, onRefresh, onOpenQuickTx }) => {
   const [modalOpen, setModalOpen] = useState(false);
+  const [adjustModalOpen, setAdjustModalOpen] = useState(false);
+  const [batchOcrOpen, setBatchOcrOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
+  const [adjustingAccount, setAdjustingAccount] = useState<Account | null>(null);
+
+  // Form states
   const [name, setName] = useState('');
   const [type, setType] = useState<AccountType>('bank');
   const [currency, setCurrency] = useState('CNY');
@@ -70,6 +79,11 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({ accounts, onRefresh,
     setBankName(acc.bank_name || '');
     setNote(acc.note || '');
     setModalOpen(true);
+  };
+
+  const openAdjustModal = (acc: Account) => {
+    setAdjustingAccount(acc);
+    setAdjustModalOpen(true);
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -125,37 +139,79 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({ accounts, onRefresh,
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-bold text-slate-900 dark:text-white">
-            全域多资产与账户矩阵
-          </h2>
-          <p className="text-xs text-slate-400">
-            涵盖银行卡、微信支付宝、股票基金、数字货币、房产与负债，穿透分散账户
-          </p>
+    <div className="space-y-6 pb-36 animate-in fade-in duration-300">
+      {/* Header & Quick Action Hub */}
+      <div className="space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <Wallet className="w-5 h-5 text-emerald-500" />
+              全域资产与账户矩阵
+            </h2>
+            <p className="text-xs text-slate-400">
+              涵盖微信/支付宝、银行储蓄卡、基金股票与各类负债，支持直接调额与批量识图
+            </p>
+          </div>
         </div>
-        <div className="flex items-center gap-2.5">
+
+        {/* Feature Action Buttons */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
+          {/* AI Batch Balance Multi-Image Onboarding */}
           <button
             type="button"
-            onClick={onOpenQuickTx}
-            className="px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 text-xs font-semibold flex items-center gap-1.5"
+            onClick={() => setBatchOcrOpen(true)}
+            className="p-3 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white flex items-center justify-between text-left shadow-lg shadow-purple-500/20 active:scale-98 transition group"
           >
-            <ArrowRightLeft className="w-3.5 h-3.5" /> 账户间转账
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-8 h-8 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center flex-shrink-0">
+                <Images className="w-4 h-4 text-white" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-xs font-bold truncate">📸 AI 批量识余额开账</div>
+                <div className="text-[10px] text-purple-100 truncate">多张截图一键建账</div>
+              </div>
+            </div>
+            <Sparkles className="w-4 h-4 text-purple-200 group-hover:scale-110 transition flex-shrink-0" />
           </button>
+
+          {/* Add Account Directly */}
           <button
             type="button"
             onClick={openAddModal}
-            className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-lg shadow-emerald-500/20 flex items-center gap-1.5"
+            className="p-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white flex items-center justify-between text-left shadow-lg shadow-emerald-500/20 active:scale-98 transition group"
           >
-            <Plus className="w-4 h-4" /> 新增账户/资产
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-8 h-8 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center flex-shrink-0">
+                <Plus className="w-4 h-4 text-white" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-xs font-bold truncate">➕ 手动新增资产/账户</div>
+                <div className="text-[10px] text-emerald-100 truncate">添加银行卡/钱包/基金</div>
+              </div>
+            </div>
+          </button>
+
+          {/* Inter-account Transfer */}
+          <button
+            type="button"
+            onClick={onOpenQuickTx}
+            className="p-3 rounded-2xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 flex items-center justify-between text-left border border-slate-200 dark:border-slate-700 active:scale-98 transition"
+          >
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-8 h-8 rounded-xl bg-slate-200 dark:bg-slate-700 flex items-center justify-center flex-shrink-0">
+                <ArrowRightLeft className="w-4 h-4 text-slate-600 dark:text-slate-300" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-xs font-bold truncate">🔄 账户间互转</div>
+                <div className="text-[10px] text-slate-400 truncate">记录还款与提现调拨</div>
+              </div>
+            </div>
           </button>
         </div>
       </div>
 
       {/* Account Groups */}
-      <div className="space-y-8">
+      <div className="space-y-6">
         {Object.entries(groups).map(([groupTitle, accList]) => {
           if (accList.length === 0) return null;
           const groupTotal = accList.reduce((sum, a) => sum + (a.type === 'credit' || a.type === 'loan' ? -Math.abs(a.balance) : a.balance), 0);
@@ -172,7 +228,7 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({ accounts, onRefresh,
                 </span>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
                 {accList.map(acc => {
                   const cfg = ACCOUNT_TYPE_CONFIG[acc.type] || ACCOUNT_TYPE_CONFIG.bank;
                   const Icon = cfg.icon;
@@ -181,11 +237,12 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({ accounts, onRefresh,
                   return (
                     <div 
                       key={acc.id}
-                      className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md hover:border-emerald-400/50 transition flex flex-col justify-between gap-4 group"
+                      className="p-4 sm:p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md hover:border-emerald-400/50 transition flex flex-col justify-between gap-3.5"
                     >
-                      <div className="flex items-start justify-between gap-3">
+                      {/* Top Row: Icon + Name + Balance Display */}
+                      <div className="flex items-start justify-between gap-2.5">
                         <div className="flex items-center gap-3 min-w-0">
-                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                          <div className={`w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-sm ${
                             isLiability 
                               ? 'bg-rose-100 dark:bg-rose-950 text-rose-600 dark:text-rose-400' 
                               : 'bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400'
@@ -196,49 +253,66 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({ accounts, onRefresh,
                             <h4 className="text-sm font-bold text-slate-900 dark:text-white truncate">
                               {acc.name}
                             </h4>
-                            <div className="text-[11px] text-slate-400 flex items-center gap-1.5">
-                              <span>{cfg.label}</span>
-                              {acc.card_last4 && <span>• 尾号*{acc.card_last4}</span>}
+                            <div className="text-[11px] text-slate-400 flex items-center gap-1.5 mt-0.5">
+                              <span className="px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-[10px]">
+                                {cfg.label}
+                              </span>
+                              {acc.card_last4 && <span>尾号*{acc.card_last4}</span>}
                             </div>
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
-                          <button
-                            type="button"
-                            onClick={() => openEditModal(acc)}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800"
-                            title="修改账户"
-                          >
-                            <Edit3 className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDelete(acc.id)}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950"
-                            title="停用账户"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                        <div className="text-right flex-shrink-0">
+                          <div className="text-[10px] text-slate-400">
+                            {isLiability ? '当前应还' : '当前余额'}
+                          </div>
+                          <div className={`text-base sm:text-lg font-black font-mono tracking-tight ${
+                            isLiability ? 'text-rose-600 dark:text-rose-400' : 'text-slate-900 dark:text-white'
+                          }`}>
+                            ¥{acc.balance.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}
+                          </div>
                         </div>
                       </div>
 
-                      <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-baseline justify-between">
-                        <span className="text-[11px] text-slate-400">
-                          {isLiability ? '当前应还/欠款' : '当前资产余额'}
-                        </span>
-                        <div className="text-right">
-                          <div className={`text-lg font-extrabold font-mono ${
-                            isLiability ? 'text-rose-500' : 'text-slate-900 dark:text-white'
-                          }`}>
-                            {acc.currency} {acc.balance.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}
-                          </div>
-                          {acc.note && (
-                            <div className="text-[10px] text-slate-400 truncate max-w-xs">
-                              {acc.note}
-                            </div>
-                          )}
+                      {/* Note if available */}
+                      {acc.note && (
+                        <div className="text-[11px] text-slate-400 bg-slate-50 dark:bg-slate-800/40 px-2.5 py-1 rounded-xl truncate">
+                          {acc.note}
                         </div>
+                      )}
+
+                      {/* Bottom Action Bar (Permanent on Mobile & Desktop) */}
+                      <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between gap-2">
+                        {/* 1-Tap Quick Balance Reconcile Button */}
+                        <button
+                          type="button"
+                          onClick={() => openAdjustModal(acc)}
+                          className="flex-1 py-1.5 px-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:hover:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 text-xs font-bold flex items-center justify-center gap-1.5 transition active:scale-95 border border-emerald-200/60 dark:border-emerald-800/60"
+                        >
+                          <Zap className="w-3.5 h-3.5 text-emerald-500" />
+                          <span>快速调额/对账</span>
+                        </button>
+
+                        {/* Edit Details */}
+                        <button
+                          type="button"
+                          onClick={() => openEditModal(acc)}
+                          className="py-1.5 px-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold flex items-center justify-center gap-1 transition active:scale-95"
+                          title="修改账户信息"
+                        >
+                          <Edit3 className="w-3.5 h-3.5 text-slate-500" />
+                          <span>编辑</span>
+                        </button>
+
+                        {/* Delete Account */}
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(acc.id)}
+                          className="p-1.5 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition active:scale-95"
+                          title="停用账户"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       </div>
                     </div>
                   );
@@ -249,13 +323,32 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({ accounts, onRefresh,
         })}
       </div>
 
-      {/* Add / Edit Modal */}
+      {/* Direct Balance Adjust Modal */}
+      <AccountBalanceAdjustModal
+        isOpen={adjustModalOpen}
+        account={adjustingAccount}
+        onClose={() => {
+          setAdjustModalOpen(false);
+          setAdjustingAccount(null);
+        }}
+        onSuccess={onRefresh}
+      />
+
+      {/* AI Batch Balance Multi-Image Onboarding Modal */}
+      <BatchBalanceOcrModal
+        isOpen={batchOcrOpen}
+        onClose={() => setBatchOcrOpen(false)}
+        onSuccess={onRefresh}
+        existingAccounts={accounts}
+      />
+
+      {/* Add / Edit Details Modal */}
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl w-full max-w-md shadow-2xl p-6 space-y-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-md shadow-2xl p-6 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                {editingAccount ? '编辑账户信息' : '新增账户 / 资产'}
+                {editingAccount ? '编辑账户详细信息' : '新增账户 / 资产'}
               </h3>
               <button onClick={() => setModalOpen(false)} className="text-slate-400 hover:text-slate-600">
                 <X className="w-5 h-5" />
@@ -361,7 +454,7 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({ accounts, onRefresh,
                 <button
                   type="submit"
                   disabled={saving}
-                  className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold"
+                  className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold shadow-md shadow-emerald-500/20"
                 >
                   {saving ? '保存中...' : '保存'}
                 </button>
