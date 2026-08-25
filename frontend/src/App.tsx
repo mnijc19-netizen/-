@@ -232,9 +232,31 @@ export function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors duration-200">
+    <div className="min-h-screen bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors duration-200 relative overflow-x-hidden">
+      {/* 🧪 Dynamic Floating Liquid Ambient Glow Orbs for iOS Liquid Glass Mode */}
+      {liquidGlass && (
+        <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
+          <div 
+            className="absolute -top-12 -left-12 w-80 h-80 rounded-full bg-gradient-to-tr from-cyan-400/40 via-blue-500/35 to-indigo-500/40 blur-3xl animate-pulse" 
+            style={{ animationDuration: '7s' }} 
+          />
+          <div 
+            className="absolute top-1/4 -right-16 w-88 h-88 rounded-full bg-gradient-to-bl from-purple-500/40 via-pink-500/35 to-rose-400/35 blur-3xl animate-pulse" 
+            style={{ animationDuration: '9s', animationDelay: '1.5s' }} 
+          />
+          <div 
+            className="absolute top-2/3 -left-16 w-80 h-80 rounded-full bg-gradient-to-tr from-emerald-400/35 via-teal-500/35 to-cyan-500/30 blur-3xl animate-pulse" 
+            style={{ animationDuration: '8s', animationDelay: '3s' }} 
+          />
+          <div 
+            className="absolute -bottom-16 right-1/4 w-80 h-80 rounded-full bg-gradient-to-tl from-amber-400/30 via-orange-500/25 to-pink-500/30 blur-3xl animate-pulse" 
+            style={{ animationDuration: '10s', animationDelay: '4.5s' }} 
+          />
+        </div>
+      )}
+
       {/* Mobile App Shell Wrapper */}
-      <div className="w-full max-w-md mx-auto min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col shadow-2xl relative">
+      <div className="w-full max-w-md mx-auto min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col shadow-2xl relative z-10">
         {/* Top Automation Toast (Safe from Dynamic Island) */}
         {autoToastMsg && (
           <div className="fixed top-[calc(env(safe-area-inset-top,48px)+0.75rem)] left-4 right-4 z-50 max-w-md mx-auto p-3.5 sm:p-4 rounded-2xl bg-emerald-600/95 dark:bg-emerald-600/95 backdrop-blur-md text-white font-bold text-xs shadow-2xl shadow-emerald-500/25 border border-emerald-400/30 flex items-center justify-between gap-2.5 animate-in slide-in-from-top duration-300">
