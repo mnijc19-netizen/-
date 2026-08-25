@@ -424,6 +424,82 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
     }));
   };
 
+  // Update a specific item inside batch accounts/updates
+  const handleUpdateBatchItemField = (msgId: string, itemIdx: number, field: string, value: any) => {
+    setMessages(prev => prev.map(m => {
+      if (m.id === msgId && m.pendingAction) {
+        const listKey = m.pendingAction.payload.updates ? 'updates' : 'accounts';
+        const currentList = [...(m.pendingAction.payload[listKey] || [])];
+        if (currentList[itemIdx]) {
+          currentList[itemIdx] = {
+            ...currentList[itemIdx],
+            [field]: value,
+            ...(field === 'platform' ? { name: value } : {}),
+            ...(field === 'name' ? { platform: value } : {}),
+            ...(field === 'account_type' ? { type: value } : {}),
+            ...(field === 'type' ? { account_type: value } : {})
+          };
+        }
+        return {
+          ...m,
+          pendingAction: {
+            ...m.pendingAction,
+            payload: {
+              ...m.pendingAction.payload,
+              [listKey]: currentList
+            }
+          }
+        };
+      }
+      return m;
+    }));
+  };
+
+  // Remove an item from the batch staging list
+  const handleRemoveBatchItem = (msgId: string, itemIdx: number) => {
+    setMessages(prev => prev.map(m => {
+      if (m.id === msgId && m.pendingAction) {
+        const listKey = m.pendingAction.payload.updates ? 'updates' : 'accounts';
+        const currentList = [...(m.pendingAction.payload[listKey] || [])].filter((_, idx) => idx !== itemIdx);
+        return {
+          ...m,
+          pendingAction: {
+            ...m.pendingAction,
+            payload: {
+              ...m.pendingAction.payload,
+              [listKey]: currentList
+            }
+          }
+        };
+      }
+      return m;
+    }));
+  };
+
+  // Add an item to the batch staging list
+  const handleAddBatchItem = (msgId: string) => {
+    setMessages(prev => prev.map(m => {
+      if (m.id === msgId && m.pendingAction) {
+        const listKey = m.pendingAction.payload.updates ? 'updates' : 'accounts';
+        const currentList = [
+          ...(m.pendingAction.payload[listKey] || []),
+          { platform: '新增资产/负债账户', account_type: 'wallet', balance: 0 }
+        ];
+        return {
+          ...m,
+          pendingAction: {
+            ...m.pendingAction,
+            payload: {
+              ...m.pendingAction.payload,
+              [listKey]: currentList
+            }
+          }
+        };
+      }
+      return m;
+    }));
+  };
+
   const handleSend = async (textToSend?: string) => {
     const text = (textToSend || inputText).trim();
     if ((!text && selectedImages.length === 0) || loading) return;
@@ -696,35 +772,97 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
                       </div>
                     )}
 
-                    {/* Batch Accounts Staging List */}
+                    {/* Batch Accounts Staging List (100% Inline Editable) */}
                     {(m.pendingAction.type === 'batch_create_accounts' || m.pendingAction.type === 'batch_update_balances') && (
-                      <div className="space-y-2 bg-white/80 dark:bg-slate-900/80 p-2.5 rounded-xl border border-amber-200 dark:border-amber-800 text-xs">
-                        <div className="text-[10px] text-slate-400 font-bold px-1">
-                          共识别出 {(m.pendingAction.payload.accounts || m.pendingAction.payload.updates || []).length} 个账户与持仓：
+                      <div className="space-y-2 bg-white/90 dark:bg-slate-900/90 p-2.5 rounded-2xl border border-amber-300 dark:border-amber-700 text-xs">
+                        <div className="flex items-center justify-between px-1">
+                          <span className="text-[11px] text-amber-800 dark:text-amber-300 font-black">
+                            📝 待录入列表 (可直接点击修改名称、分类与金额)：
+                          </span>
+                          <span className="text-[10px] text-slate-400 font-mono">
+                            {(m.pendingAction.payload.accounts || m.pendingAction.payload.updates || []).length} 个项目
+                          </span>
                         </div>
+
                         {(m.pendingAction.payload.accounts || m.pendingAction.payload.updates || []).map((it: any, idx: number) => {
-                          const isLiab = ['credit', 'loan', 'huabei', 'baitiao', 'meituan_pay', 'douyin_pay', 'jiebei', 'fenfu'].includes(it.account_type || it.type);
+                          const currentType = it.account_type || it.type || 'wallet';
+                          const isLiab = ['credit', 'loan', 'huabei', 'baitiao', 'meituan_pay', 'douyin_pay', 'jiebei', 'fenfu'].includes(currentType);
+                          
                           return (
-                            <div key={idx} className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-1">
-                              <div className="flex items-center justify-between gap-2">
-                                <div className="flex items-center gap-2 min-w-0">
-                                  <BrandLogo type={it.account_type || it.type} name={it.platform || it.name} size="sm" />
-                                  <span className="font-bold truncate text-slate-900 dark:text-white">{it.platform || it.name}</span>
-                                  <span className={`text-[9px] px-1.5 py-0.2 rounded font-bold ${
-                                    isLiab ? 'bg-rose-100 dark:bg-rose-950 text-rose-600 dark:text-rose-400' : 'bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400'
-                                  }`}>
-                                    {isLiab ? '负债' : '资产'}
-                                  </span>
+                            <div key={idx} className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 space-y-2">
+                              {/* Row 1: Logo + Editable Name + Delete Button */}
+                              <div className="flex items-center gap-2">
+                                <BrandLogo type={currentType} name={it.platform || it.name} size="md" />
+                                <div className="flex-1 min-w-0">
+                                  <input
+                                    type="text"
+                                    value={it.platform || it.name || ''}
+                                    onChange={(e) => handleUpdateBatchItemField(m.id, idx, 'platform', e.target.value)}
+                                    placeholder="账户/平台名称"
+                                    className="w-full px-2 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold text-xs text-slate-900 dark:text-white"
+                                  />
                                 </div>
-                                <span className={`font-mono font-black ${isLiab ? 'text-rose-600 dark:text-rose-400' : 'text-slate-900 dark:text-white'}`}>
-                                  ¥{parseFloat(it.balance || 0).toFixed(2)}
-                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveBatchItem(m.id, idx)}
+                                  title="移除此项"
+                                  className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition flex-shrink-0"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
                               </div>
+
+                              {/* Row 2: Account Type Selector + Amount Input */}
+                              <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                  <select
+                                    value={currentType}
+                                    onChange={(e) => {
+                                      handleUpdateBatchItemField(m.id, idx, 'account_type', e.target.value);
+                                      handleUpdateBatchItemField(m.id, idx, 'type', e.target.value);
+                                    }}
+                                    className={`w-full px-2 py-1 rounded-lg border text-[11px] font-bold ${
+                                      isLiab 
+                                        ? 'bg-rose-50 dark:bg-rose-950/50 border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300'
+                                        : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200'
+                                    }`}
+                                  >
+                                    <option value="wallet">🟢 微信/支付宝 (资产)</option>
+                                    <option value="bank">🏦 银行储蓄卡 (资产)</option>
+                                    <option value="investment">📈 基金与证券 (资产)</option>
+                                    <option value="huabei">🌸 蚂蚁花呗 (负债)</option>
+                                    <option value="baitiao">🐕 京东白条 (负债)</option>
+                                    <option value="meituan_pay">🦘 美团月付 (负债)</option>
+                                    <option value="douyin_pay">🎵 抖音月付 (负债)</option>
+                                    <option value="jiebei">💰 蚂蚁借呗 (负债)</option>
+                                    <option value="fenfu">💬 微信分付 (负债)</option>
+                                    <option value="credit">💳 银行信用卡 (负债)</option>
+                                    <option value="loan">🏠 房贷/车贷 (负债)</option>
+                                  </select>
+                                </div>
+
+                                <div className="relative">
+                                  <span className="absolute left-2 top-1.5 text-xs font-bold text-slate-400">¥</span>
+                                  <input
+                                    type="number"
+                                    step="any"
+                                    value={it.balance ?? ''}
+                                    onChange={(e) => handleUpdateBatchItemField(m.id, idx, 'balance', parseFloat(e.target.value) || 0)}
+                                    placeholder="0.00"
+                                    className={`w-full pl-6 pr-2 py-1 rounded-lg bg-white dark:bg-slate-900 border font-mono font-black text-xs text-right ${
+                                      isLiab ? 'border-rose-300 dark:border-rose-800 text-rose-600 dark:text-rose-400' : 'border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white'
+                                    }`}
+                                  />
+                                </div>
+                              </div>
+
+                              {/* Row 3: Holdings (if any) */}
                               {it.holdings && Array.isArray(it.holdings) && it.holdings.length > 0 && (
-                                <div className="text-[10px] text-slate-400 flex flex-wrap gap-1 pt-0.5">
+                                <div className="text-[10px] text-slate-400 flex flex-wrap items-center gap-1.5 pt-0.5">
+                                  <span className="font-bold text-purple-600 dark:text-purple-400">持仓:</span>
                                   {it.holdings.map((h: any, hIdx: number) => (
-                                    <span key={hIdx} className="px-1.5 py-0.5 rounded bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 font-mono">
-                                      {h.name} {h.shares ? `(${h.shares}份)` : ''}
+                                    <span key={hIdx} className="px-2 py-0.5 rounded-md bg-purple-100 dark:bg-purple-950/60 text-purple-800 dark:text-purple-300 font-mono">
+                                      {h.name} ({h.shares || 100}份)
                                     </span>
                                   ))}
                                 </div>
@@ -732,6 +870,16 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
                             </div>
                           );
                         })}
+
+                        {/* Add more item button */}
+                        <button
+                          type="button"
+                          onClick={() => handleAddBatchItem(m.id)}
+                          className="w-full py-2 text-[11px] font-bold text-amber-700 dark:text-amber-300 border border-dashed border-amber-300 dark:border-amber-700 rounded-xl hover:bg-amber-100/50 dark:hover:bg-amber-950/40 flex items-center justify-center gap-1 transition"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>添加更多账户 / 负债</span>
+                        </button>
                       </div>
                     )}
 
