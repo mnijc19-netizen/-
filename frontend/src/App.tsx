@@ -155,6 +155,19 @@ export function App() {
       }
     };
     init();
+
+    // Re-check clipboard and data when switching back to app
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        loadAllData();
+      }
+    };
+    window.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('focus', handleVisibility);
+    return () => {
+      window.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('focus', handleVisibility);
+    };
   }, []);
 
   // Handle clipboard button tap (provides user gesture for clipboard API)
