@@ -92,7 +92,7 @@ export const AiHubModal: React.FC<AiHubModalProps> = ({
         ...prev,
         provider: providerId,
         baseUrl: p.baseUrl || prev.baseUrl,
-        model: p.model || prev.model
+        model: p.models[0]?.id || prev.model
       }));
     }
   };

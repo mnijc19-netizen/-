@@ -108,12 +108,22 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   const handleProviderSelect = (providerId: string) => {
     const p = AI_PROVIDERS.find(x => x.id === providerId);
     if (p) {
+      const updatedKeys = { ...(aiConfig.providerKeys || {}) };
+      if (aiConfig.provider && aiConfig.apiKey) {
+        updatedKeys[aiConfig.provider] = aiConfig.apiKey;
+      }
+      const savedKeyForNewProvider = updatedKeys[providerId] || (providerId === aiConfig.provider ? aiConfig.apiKey : '');
+      const defaultModel = p.models[0]?.id || 'gpt-4o';
+      
       setAiConfig(prev => ({
         ...prev,
         provider: providerId,
+        apiKey: savedKeyForNewProvider,
+        providerKeys: updatedKeys,
         baseUrl: p.baseUrl || prev.baseUrl,
-        model: p.model || prev.model
+        model: prev.model && p.models.some(m => m.id === prev.model) ? prev.model : defaultModel
       }));
+      setAiTestResult(null);
     }
   };
 
@@ -465,11 +475,11 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         </div>
       </div>
 
-      {/* AI Settings Modal - Premium Redesign */}
+      {/* AI Settings Modal - Provider API Key Vault */}
       {aiModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[90vh] my-auto">
-            {/* Premium Header */}
+            {/* Header */}
             <div className="relative px-5 py-4 border-b border-slate-100 dark:border-slate-800 overflow-hidden">
               <div className="absolute inset-0 bg-gradient-to-r from-violet-600/8 via-indigo-500/6 to-purple-500/4 dark:from-violet-600/15 dark:via-indigo-500/10 dark:to-purple-500/5" />
               <div className="relative flex items-center justify-between">
@@ -479,10 +489,10 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                   </div>
                   <div>
                     <h3 className="text-sm font-bold text-slate-900 dark:text-white tracking-tight">
-                      AI 引擎配置中心
+                      AI 引擎凭证与接口设置
                     </h3>
                     <p className="text-[10px] text-slate-400 mt-0.5">
-                      接入智谱 · DeepSeek · OpenAI · 千问 · Kimi
+                      统一配置 API 密钥 · 平时无需频繁调整
                     </p>
                   </div>
                 </div>
@@ -502,9 +512,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                 <div>
                   <div className="font-bold text-slate-900 dark:text-white text-xs flex items-center gap-1.5">
                     <Zap className="w-3.5 h-3.5 text-amber-500" />
-                    启用 AI 智能引擎
+                    启用 AI 智能大模型引擎
                   </div>
-                  <div className="text-[10px] text-slate-400 mt-0.5 ml-5">关闭后将使用内置离线引擎</div>
+                  <div className="text-[10px] text-slate-400 mt-0.5 ml-5">关闭后将平滑回退至内置离线引擎</div>
                 </div>
                 <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
                   <input 
@@ -517,191 +527,127 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                 </label>
               </div>
 
-              {/* Model Selection - Categorized Cards */}
+              {/* Provider Selection (Clean Brand Grid) */}
               <div>
                 <label className="text-[11px] text-slate-500 dark:text-slate-400 block mb-2 font-bold uppercase tracking-wider">
-                  选择模型
+                  选择模型服务商
                 </label>
-
-                {/* Zhipu Models */}
-                <div className="mb-2.5">
-                  <div className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-violet-500"></span>
-                    智谱 BigModel 系列
-                  </div>
-                  <div className="grid grid-cols-1 gap-1.5">
-                    {AI_PROVIDERS.filter(p => p.group === 'zhipu').map(p => (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {AI_PROVIDERS.map(p => {
+                    const isSelected = aiConfig.provider === p.id;
+                    const hasKey = !!(aiConfig.providerKeys?.[p.id] || (isSelected ? aiConfig.apiKey : ''));
+                    return (
                       <button
                         key={p.id}
                         type="button"
                         onClick={() => handleProviderSelect(p.id)}
-                        className={`p-2.5 rounded-xl border text-left transition-all flex items-center gap-2.5 group ${
-                          aiConfig.provider === p.id 
-                            ? 'bg-violet-50 dark:bg-violet-950/50 border-violet-500/60 ring-1 ring-violet-500/20'
-                            : 'border-slate-200/80 dark:border-slate-800 hover:border-violet-300 dark:hover:border-violet-800 hover:bg-violet-50/30 dark:hover:bg-violet-950/20'
+                        className={`p-2.5 rounded-2xl border text-left transition-all relative overflow-hidden group ${
+                          isSelected 
+                            ? 'bg-violet-50/80 dark:bg-violet-950/50 border-violet-500 ring-2 ring-violet-500/20 shadow-sm'
+                            : 'border-slate-200/80 dark:border-slate-800 hover:border-violet-300 dark:hover:border-violet-800 hover:bg-slate-50/50 dark:hover:bg-slate-800/40'
                         }`}
                       >
-                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-[11px] font-black ${
-                          aiConfig.provider === p.id 
-                            ? 'bg-violet-600 text-white shadow-md shadow-violet-500/20'
-                            : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 group-hover:bg-violet-100 dark:group-hover:bg-violet-900/40 group-hover:text-violet-600'
-                        }`}>
-                          {p.vision ? '👁' : '⚡'}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5">
-                            <span className={`text-[11px] font-bold ${aiConfig.provider === p.id ? 'text-violet-900 dark:text-violet-200' : 'text-slate-800 dark:text-slate-200'}`}>
-                              {p.name}
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-base">{p.icon}</span>
+                          {isSelected ? (
+                            <span className="w-4 h-4 rounded-full bg-violet-600 text-white flex items-center justify-center">
+                              <Check className="w-2.5 h-2.5" />
                             </span>
-                            {p.badge && (
-                              <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded-full ${
-                                p.badgeColor === 'emerald' ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400' :
-                                p.badgeColor === 'purple' ? 'bg-violet-100 dark:bg-violet-900/40 text-violet-600 dark:text-violet-400' :
-                                p.badgeColor === 'blue' ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400' :
-                                p.badgeColor === 'amber' ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400' :
-                                'bg-slate-100 dark:bg-slate-800 text-slate-500'
-                              }`}>
-                                {p.badge}
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-[9px] text-slate-400 mt-0.5 truncate">{p.desc}</p>
+                          ) : hasKey ? (
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" title="已填Key" />
+                          ) : null}
                         </div>
-                        {aiConfig.provider === p.id && <Check className="w-4 h-4 text-violet-600 flex-shrink-0" />}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Third Party Models */}
-                <div className="mb-2.5">
-                  <div className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-cyan-500"></span>
-                    第三方模型
-                  </div>
-                  <div className="grid grid-cols-2 gap-1.5">
-                    {AI_PROVIDERS.filter(p => p.group === 'third').map(p => (
-                      <button
-                        key={p.id}
-                        type="button"
-                        onClick={() => handleProviderSelect(p.id)}
-                        className={`p-2 rounded-xl border text-left transition-all ${
-                          aiConfig.provider === p.id 
-                            ? 'bg-cyan-50 dark:bg-cyan-950/40 border-cyan-500/60 ring-1 ring-cyan-500/20'
-                            : 'border-slate-200/80 dark:border-slate-800 hover:border-cyan-300 dark:hover:border-cyan-800'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className={`text-[10px] font-bold ${aiConfig.provider === p.id ? 'text-cyan-800 dark:text-cyan-200' : 'text-slate-700 dark:text-slate-300'}`}>
-                            {p.name}
-                          </span>
-                          {aiConfig.provider === p.id && <Check className="w-3 h-3 text-cyan-600" />}
+                        <div className={`text-[11px] font-bold truncate ${isSelected ? 'text-violet-900 dark:text-violet-200' : 'text-slate-800 dark:text-slate-200'}`}>
+                          {p.name}
                         </div>
-                        <p className="text-[8px] text-slate-400 mt-0.5">{p.brand}</p>
-                        {p.badge && (
-                          <span className={`text-[7px] font-bold px-1 py-0.5 rounded mt-1 inline-block ${
-                            p.badgeColor === 'cyan' ? 'bg-cyan-100 dark:bg-cyan-900/40 text-cyan-600' : 'bg-slate-100 text-slate-500'
-                          }`}>{p.badge}</span>
-                        )}
+                        <div className="text-[9px] text-slate-400 truncate mt-0.5">{p.brand}</div>
                       </button>
-                    ))}
-                  </div>
+                    );
+                  })}
                 </div>
+              </div>
 
-                {/* Custom */}
-                {AI_PROVIDERS.filter(p => p.group === 'custom').map(p => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => handleProviderSelect(p.id)}
-                    className={`w-full p-2.5 rounded-xl border text-left transition-all flex items-center justify-between ${
-                      aiConfig.provider === p.id 
-                        ? 'bg-slate-100 dark:bg-slate-800 border-slate-400/60 ring-1 ring-slate-400/20'
-                        : 'border-slate-200/80 dark:border-slate-800 hover:border-slate-300'
-                    }`}
-                  >
+              {/* Provider Notice & Switcher Tip */}
+              <div className="p-2.5 rounded-xl bg-violet-50/50 dark:bg-violet-950/20 border border-violet-200/60 dark:border-violet-800/30 flex items-start gap-2 text-[10px] text-violet-700 dark:text-violet-300">
+                <Sparkles className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-violet-500" />
+                <span>
+                  <strong>温馨提示：</strong>具体模型切换（如 GLM-4.6V 看图 / GLM-4.5-Air 极速文本）已移至<strong>【AI 对话管家】顶部</strong>，对话时随时一键切换，无需频繁打开本设置！
+                </span>
+              </div>
+
+              {/* Active Provider Config */}
+              {(() => {
+                const currentProv = AI_PROVIDERS.find(p => p.id === aiConfig.provider) || AI_PROVIDERS[0];
+                return (
+                  <div className="space-y-3 pt-1">
+                    {/* API Key */}
                     <div>
-                      <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300">🔧 {p.name}</span>
-                      <p className="text-[8px] text-slate-400">{p.desc}</p>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label className="text-slate-600 dark:text-slate-300 font-bold flex items-center gap-1 text-[11px]">
+                          <Key className="w-3 h-3" /> {currentProv.name} API Key
+                        </label>
+                        {currentProv.docUrl && (
+                          <a 
+                            href={currentProv.docUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[10px] text-violet-600 dark:text-violet-400 hover:underline font-bold"
+                          >
+                            获取 Key →
+                          </a>
+                        )}
+                      </div>
+                      <div className="relative">
+                        <input
+                          type={showApiKey ? "text" : "password"}
+                          value={aiConfig.apiKey}
+                          onChange={(e) => setAiConfig(prev => ({ ...prev, apiKey: e.target.value }))}
+                          placeholder={currentProv.keyPlaceholder}
+                          className="w-full pl-3 pr-10 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-mono text-[11px] focus:ring-2 focus:ring-violet-500 focus:border-violet-500 focus:outline-none transition"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowApiKey(prev => !prev)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                        >
+                          {showApiKey ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                        </button>
+                      </div>
+                      {/* Live Key Format Hint */}
+                      {aiConfig.apiKey && aiConfig.provider === 'zhipu' && !aiConfig.apiKey.includes('.') && (
+                        <div className="mt-1.5 p-2 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 text-amber-700 dark:text-amber-300 text-[10px] font-medium">
+                          ⚠️ 智谱 Key 需包含英文句号，格式如：<code className="font-mono bg-amber-100 dark:bg-amber-900/50 px-1 rounded">xxx.yyy</code>（请复制完整 Key）
+                        </div>
+                      )}
+                      <p className="text-[9px] text-slate-400 mt-1 ml-0.5">
+                        {currentProv.hint}
+                      </p>
                     </div>
-                    {aiConfig.provider === p.id && <Check className="w-3.5 h-3.5 text-slate-600" />}
-                  </button>
-                ))}
-              </div>
 
-              {/* Divider */}
-              <div className="border-t border-slate-100 dark:border-slate-800" />
-
-              {/* API Key */}
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-slate-600 dark:text-slate-300 font-bold flex items-center gap-1 text-[11px]">
-                    <Key className="w-3 h-3" /> API Key
-                  </label>
-                  <a 
-                    href={aiConfig.provider.startsWith('zhipu') ? 'https://open.bigmodel.cn/usercenter/apikeys' : 
-                          aiConfig.provider === 'deepseek' ? 'https://platform.deepseek.com/api_keys' :
-                          aiConfig.provider === 'openai' ? 'https://platform.openai.com/api-keys' : '#'}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-[9px] text-violet-500 hover:text-violet-600 font-bold"
-                  >
-                    获取 Key →
-                  </a>
-                </div>
-                <div className="relative">
-                  <input
-                    type={showApiKey ? "text" : "password"}
-                    value={aiConfig.apiKey}
-                    onChange={(e) => setAiConfig(prev => ({ ...prev, apiKey: e.target.value }))}
-                    placeholder={aiConfig.provider.startsWith('zhipu') ? 'xxxxxxxx.yyyyyyyy（注意中间有英文句号）' : 'sk-...'}
-                    className="w-full pl-3 pr-10 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-mono text-[11px] focus:ring-2 focus:ring-violet-500 focus:border-violet-500 focus:outline-none transition"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowApiKey(prev => !prev)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-                  >
-                    {showApiKey ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                  </button>
-                </div>
-                {/* Live Key Format Hint */}
-                {aiConfig.apiKey && aiConfig.provider.startsWith('zhipu') && !aiConfig.apiKey.includes('.') && (
-                  <div className="mt-1.5 p-2 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 text-amber-700 dark:text-amber-300 text-[10px] font-medium">
-                    ⚠️ 智谱 Key 需包含英文句号，格式如：<code className="font-mono bg-amber-100 dark:bg-amber-900/50 px-1 rounded">xxx.yyy</code>
-                    <br />
-                    <a href="https://open.bigmodel.cn/usercenter/apikeys" target="_blank" rel="noopener noreferrer" className="text-amber-600 dark:text-amber-400 underline font-bold">
-                      点此前往智谱控制台复制完整 Key
-                    </a>
+                    {/* Base URL */}
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-[10px] text-slate-400 font-medium">接口地址 (Base URL)</label>
+                        {aiConfig.baseUrl !== currentProv.baseUrl && (
+                          <button
+                            type="button"
+                            onClick={() => setAiConfig(prev => ({ ...prev, baseUrl: currentProv.baseUrl }))}
+                            className="text-[9px] text-violet-500 hover:underline"
+                          >
+                            恢复默认
+                          </button>
+                        )}
+                      </div>
+                      <input
+                        type="text"
+                        value={aiConfig.baseUrl}
+                        onChange={(e) => setAiConfig(prev => ({ ...prev, baseUrl: e.target.value }))}
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-mono text-[10px] focus:ring-1 focus:ring-violet-500 focus:outline-none"
+                      />
+                    </div>
                   </div>
-                )}
-                {/* Provider hint */}
-                <p className="text-[9px] text-slate-400 mt-1 ml-0.5">
-                  {AI_PROVIDERS.find(p => p.id === aiConfig.provider)?.hint}
-                </p>
-              </div>
-
-              {/* Advanced: Base URL & Model (collapsible feel) */}
-              <div className="grid grid-cols-1 gap-2">
-                <div>
-                  <label className="text-[10px] text-slate-400 block mb-0.5 ml-0.5">接口地址 (Base URL)</label>
-                  <input
-                    type="text"
-                    value={aiConfig.baseUrl}
-                    onChange={(e) => setAiConfig(prev => ({ ...prev, baseUrl: e.target.value }))}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-mono text-[10px] focus:ring-1 focus:ring-violet-500 focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="text-[10px] text-slate-400 block mb-0.5 ml-0.5">模型名称 (Model)</label>
-                  <input
-                    type="text"
-                    value={aiConfig.model}
-                    onChange={(e) => setAiConfig(prev => ({ ...prev, model: e.target.value }))}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-mono text-[10px] focus:ring-1 focus:ring-violet-500 focus:outline-none"
-                  />
-                </div>
-              </div>
+                );
+              })()}
 
               {/* Test Result */}
               {aiTestResult && (

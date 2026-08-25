@@ -28,17 +28,19 @@ import {
   Layers,
   ArrowUpRight,
   Edit3,
-  CheckCheck
+  CheckCheck,
+  ChevronDown
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { Account, Transaction, Category, Goal, Budget, RecurringRule, Investment, Debt, AgentChatMessage, AccountType } from '../types';
 import { api } from '../api/client';
-import { localStore } from '../services/localStore';
+import { localStore, AiConfig } from '../services/localStore';
 import { sendAgentMessage } from '../services/aiAgent';
 import { getBeijingDateTimeString, getBeijingDateString } from '../utils/dateUtils';
 import { refreshInvestmentQuotes } from '../services/marketData';
 import { optimizeImagesBatch } from '../services/imageOptimizer';
 import { BrandLogo, detectBrandType } from './BrandLogo';
+import { AI_PROVIDERS } from '../services/aiParser';
 
 interface AiChatAssistantModalProps {
   isOpen: boolean;
@@ -86,15 +88,42 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
   const [selectedImages, setSelectedImages] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [recurringRules, setRecurringRules] = useState<RecurringRule[]>([]);
+  const [aiConfig, setAiConfig] = useState<AiConfig>(() => localStore.getAiConfig());
+  const [modelSelectorOpen, setModelSelectorOpen] = useState(false);
+  const [selectedProviderId, setSelectedProviderId] = useState<string>(() => localStore.getAiConfig().provider || 'zhipu');
+  const [modelSwitchToast, setModelSwitchToast] = useState<string>('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const config = localStore.getAiConfig();
 
   useEffect(() => {
     if (isOpen) {
+      const cfg = localStore.getAiConfig();
+      setAiConfig(cfg);
+      setSelectedProviderId(cfg.provider || 'zhipu');
       api.getRecurringRules().then(setRecurringRules).catch(() => {});
     }
   }, [isOpen]);
+
+  const handleSelectModel = (providerId: string, modelId: string) => {
+    const prov = AI_PROVIDERS.find(p => p.id === providerId);
+    if (!prov) return;
+    const currentKey = aiConfig.providerKeys?.[providerId] || (providerId === aiConfig.provider ? aiConfig.apiKey : '');
+    const updated: AiConfig = {
+      ...aiConfig,
+      provider: providerId,
+      model: modelId,
+      baseUrl: prov.baseUrl || aiConfig.baseUrl,
+      apiKey: currentKey
+    };
+    setAiConfig(updated);
+    localStore.saveAiConfig(updated);
+    setModelSelectorOpen(false);
+    
+    const modelObj = prov.models.find(m => m.id === modelId);
+    const toast = `已切换为 ${prov.name} · ${modelObj?.name || modelId}`;
+    setModelSwitchToast(toast);
+    setTimeout(() => setModelSwitchToast(''), 2500);
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -637,43 +666,182 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/75 backdrop-blur-md animate-in fade-in duration-200">
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col h-[90vh] max-h-[780px]">
         {/* Header */}
-        <div className="p-3.5 sm:p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/80 dark:bg-slate-900/80 backdrop-blur-md">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-2xl bg-gradient-to-tr from-purple-600 to-indigo-600 text-white flex items-center justify-center shadow-md shadow-purple-500/20">
-              <Bot className="w-4 h-4" />
-            </div>
-            <div>
-              <div className="flex items-center gap-1.5">
-                <h3 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
-                  斌斌 AI 对话全能管家
-                </h3>
-                <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 font-bold font-mono">
-                  {config.model || 'GLM-4.6V'}
-                </span>
+        <div className="relative p-3 sm:p-3.5 border-b border-slate-100 dark:border-slate-800 bg-slate-50/90 dark:bg-slate-900/90 backdrop-blur-md z-20">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-8 h-8 rounded-2xl bg-gradient-to-tr from-purple-600 to-indigo-600 text-white flex items-center justify-center shadow-md shadow-purple-500/20 flex-shrink-0">
+                <Bot className="w-4 h-4" />
               </div>
-              <p className="text-[10px] text-slate-400">
-                支持发图预识别 • 人工确认修改 • 京东白条/美团/抖音月付/花呗
-              </p>
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <h3 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white truncate">
+                    斌斌 AI 全能管家
+                  </h3>
+                  {/* Interactive Fast Model Switcher Pill */}
+                  {(() => {
+                    const currentProv = AI_PROVIDERS.find(p => p.id === aiConfig.provider) || AI_PROVIDERS[0];
+                    const currentModel = currentProv.models.find(m => m.id === aiConfig.model) || currentProv.models[0];
+                    return (
+                      <button
+                        type="button"
+                        onClick={() => setModelSelectorOpen(prev => !prev)}
+                        className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-100 hover:bg-purple-200 dark:bg-purple-950/80 dark:hover:bg-purple-900/80 text-purple-700 dark:text-purple-300 font-bold font-mono text-[9px] border border-purple-300/40 dark:border-purple-700/40 transition active:scale-95 flex-shrink-0"
+                        title="点击快速切换模型与厂商"
+                      >
+                        <span>{currentProv.icon}</span>
+                        <span className="truncate max-w-[85px]">{currentModel?.name || aiConfig.model || 'GLM-4.6V'}</span>
+                        {currentModel?.vision && <span className="text-[7px] px-1 py-0.2 rounded bg-purple-200 dark:bg-purple-900 text-purple-800 dark:text-purple-200">看图</span>}
+                        <ChevronDown className={`w-2.5 h-2.5 transition-transform ${modelSelectorOpen ? 'rotate-180' : ''}`} />
+                      </button>
+                    );
+                  })()}
+                </div>
+                <p className="text-[10px] text-slate-400 truncate mt-0.5">
+                  支持发图预识别 • 人工确认修改 • 自动录入账本
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1 flex-shrink-0">
+              <button
+                type="button"
+                onClick={() => onOpenSettings?.()}
+                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
+                title="AI 凭证与接口设置"
+              >
+                <Key className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={handleClearHistory}
+                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 text-[10px] font-medium flex items-center gap-1"
+                title="清空对话历史"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={onClose}
+                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
           </div>
 
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={handleClearHistory}
-              className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 text-[10px] font-medium flex items-center gap-1"
-              title="清空对话历史"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
-            <button
-              type="button"
-              onClick={onClose}
-              className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
+          {/* Model Switcher Dropdown Panel */}
+          {modelSelectorOpen && (
+            <div className="mt-2.5 p-3 rounded-2xl bg-white dark:bg-slate-850 border border-purple-200/80 dark:border-purple-900/60 shadow-xl space-y-2.5 animate-in slide-in-from-top-2 duration-150">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                  快速切换模型与厂商
+                </span>
+                <button 
+                  onClick={() => setModelSelectorOpen(false)}
+                  className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-[10px]"
+                >
+                  收起 ✕
+                </button>
+              </div>
+
+              {/* Provider Horizontal Tabs */}
+              <div className="flex items-center gap-1 overflow-x-auto pb-1 no-scrollbar">
+                {AI_PROVIDERS.map(p => {
+                  const isActive = selectedProviderId === p.id;
+                  const hasKey = !!(aiConfig.providerKeys?.[p.id] || (p.id === aiConfig.provider ? aiConfig.apiKey : ''));
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => setSelectedProviderId(p.id)}
+                      className={`px-2.5 py-1 rounded-xl text-[10px] font-bold flex items-center gap-1 whitespace-nowrap transition ${
+                        isActive
+                          ? 'bg-purple-600 text-white shadow-sm'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                      }`}
+                    >
+                      <span>{p.icon}</span>
+                      <span>{p.name}</span>
+                      {hasKey && !isActive && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Models List under Selected Provider */}
+              <div className="grid grid-cols-1 gap-1.5 max-h-48 overflow-y-auto pr-0.5">
+                {(() => {
+                  const prov = AI_PROVIDERS.find(p => p.id === selectedProviderId) || AI_PROVIDERS[0];
+                  const hasKey = !!(aiConfig.providerKeys?.[prov.id] || (prov.id === aiConfig.provider ? aiConfig.apiKey : ''));
+
+                  return (
+                    <>
+                      {!hasKey && (
+                        <div className="p-2 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/40 flex items-center justify-between text-[10px] text-amber-700 dark:text-amber-300">
+                          <span>⚠️ {prov.name} 尚未填写 API Key</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setModelSelectorOpen(false);
+                              onOpenSettings?.();
+                            }}
+                            className="font-bold underline text-amber-600 dark:text-amber-400"
+                          >
+                            去配置 →
+                          </button>
+                        </div>
+                      )}
+                      {prov.models.map(m => {
+                        const isCurrent = aiConfig.provider === prov.id && aiConfig.model === m.id;
+                        return (
+                          <button
+                            key={m.id}
+                            type="button"
+                            onClick={() => handleSelectModel(prov.id, m.id)}
+                            className={`p-2 rounded-xl border text-left transition flex items-center justify-between group ${
+                              isCurrent
+                                ? 'bg-purple-50 dark:bg-purple-950/50 border-purple-500 ring-1 ring-purple-500/30'
+                                : 'border-slate-200/70 dark:border-slate-800 hover:border-purple-300 dark:hover:border-purple-800 bg-slate-50/50 dark:bg-slate-800/30'
+                            }`}
+                          >
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-1.5">
+                                <span className={`text-[11px] font-bold ${isCurrent ? 'text-purple-900 dark:text-purple-200' : 'text-slate-800 dark:text-slate-200'}`}>
+                                  {m.name}
+                                </span>
+                                {m.tag && (
+                                  <span className={`text-[8px] px-1.5 py-0.2 rounded-md font-bold ${
+                                    m.tagColor === 'purple' ? 'bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300' :
+                                    m.tagColor === 'blue' ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300' :
+                                    m.tagColor === 'amber' ? 'bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300' :
+                                    m.tagColor === 'emerald' ? 'bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300' :
+                                    m.tagColor === 'cyan' ? 'bg-cyan-100 dark:bg-cyan-900 text-cyan-700 dark:text-cyan-300' :
+                                    'bg-slate-100 dark:bg-slate-800 text-slate-500'
+                                  }`}>
+                                    {m.tag}
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-[9px] text-slate-400 truncate mt-0.5">{m.desc}</p>
+                            </div>
+                            {isCurrent && <Check className="w-4 h-4 text-purple-600 flex-shrink-0 ml-2" />}
+                          </button>
+                        );
+                      })}
+                    </>
+                  );
+                })()}
+              </div>
+            </div>
+          )}
+
+          {/* Toast Notification on Model Switched */}
+          {modelSwitchToast && (
+            <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 px-3.5 py-1.5 rounded-full bg-slate-900 text-white text-[10px] font-bold shadow-xl flex items-center gap-1.5 animate-in fade-in slide-in-from-top-1 z-30 pointer-events-none">
+              <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+              <span>{modelSwitchToast}</span>
+            </div>
+          )}
         </div>
 
         {/* Chat Messages List */}

@@ -18,138 +18,114 @@ export interface AiExtractedItem {
   note?: string;
 }
 
-export const AI_PROVIDERS = [
-  // ── 智谱 BigModel 系列 ──
+export interface ModelOption {
+  id: string;
+  name: string;
+  desc: string;
+  vision: boolean;
+  tag?: string;
+  tagColor?: 'purple' | 'blue' | 'amber' | 'emerald' | 'cyan' | 'indigo' | 'slate';
+}
+
+export interface AiProviderDef {
+  id: string;
+  name: string;
+  brand: string;
+  icon: string;
+  baseUrl: string;
+  docUrl: string;
+  keyPlaceholder: string;
+  hint: string;
+  models: ModelOption[];
+}
+
+export const AI_PROVIDERS: AiProviderDef[] = [
   {
-    id: 'zhipu-4.6v',
-    name: 'GLM-4.6V',
-    brand: '智谱 AI',
-    desc: '最新旗舰视觉多模态 · 支持截图识别',
-    badge: '600万资源包',
-    badgeColor: 'purple',
+    id: 'zhipu',
+    name: '智谱 AI',
+    brand: 'BigModel 开放平台',
+    icon: '⚡',
     baseUrl: 'https://open.bigmodel.cn/api/paas/v4',
-    model: 'glm-4.6v',
-    hint: '新用户赠送 600万 GLM-4.6V 资源包',
-    vision: true,
-    group: 'zhipu'
+    docUrl: 'https://open.bigmodel.cn/usercenter/apikeys',
+    keyPlaceholder: 'xxxxxxxx.yyyyyyyy（格式需含英文句号）',
+    hint: '支持多模态看图识别、深度思考推理与极速文本',
+    models: [
+      { id: 'glm-4.6v', name: 'GLM-4.6V', desc: '旗舰视觉多模态 · 600万资源包 · 截图开账首选', vision: true, tag: '推荐看图', tagColor: 'purple' },
+      { id: 'glm-4.5-air', name: 'GLM-4.5-Air', desc: '极速旗舰纯文本 · 1200万资源包 · 1秒秒回', vision: false, tag: '极速文字', tagColor: 'blue' },
+      { id: 'glm-4-plus', name: 'GLM-4-Plus', desc: '顶配深度推理旗舰 · 200万通用资源包', vision: false, tag: '深度推理', tagColor: 'amber' },
+      { id: 'glm-4v-flash', name: 'GLM-4V-Flash', desc: '永久免费视觉大模型 · 基础看图识别', vision: true, tag: '免费看图', tagColor: 'emerald' },
+      { id: 'glm-4-flash', name: 'GLM-4-Flash', desc: '永久免费纯文本 · 基础记账对话', vision: false, tag: '免费文本', tagColor: 'emerald' }
+    ]
   },
-  {
-    id: 'zhipu-4v-flash',
-    name: 'GLM-4V-Flash',
-    brand: '智谱 AI',
-    desc: '免费视觉模型 · 支持图片识别',
-    badge: '永久免费',
-    badgeColor: 'emerald',
-    baseUrl: 'https://open.bigmodel.cn/api/paas/v4',
-    model: 'glm-4v-flash',
-    hint: '永久免费视觉大模型，不消耗任何付费额度',
-    vision: true,
-    group: 'zhipu'
-  },
-  {
-    id: 'zhipu-4.5air',
-    name: 'GLM-4.5-Air',
-    brand: '智谱 AI',
-    desc: '极速旗舰 · 纯文字最快响应',
-    badge: '1200万资源包',
-    badgeColor: 'blue',
-    baseUrl: 'https://open.bigmodel.cn/api/paas/v4',
-    model: 'glm-4.5-air',
-    hint: '新用户赠送 1200万 GLM-4.5-Air 资源包',
-    vision: false,
-    group: 'zhipu'
-  },
-  {
-    id: 'zhipu-flash',
-    name: 'GLM-4-Flash',
-    brand: '智谱 AI',
-    desc: '免费极速 · 纯文本记账聊天',
-    badge: '永久免费',
-    badgeColor: 'emerald',
-    baseUrl: 'https://open.bigmodel.cn/api/paas/v4',
-    model: 'glm-4-flash',
-    hint: '永久免费纯文本模型',
-    vision: false,
-    group: 'zhipu'
-  },
-  {
-    id: 'zhipu-plus',
-    name: 'GLM-4-Plus',
-    brand: '智谱 AI',
-    desc: '顶配推理旗舰 · 最强理解力',
-    badge: '200万资源包',
-    badgeColor: 'amber',
-    baseUrl: 'https://open.bigmodel.cn/api/paas/v4',
-    model: 'glm-4-plus',
-    hint: '新用户赠送 200万通用推理资源包',
-    vision: false,
-    group: 'zhipu'
-  },
-  // ── 第三方模型 ──
   {
     id: 'deepseek',
-    name: 'DeepSeek-Chat',
-    brand: 'DeepSeek',
-    desc: '超强语义理解 · 性价比之王',
-    badge: '推荐',
-    badgeColor: 'cyan',
+    name: 'DeepSeek',
+    brand: '深度求索',
+    icon: '🐳',
     baseUrl: 'https://api.deepseek.com/v1',
-    model: 'deepseek-chat',
-    hint: '前往 platform.deepseek.com 获取 sk- 密钥',
-    vision: false,
-    group: 'third'
+    docUrl: 'https://platform.deepseek.com/api_keys',
+    keyPlaceholder: 'sk-...',
+    hint: '超强中文语义理解与高性价比',
+    models: [
+      { id: 'deepseek-chat', name: 'DeepSeek-V3', desc: '通用旗舰对话与记账 · 极速高智商', vision: false, tag: '推荐', tagColor: 'cyan' },
+      { id: 'deepseek-reasoner', name: 'DeepSeek-R1', desc: '深度思考推理大模型 · 复杂财务推导', vision: false, tag: 'R1 思考', tagColor: 'indigo' }
+    ]
   },
   {
     id: 'openai',
-    name: 'GPT-4o / 4o-mini',
-    brand: 'OpenAI',
-    desc: '多模态看图 + 语义理解',
-    badge: '',
-    badgeColor: '',
+    name: 'OpenAI',
+    brand: 'ChatGPT 官方接口',
+    icon: '🧠',
     baseUrl: 'https://api.openai.com/v1',
-    model: 'gpt-4o-mini',
-    hint: '前往 platform.openai.com 获取 API Key',
-    vision: true,
-    group: 'third'
+    docUrl: 'https://platform.openai.com/api-keys',
+    keyPlaceholder: 'sk-...',
+    hint: '全球顶级大模型，支持多模态视觉',
+    models: [
+      { id: 'gpt-4o', name: 'GPT-4o', desc: '旗舰全能多模态 · 超强看图与逻辑', vision: true, tag: '旗舰', tagColor: 'emerald' },
+      { id: 'gpt-4o-mini', name: 'GPT-4o-mini', desc: '轻量极速多模态 · 快速省流', vision: true, tag: '极速', tagColor: 'blue' }
+    ]
   },
   {
     id: 'qwen',
-    name: '通义千问 Qwen',
+    name: '通义千问',
     brand: '阿里云百炼',
-    desc: '国产顶级 · 全场景覆盖',
-    badge: '',
-    badgeColor: '',
+    icon: '☁️',
     baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
-    model: 'qwen-plus',
-    hint: '前往阿里云百炼获取 API Key',
-    vision: false,
-    group: 'third'
+    docUrl: 'https://bailian.console.aliyun.com/',
+    keyPlaceholder: 'sk-...',
+    hint: '阿里云全场景大模型',
+    models: [
+      { id: 'qwen-plus', name: 'Qwen-Plus', desc: '通用高能力旗舰', vision: false, tag: '旗舰', tagColor: 'blue' },
+      { id: 'qwen-vl-plus', name: 'Qwen-VL-Plus', desc: '多模态视觉看图', vision: true, tag: '看图', tagColor: 'purple' },
+      { id: 'qwen-turbo', name: 'Qwen-Turbo', desc: '极速纯文本响应', vision: false, tag: '极速', tagColor: 'emerald' }
+    ]
   },
   {
     id: 'kimi',
-    name: 'Kimi (Moonshot)',
-    brand: '月之暗面',
-    desc: '超长上下文 · 128K 窗口',
-    badge: '',
-    badgeColor: '',
+    name: '月之暗面 (Kimi)',
+    brand: 'Moonshot AI',
+    icon: '🌙',
     baseUrl: 'https://api.moonshot.cn/v1',
-    model: 'moonshot-v1-8k',
-    hint: '前往 platform.moonshot.cn 获取密钥',
-    vision: false,
-    group: 'third'
+    docUrl: 'https://platform.moonshot.cn/console/api-keys',
+    keyPlaceholder: 'sk-...',
+    hint: '超长上下文理解能力',
+    models: [
+      { id: 'moonshot-v1-8k', name: 'Moonshot-V1-8K', desc: '标准版对话记账', vision: false, tag: '标准', tagColor: 'blue' },
+      { id: 'moonshot-v1-32k', name: 'Moonshot-V1-32K', desc: '长账单分析', vision: false, tag: '长文本', tagColor: 'purple' }
+    ]
   },
   {
     id: 'custom',
     name: '自定义接口',
     brand: 'OneAPI / 中转站',
-    desc: '任意 OpenAI 兼容 API',
-    badge: '高级',
-    badgeColor: 'slate',
+    icon: '🔧',
     baseUrl: 'https://api.openai.com/v1',
-    model: 'gpt-4o',
-    hint: '支持任何标准 /chat/completions 兼容接口',
-    vision: true,
-    group: 'custom'
+    docUrl: '',
+    keyPlaceholder: '输入 API Key',
+    hint: '支持任何兼容 OpenAI 标准的 /chat/completions 接口',
+    models: [
+      { id: 'gpt-4o', name: '自定义模型', desc: '支持任意 OpenAI 兼容模型名称', vision: true, tag: '自定义', tagColor: 'slate' }
+    ]
   }
 ];
 
@@ -160,8 +136,7 @@ export function validateApiKeyFormat(key: string, provider: string): { valid: bo
   const trimmed = key.trim();
   if (!trimmed) return { valid: false, hint: '请填入 API Key' };
 
-  if (provider.startsWith('zhipu')) {
-    // Zhipu keys must be in format: {32hex}.{16alphanum}
+  if (provider === 'zhipu' || provider.startsWith('zhipu')) {
     if (!trimmed.includes('.')) {
       return { 
         valid: false, 

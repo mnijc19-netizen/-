@@ -19,6 +19,7 @@ export interface AiConfig {
   apiKey: string;
   baseUrl: string;
   model: string;
+  providerKeys?: Record<string, string>;
 }
 
 export const DEFAULT_AI_CONFIG: AiConfig = {
@@ -26,7 +27,8 @@ export const DEFAULT_AI_CONFIG: AiConfig = {
   provider: 'zhipu',
   apiKey: '',
   baseUrl: 'https://open.bigmodel.cn/api/paas/v4',
-  model: 'glm-4.6v'
+  model: 'glm-4.6v',
+  providerKeys: {}
 };
 
 /**
@@ -120,8 +122,26 @@ export const localStore = {
   getRecurringRules: (): RecurringRule[] => dbStore.getSync(STORAGE_KEYS.RECURRING, []),
   saveRecurringRules: (r: RecurringRule[]) => dbStore.set(STORAGE_KEYS.RECURRING, r),
 
-  getAiConfig: (): AiConfig => dbStore.getSync(STORAGE_KEYS.AI_CONFIG, DEFAULT_AI_CONFIG),
-  saveAiConfig: (cfg: AiConfig) => dbStore.set(STORAGE_KEYS.AI_CONFIG, cfg),
+  getAiConfig: (): AiConfig => {
+    const raw = dbStore.getSync(STORAGE_KEYS.AI_CONFIG, DEFAULT_AI_CONFIG);
+    const cfg: AiConfig = { ...DEFAULT_AI_CONFIG, ...raw };
+    if (cfg.provider && cfg.provider.startsWith('zhipu')) {
+      cfg.provider = 'zhipu';
+    }
+    if (!cfg.providerKeys) cfg.providerKeys = {};
+    if (cfg.apiKey && cfg.provider && !cfg.providerKeys[cfg.provider]) {
+      cfg.providerKeys[cfg.provider] = cfg.apiKey;
+    }
+    return cfg;
+  },
+  saveAiConfig: (cfg: AiConfig) => {
+    const providerKeys = { ...(cfg.providerKeys || {}) };
+    if (cfg.provider && cfg.apiKey) {
+      providerKeys[cfg.provider] = cfg.apiKey;
+    }
+    const updated = { ...cfg, providerKeys };
+    dbStore.set(STORAGE_KEYS.AI_CONFIG, updated);
+  },
 
   getOnboardingCompleted: (): boolean => {
     return dbStore.getSync(STORAGE_KEYS.ONBOARDING_COMPLETED, false);
