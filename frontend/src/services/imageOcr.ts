@@ -146,6 +146,20 @@ export function cleanMerchantName(raw: string): string {
     .replace(/^[\s"“'‘`]+|[\s"”'’`]+$/g, '')
     .trim();
 
+  // Filter out status / payment channel sentences from being treated as merchants
+  const noisePhrases = [
+    "通过零钱扣款", "通过微信支付扣款", "通过银行卡扣款", "使用零钱支付", "零钱扣款", "零钱支付", "通过零钱",
+    "先用后付订单已完成", "已自动支付", "自动扣款", "免密支付", "快捷支付", "按时支付",
+    "记入微信支付分记录", "交易详情", "查看商家订单", "物流及商品详情", "管理扣费服务",
+    "订单已完成", "扣款成功", "付款成功", "支付成功", "微信记账本", "微信支付"
+  ];
+  for (const phrase of noisePhrases) {
+    if (s === phrase || (s.includes(phrase) && !s.includes('拼多多') && !s.includes('淘宝') && !s.includes('美团') && !s.includes('京东'))) {
+      s = '';
+      break;
+    }
+  }
+
   // If merchant contains known brand, normalize it cleanly
   const brands = [
     "铁路12306", "中国铁路", "12306", "中国石化", "中国电信", "中国移动", "中国联通", "万亩良田生鲜超市", "万亩良田", "抖音生活服务", "抖音",
@@ -163,7 +177,7 @@ export function cleanMerchantName(raw: string): string {
   }
 
   // Alias mapper
-  if (raw.includes('寻梦')) return '拼多多';
+  if (raw.includes('寻梦') || raw.includes('拼多多')) return '拼多多';
   if (raw.includes('协和')) return '北京协和医院';
   if (raw.includes('哈啰')) return '哈啰单车';
 

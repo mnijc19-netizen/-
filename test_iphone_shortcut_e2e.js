@@ -31,6 +31,20 @@ function cleanMerchantName(raw) {
     .replace(/^[\s"“'‘`]+|[\s"”'’`]+$/g, '')
     .trim();
 
+  // Filter out status / payment channel sentences from being treated as merchants
+  const noisePhrases = [
+    "通过零钱扣款", "通过微信支付扣款", "通过银行卡扣款", "使用零钱支付", "零钱扣款", "零钱支付", "通过零钱",
+    "先用后付订单已完成", "已自动支付", "自动扣款", "免密支付", "快捷支付", "按时支付",
+    "记入微信支付分记录", "交易详情", "查看商家订单", "物流及商品详情", "管理扣费服务",
+    "订单已完成", "扣款成功", "付款成功", "支付成功", "微信记账本", "微信支付"
+  ];
+  for (const phrase of noisePhrases) {
+    if (s === phrase || (s.includes(phrase) && !s.includes('拼多多') && !s.includes('淘宝') && !s.includes('美团') && !s.includes('京东'))) {
+      s = '';
+      break;
+    }
+  }
+
   const brands = [
     "铁路12306", "中国铁路", "12306", "中国石化", "中国电信", "中国移动", "中国联通", "万亩良田生鲜超市", "万亩良田", "抖音生活服务", "抖音",
     "清口清汤面", "麦当劳", "肯德基", "汉堡王", "瑞幸咖啡", "星巴克", "海底捞火锅", "海底捞", "喜茶", "霸王茶姬", 
@@ -46,7 +60,7 @@ function cleanMerchantName(raw) {
     }
   }
 
-  if (raw.includes('寻梦')) return '拼多多';
+  if (raw.includes('寻梦') || raw.includes('拼多多')) return '拼多多';
   if (raw.includes('协和')) return '北京协和医院';
   if (raw.includes('哈啰')) return '哈啰单车';
 
@@ -455,10 +469,22 @@ const shortcutScenarios = [
 扣款金额 ￥2.50
 付款方式 支付宝免密扣款`,
     expected: { amount: 2.50, merchant: '哈啰单车', accountId: 'acc-2', category: '交通出行' }
+  },
+  {
+    name: '17. 微信支付-拼多多平台商户-先用后付通过零钱扣款 (实测截屏 16.83)',
+    liveText: `微信支付
+拼多多平台商户
+先用后付订单已完成，已自动支付
+通过零钱扣款
+¥ 16.83
+按时支付，记入微信支付分记录
+交易详情 >
+下单时间 8月8日 00:13`,
+    expected: { amount: 16.83, merchant: '拼多多', accountId: 'acc-1', category: '购物消费' }
   }
 ];
 
-console.log('📱 Running 16 Full-Scenario iPhone Shortcut End-to-End Tests:\n');
+console.log('📱 Running 17 Full-Scenario iPhone Shortcut End-to-End Tests:\n');
 let passed = 0;
 
 shortcutScenarios.forEach((sc, i) => {
