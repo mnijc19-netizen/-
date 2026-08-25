@@ -1,62 +1,26 @@
-import { api } from '../api/client';
+import { 
+  Account, 
+  Category, 
+  Transaction, 
+  Goal, 
+  Budget, 
+  RecurringRule, 
+  Investment, 
+  Debt, 
+  AgentChatMessage, 
+  AgentResponse 
+} from '../types';
 import { localStore } from './localStore';
-import { Account, Transaction, Category, Goal, Budget, RecurringRule } from '../types';
+import { api } from '../api/client';
 import { getBeijingDateTimeString, getBeijingDateString } from '../utils/dateUtils';
-
-export interface AgentChatMessage {
-  id: string;
-  role: 'user' | 'assistant' | 'system';
-  content: string;
-  timestamp: string;
-  imageUrl?: string;
-  imageUrls?: string[];
-  actionResult?: {
-    type: 
-      | 'transaction_created' 
-      | 'batch_transactions_created' 
-      | 'transaction_deleted' 
-      | 'goal_created' 
-      | 'budget_set' 
-      | 'recurring_rule_created' 
-      | 'data_exported' 
-      | 'balance_updated' 
-      | 'batch_balances_updated'
-      | 'account_created' 
-      | 'batch_accounts_created'
-      | 'investment_created'
-      | 'navigated' 
-      | 'analysis';
-    data?: any;
-  };
-}
-
-export interface AgentResponse {
-  reply: string;
-  action?: {
-    type: 
-      | 'create_transaction' 
-      | 'batch_create_transactions' 
-      | 'delete_transaction' 
-      | 'update_balance' 
-      | 'batch_update_balances'
-      | 'create_account' 
-      | 'batch_create_accounts'
-      | 'create_investment'
-      | 'set_budget' 
-      | 'create_goal' 
-      | 'create_recurring_rule' 
-      | 'export_data' 
-      | 'navigate_to' 
-      | 'none';
-    payload?: any;
-  };
-}
+import { querySingleQuote } from './marketData';
 
 /**
- * Extracts and cleans JSON object from model reply
+ * Extracts a JSON object safely from an LLM markdown response
  */
-function extractJsonFromText(raw: string): any | null {
+function extractJsonFromResponse(raw: string): any | null {
   if (!raw) return null;
+
   // 1. Try markdown code block
   const codeBlockMatch = raw.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
   if (codeBlockMatch && codeBlockMatch[1]) {
@@ -90,7 +54,9 @@ export async function sendAgentMessage(
   goals: Goal[],
   imagesInput?: string | string[],
   budgets: Budget[] = [],
-  recurringRules: RecurringRule[] = []
+  recurringRules: RecurringRule[] = [],
+  investments: Investment[] = [],
+  debts: Debt[] = []
 ): Promise<AgentResponse> {
   const config = localStore.getAiConfig();
   if (!config.apiKey || !config.apiKey.trim()) {
@@ -128,10 +94,12 @@ export async function sendAgentMessage(
 
   const accountsSummary = accounts.map(a => `${a.name}(id:${a.id}, 类别:${a.type}): ¥${a.balance.toFixed(2)}`).join('，');
   const catSummary = Object.entries(catExpenses).map(([c, amt]) => `${c}: ¥${amt.toFixed(2)}`).join('，') || '暂无';
-  const recentRecentTxs = transactions.slice(0, 8).map(t => `[id:${t.id}] ${t.date} ${t.merchant} ${t.type === 'expense' ? '-' : '+'}¥${t.amount.toFixed(2)}(${t.category_name || '日常'})`).join('；');
+  const recentRecentTxs = transactions.slice(0, 10).map(t => `[id:${t.id}] ${t.date} ${t.merchant} ${t.type === 'expense' ? '-' : '+'}¥${t.amount.toFixed(2)}(${t.category_name || '日常'})`).join('；');
   const budgetsSummary = budgets.map(b => `${b.category_name || '总预算'}: 限额¥${b.amount}, 已用¥${b.spent_amount || 0}(${b.spent_percentage || 0}%)`).join('，') || '暂无';
   const goalsSummary = goals.map(g => `${g.name}(目标¥${g.target_amount}, 已存¥${g.current_amount})`).join('，') || '暂无';
   const recurringSummary = recurringRules.map(r => `${r.name}(每月${r.day_of_period}号, ${r.type === 'expense' ? '扣' : '收'}¥${r.amount})`).join('，') || '暂无';
+  const investmentsSummary = investments.map(i => `${i.name}(代码:${i.code}, 持仓:${i.shares}份, 市值:¥${i.market_value.toFixed(2)}, 盈亏:${i.pnl_rate.toFixed(1)}%)`).join('，') || '暂无';
+  const debtsSummary = debts.map(d => `${d.name}(本金:¥${d.total_principal}, 待还:¥${d.remaining_principal}, 月供:¥${d.monthly_payment})`).join('，') || '暂无';
 
   const currentModelName = config.model || 'GLM-4.6V';
   const currentProviderName = config.provider === 'deepseek' ? 'DeepSeek' : config.provider?.includes('zhipu') ? '智谱 BigModel' : 'AI 大模型';
@@ -149,6 +117,8 @@ export async function sendAgentMessage(
 当前用户的全景真实财务态势：
 【资产总额】: ¥${totalAssets.toFixed(2)}，【负债】: ¥${totalLiabilities.toFixed(2)}，【净资产】: ¥${netWorth.toFixed(2)}
 【账户清单】: ${accountsSummary || '暂无账户'}
+【投资持仓】: ${investmentsSummary}
+【负债信贷】: ${debtsSummary}
 【本月收支(${currentMonthStr})】: 总收入 ¥${monthIncome.toFixed(2)}，总支出 ¥${monthExpense.toFixed(2)}，本月结余 ¥${(monthIncome - monthExpense).toFixed(2)}
 【本月支出分类】: ${catSummary}
 【月度预算状态】: ${budgetsSummary}
@@ -156,9 +126,9 @@ export async function sendAgentMessage(
 【现有周期自动记账】: ${recurringSummary}
 【最近流水记录】: ${recentRecentTxs || '暂无'}
 
-【用户意图与工具动作库（Tool Actions）- 必须精准落地执行】：
+【用户意图与全功能工具动作库（Tool Actions）- 必须精准落地执行】：
 1. 📸 账户开账 / 基金投资资产入账 / 余额校准：
-   - 【当用户上传证券/基金/微信/支付宝/银行余额截图，或者明确说“帮我把这个金额存到资产里”、“分类为基金”、“帮我开账”、“更新余额”等指令时】：
+   - 当用户上传证券/基金/微信/支付宝/银行余额截图，或者说“帮我把这个金额存到资产里”、“分类为基金”、“帮我开账”、“更新余额”等指令时：
      - 若针对单一平台（如华泰证券/基金、微信、支付宝等）：
        - 如果包含具体基金/股票持仓明细（如纳指ETF 1314.40、标普500 269.50等）：
          - 输出 action="create_account"，payload={ 
@@ -168,8 +138,8 @@ export async function sendAgentMessage(
              currency: "CNY", 
              note: "由 AI 识别并创建",
              holdings: [
-               { name: "纳指ETF广发", code: "159941", market_value: 1314.40, type: "fund" },
-               { name: "标普500ETF博时", code: "513500", market_value: 269.50, type: "fund" }
+               { name: "广发纳指100ETF", code: "159941", market_value: 1314.40, type: "fund" },
+               { name: "博时标普500ETF", code: "513500", market_value: 269.50, type: "fund" }
              ]
            }；
        - 如果系统已有对应账户：输出 action="update_balance"，payload={ account_id: "匹配id", platform: "华泰证券/基金持仓", balance: 数字, account_type: "investment", note: "说明", holdings: [...] }；
@@ -177,33 +147,48 @@ export async function sendAgentMessage(
      - 若针对多张截图或同时初始化多个平台（多图上传/多平台开账）：
        - 输出 action="batch_update_balances" 或 action="batch_create_accounts"；
        - payload={ updates: [ { platform: "微信零钱", balance: 1020.92, account_type: "wallet" }, { platform: "华泰证券/基金持仓", balance: 1966.65, account_type: "investment", holdings: [...] }, ... ] }；
-2. 🤝 追问与多轮确认指令（极为重要！）：
-   - 当上一轮对话中助手提到了某个金额或建议创建账户，而用户本轮回复“好的”、“是的”、“确认”、“帮我弄好”、“执行”、“行”、“对”时：
-     - **你必须立即从上下文提取具体的账户名称与金额，输出对应的 create_account / update_balance / create_transaction 动作，绝不能只说空话却输出 action.type: 'none'！**
-3. ❓ 仅问答与咨询（严禁误改账本）：
-   - 仅当用户是纯疑问句（如：“这是哪个平台”、“这是什么”、“这是多少钱”、“帮我看看”、“余额是多少”等），且没有要求入账/开账/修改时，action.type 必须为 "none"！
-4. 📸 记账指令（消费/收入小票与自然语言）：
+2. 📈 独立证券与基金持仓操作：
+   - 增加持仓：action="create_investment"，payload={ name: "广发纳指100ETF", code: "159941", type: "fund|stock_a|stock_hk_us", shares: 800, cost_price: 1.586, account_name: "华泰证券" }；
+   - 批量录入持仓：action="batch_create_investments"，payload={ items: [ { name, code, shares, cost_price, type, account_name }, ... ] }；
+   - 刷新持仓市值/收益查询：action="refresh_investments"，payload={}；
+   - 删除持仓：action="delete_investment"，payload={ keyword: "标的名称或代码" }；
+3. 💳 负债与贷款规划：
+   - 记录负债：action="create_debt"，payload={ name: "房贷/信用卡还款", total_principal: 1000000, monthly_payment: 5000, interest_rate_annual: 3.1, type: "mortgage|credit_card|consumer_loan", notes: "说明" }；
+   - 删除负债：action="delete_debt"，payload={ keyword: "负债名" }；
+4. 📸 记账与流水（消费/收入小票与自然语言）：
    - 单笔记账：action="create_transaction"，payload={ amount: 数字, merchant: "商户", category: "分类", type: "expense|income", channel: "微信支付|支付宝|银行卡|现金", note: "备注" }；
    - 多笔记账：action="batch_create_transactions"，payload={ items: [ { amount, merchant, category, type, channel, note }, ... ] }；
-5. 🗑️ 撤销与删除记账：
-   - action="delete_transaction"，payload={ transaction_id: "若知道id则填", keyword: "商户名或金额" }；
-6. 📊 月度预算设置：
-   - action="set_budget"，payload={ category_name: "餐饮美食", amount: 1500 }；
-7. 🎯 存钱目标与立项：
-   - action="create_goal"，payload={ name: "目标名", target_amount: 数字, current_amount: 0, deadline: "YYYY-MM-DD", note: "规划建议" }；
+   - 撤销/删除记账：action="delete_transaction"，payload={ transaction_id: "若知道id则填", keyword: "商户名或金额" }；
+5. 🔄 账户间转账调拨：
+   - action="transfer_funds"，payload={ from_account: "银行卡", to_account: "微信零钱", amount: 2000, note: "微信提现/充值" }；
+6. 📊 月度预算设置与删除：
+   - 设置预算：action="set_budget"，payload={ category_name: "餐饮美食", amount: 1500 }；
+   - 删除预算：action="delete_budget"，payload={ category_name: "餐饮美食" }；
+7. 🎯 存钱心愿目标：
+   - 设立目标：action="create_goal"，payload={ name: "目标名", target_amount: 数字, current_amount: 0, deadline: "YYYY-MM-DD", note: "规划建议" }；
+   - 存入心愿资金：action="deposit_goal"，payload={ goal_name: "目标名", amount: 1000 }；
+   - 删除目标：action="delete_goal"，payload={ keyword: "目标名" }；
 8. ⏰ 周期性固定收支规则：
    - action="create_recurring_rule"，payload={ name: "房租", amount: 2800, type: "expense", day_of_period: 10, frequency: "monthly", note: "每月固定支出" }；
-9. 🧭 页面导航：
-   - action="navigate_to"，payload={ page: "accounts|transactions|budgets|goals|analytics|settings|investments|dashboard" }；
-10. 📂 导出账本：
-   - action="export_data"，payload={ format: "json" }；
+   - 触发执行：action="execute_recurring"，payload={}；
+9. 📸 资产快照归档：
+   - action="create_snapshot"，payload={ note: "月末资产快照" }；
+10. 🧭 页面导航：
+    - action="navigate_to"，payload={ page: "accounts|transactions|budgets|goals|analytics|settings|investments|debts|dashboard" }；
+11. 📂 导出账本：
+    - action="export_data"，payload={ format: "json" }；
+12. 🤝 追问与多轮确认指令（极为重要！）：
+    - 当上一轮对话中助手提到了某个金额或建议创建账户，而用户本轮回复“好的”、“是的”、“确认”、“帮我弄好”、“执行”、“行”、“对”时：
+      - 你必须立即从上下文提取具体的账户名称与金额，输出对应的真实 action，绝不能只说空话却输出 action.type: 'none'！
+13. ❓ 纯问答与咨询：
+    - 仅当用户是纯咨询、聊天或询问财务建议，且没有要求修改账本时，action.type 为 "none"。
 
 【输出格式铁律】：
 直接输出标准的 JSON 对象（禁止用任何 markdown 代码块包裹）：
 {
   "reply": "你对用户的专业、亲切、准确的中文回复",
   "action": {
-    "type": "create_account | batch_create_accounts | update_balance | batch_update_balances | create_transaction | batch_create_transactions | delete_transaction | set_budget | create_goal | create_recurring_rule | navigate_to | export_data | none",
+    "type": "create_account | batch_create_accounts | update_balance | batch_update_balances | create_investment | batch_create_investments | refresh_investments | delete_investment | create_debt | delete_debt | create_transaction | batch_create_transactions | delete_transaction | transfer_funds | set_budget | delete_budget | create_goal | deposit_goal | delete_goal | create_recurring_rule | execute_recurring | create_snapshot | navigate_to | export_data | none",
     "payload": { ... }
   }
 }`;
@@ -248,95 +233,79 @@ export async function sendAgentMessage(
           const balRes = parseOfflineBalanceScreenshot(rawOcr);
           ocrSection += `--- 截图 ${imgIdx} ---\n${rawOcr}\n`;
           if (balRes && balRes.balance > 0) {
-            ocrSection += `【系统指纹判定】: 平台=【${balRes.platform}】，检测到总资产/余额: ¥${balRes.balance} (${balRes.note || ''})\n`;
+            ocrSection += `[系统预识别提示: 疑似平台 ${balRes.platform}，总金额约 ¥${balRes.balance}]\n`;
           }
           imgIdx++;
         }
-
-        userContent = `${userMessage || '请帮我分析这些截图'}\n${ocrSection}`;
-      } catch (e) {
-        userContent = `${userMessage || '请帮我处理上传的图片'}\n(已接收 ${imagesBase64.length} 张图片，请结合上下文解析)`;
+        userContent = `${userMessage || '分析处理以下截图账单信息'}\n${ocrSection}`;
+      } catch (ocrErr) {
+        userContent = `${userMessage || '分析处理截图账单'}\n[图片 OCR 解析受限]`;
       }
     }
   }
 
-  // 2. Build Chat Messages History
-  const messages = [
-    { role: 'system', content: systemPrompt },
-    ...history.slice(-8).map(m => ({
-      role: m.role,
-      content: m.content
-    })),
-    { role: 'user', content: userContent }
+  // 2. Format history
+  const apiMessages: any[] = [
+    { role: 'system', content: systemPrompt }
   ];
 
-  const endpoint = `${config.baseUrl.replace(/\/+$/, '')}/chat/completions`;
-  const res = await fetch(endpoint, {
+  for (const h of history.slice(-12)) {
+    apiMessages.push({
+      role: h.role === 'user' ? 'user' : 'assistant',
+      content: h.content
+    });
+  }
+
+  apiMessages.push({
+    role: 'user',
+    content: userContent
+  });
+
+  // 3. Dispatch REST API call
+  let baseUrl = (config.baseUrl || 'https://open.bigmodel.cn/api/paas/v4').replace(/\/+$/, '');
+  const url = `${baseUrl}/chat/completions`;
+
+  const reqBody: any = {
+    model: config.model || 'glm-4.6v',
+    messages: apiMessages,
+    temperature: 0.2
+  };
+
+  const response = await fetch(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${config.apiKey.trim()}`
     },
-    body: JSON.stringify({
-      model: config.model || 'glm-4.6v',
-      messages,
-      temperature: 0.1,
-      max_tokens: 1200
-    })
+    body: JSON.stringify(reqBody)
   });
 
-  if (!res.ok) {
-    const errText = await res.text();
-    throw new Error(`AI 请求失败 (${res.status}): ${errText.substring(0, 100)}`);
+  if (!response.ok) {
+    const errText = await response.text();
+    let msg = `AI 服务响应错误 (HTTP ${response.status})`;
+    try {
+      const errJson = JSON.parse(errText);
+      msg = errJson.error?.message || errJson.message || msg;
+    } catch {}
+    throw new Error(msg);
   }
 
-  const data = await res.json();
-  const replyRaw = data?.choices?.[0]?.message?.content || '';
-  const parsed = extractJsonFromText(replyRaw);
+  const data = await response.json();
+  const rawContent = data.choices?.[0]?.message?.content || '';
 
-  if (parsed && typeof parsed === 'object') {
+  // 4. Parse JSON action from response
+  const parsed = extractJsonFromResponse(rawContent);
+
+  if (parsed && typeof parsed.reply === 'string') {
     return {
-      reply: parsed.reply || replyRaw,
+      reply: parsed.reply,
       action: parsed.action || { type: 'none' }
     };
   }
 
-  // Smart Heuristic Fallback for follow-ups (e.g. user said "帮我把这个金额存到资产里，分类为基金" or "好的")
-  const trimmedUserMsg = (userMessage || '').trim();
-  const isAffirmative = /^(好的|是的|确认|行|对|帮我弄好|可以|同意|好|ok|OK|好的呀)$/.test(trimmedUserMsg);
-  const wantsFundDeposit = /存到资产|分类为基金|记录为基金|存入基金|创建基金|加到资产/.test(trimmedUserMsg);
-
-  if (wantsFundDeposit || isAffirmative) {
-    // Look back in history or raw reply for detected balance numbers
-    const lastAssistantMsg = [...history].reverse().find(m => m.role === 'assistant');
-    const combinedText = `${replyRaw} ${lastAssistantMsg?.content || ''}`;
-    const amountMatch = combinedText.match(/(?:¥|￥|金额为|总资产|余额为|金额[：:])\s*([0-9,]+(?:\.[0-9]{1,2})?)/);
-    
-    if (amountMatch) {
-      const parsedAmt = parseFloat(amountMatch[1].replace(/,/g, ''));
-      if (parsedAmt > 0) {
-        const isFund = /基金|证券|华泰|股票|ETF/.test(combinedText) || wantsFundDeposit;
-        return {
-          reply: replyRaw || (isFund 
-            ? `已成功为您创建【华泰证券/基金持仓】资产账户，初始金额 ¥${parsedAmt.toFixed(2)} 已录入！`
-            : `已成功为您记录该笔资产余额 ¥${parsedAmt.toFixed(2)}！`),
-          action: {
-            type: 'create_account',
-            payload: {
-              name: isFund ? '华泰证券/基金持仓' : '新增资产账户',
-              type: isFund ? 'investment' : 'wallet',
-              balance: parsedAmt,
-              currency: 'CNY',
-              note: '由 AI 智能管家根据截图与指令自动创建'
-            }
-          }
-        };
-      }
-    }
-  }
-
+  // Fallback if model returned plain prose
   return {
-    reply: replyRaw || '抱歉，暂时未能解析出回复。',
+    reply: rawContent.trim(),
     action: { type: 'none' }
   };
 }

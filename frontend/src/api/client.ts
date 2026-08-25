@@ -349,6 +349,11 @@ export const api = {
     localStore.saveBudgets(bs);
     return newB;
   },
+  deleteBudget: async (id: string) => {
+    const bs = localStore.getBudgets().filter(b => b.id !== id);
+    localStore.saveBudgets(bs);
+    return { success: true, message: '预算已删除' };
+  },
 
   // Investments
   getInvestments: async (): Promise<Investment[]> => {
@@ -469,6 +474,16 @@ export const api = {
       localStore.saveGoals(goals);
     }
     return { success: true, message: '已成功存入心愿资金' };
+  },
+  updateGoal: async (id: string, data: Partial<Goal>) => {
+    const goals = localStore.getGoals();
+    const idx = goals.findIndex(item => item.id === id);
+    if (idx !== -1) {
+      goals[idx] = { ...goals[idx], ...data };
+      localStore.saveGoals(goals);
+      return goals[idx];
+    }
+    throw new Error('目标不存在');
   },
   deleteGoal: async (id: string) => {
     const goals = localStore.getGoals().filter(g => g.id !== id);

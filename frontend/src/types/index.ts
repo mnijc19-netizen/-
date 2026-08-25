@@ -219,3 +219,25 @@ export interface RecurringRule {
   is_active: number;
   note?: string;
 }
+
+export interface AgentChatMessage {
+  id: string;
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  imageUrl?: string;
+  imageUrls?: string[];
+  timestamp: string;
+  actionResult?: {
+    type: string;
+    data?: any;
+  };
+}
+
+export interface AgentResponse {
+  reply: string;
+  action: {
+    type: string;
+    payload?: any;
+  };
+}
+

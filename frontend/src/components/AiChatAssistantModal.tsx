@@ -29,11 +29,12 @@ import {
   ArrowUpRight
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { Account, Transaction, Category, Goal, Budget, RecurringRule } from '../types';
+import { Account, Transaction, Category, Goal, Budget, RecurringRule, Investment, Debt, AgentChatMessage } from '../types';
 import { api } from '../api/client';
 import { localStore } from '../services/localStore';
-import { sendAgentMessage, AgentChatMessage } from '../services/aiAgent';
+import { sendAgentMessage } from '../services/aiAgent';
 import { getBeijingDateTimeString, getBeijingDateString } from '../utils/dateUtils';
+import { refreshInvestmentQuotes } from '../services/marketData';
 
 interface AiChatAssistantModalProps {
   isOpen: boolean;
@@ -43,6 +44,8 @@ interface AiChatAssistantModalProps {
   transactions: Transaction[];
   goals: Goal[];
   budgets?: Budget[];
+  investments?: Investment[];
+  debts?: Debt[];
   onRefresh: () => void;
   onOpenSettings?: () => void;
   onNavigate?: (page: string) => void;
@@ -72,6 +75,8 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
   transactions,
   goals,
   budgets = [],
+  investments = [],
+  debts = [],
   onRefresh,
   onOpenSettings,
   onNavigate
@@ -196,12 +201,14 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
         goals,
         currentImgs,
         budgets,
-        recurringRules
+        recurringRules,
+        investments,
+        debts
       );
 
       let actionResult: any = undefined;
       const isQuestionOnly = /这是哪个|什么平台|这是什么|多少钱|帮我看看|分析一下|？|\?|什么模型|你是谁|是哪个/.test(text) && 
-                            !/存|加|记|分类|设|改|好|确认|开账/.test(text);
+                            !/存|加|记|分类|设|改|好|确认|开账|买|转|刷|删/.test(text);
 
       if (response.action && response.action.type !== 'none' && !isQuestionOnly) {
         const act = response.action;
@@ -575,7 +582,224 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
             onRefresh();
           }
         }
-        // 10. Navigation
+        // 10. Investment Holding Created (Single or Batch)
+        else if ((act.type === 'create_investment' || act.type === 'batch_create_investments') && act.payload) {
+          const rawItems = act.type === 'batch_create_investments' 
+            ? (act.payload.items || []) 
+            : [act.payload];
+          const createdHoldings = [];
+
+          for (const item of rawItems) {
+            let matchedAcc = accounts.find(a => 
+              a.id === item.account_id || 
+              (item.account_name && a.name.includes(item.account_name)) || 
+              a.type === 'investment'
+            ) || accounts[0];
+
+            const shares = parseFloat(item.shares) || 100;
+            const cost = parseFloat(item.cost_price) || 1.0;
+            const current = parseFloat(item.current_price) || cost;
+
+            const newInv = await api.addInvestment({
+              account_id: matchedAcc?.id || 'acc-1',
+              name: item.name || '新增投资标的',
+              code: item.code || '000000',
+              type: item.type || 'fund',
+              shares,
+              cost_price: cost,
+              current_price: current,
+              currency: item.currency || 'CNY'
+            });
+            createdHoldings.push(newInv);
+          }
+
+          // Trigger live refresh
+          await refreshInvestmentQuotes(createdHoldings);
+
+          actionResult = {
+            type: 'investments_created',
+            data: {
+              count: createdHoldings.length,
+              items: createdHoldings
+            }
+          };
+          confetti({ particleCount: 80, spread: 60, origin: { y: 0.7 } });
+          onRefresh();
+        }
+        // 11. Refresh Investments Real-Time Quotes
+        else if (act.type === 'refresh_investments') {
+          const res = await refreshInvestmentQuotes(investments);
+          actionResult = {
+            type: 'investments_refreshed',
+            data: {
+              updatedCount: res.updatedCount,
+              totalMarketVal: res.totalMarketVal,
+              totalGain: res.totalGain
+            }
+          };
+          confetti({ particleCount: 70, spread: 50, origin: { y: 0.7 } });
+          onRefresh();
+        }
+        // 12. Delete Investment Holding
+        else if (act.type === 'delete_investment' && act.payload) {
+          const kw = (act.payload.keyword || act.payload.code || act.payload.name || '').toLowerCase();
+          const targetInv = investments.find(i => 
+            i.code.toLowerCase().includes(kw) || 
+            i.name.toLowerCase().includes(kw)
+          );
+          if (targetInv) {
+            await api.deleteInvestment(targetInv.id);
+            await refreshInvestmentQuotes(investments.filter(i => i.id !== targetInv.id));
+            actionResult = {
+              type: 'investment_deleted',
+              data: targetInv
+            };
+            onRefresh();
+          }
+        }
+        // 13. Create Debt / Loan
+        else if (act.type === 'create_debt' && act.payload) {
+          const createdDebt = await api.addDebt({
+            name: act.payload.name || '新增负债',
+            type: act.payload.type || 'mortgage',
+            total_principal: parseFloat(act.payload.total_principal) || 100000,
+            remaining_principal: parseFloat(act.payload.remaining_principal) || parseFloat(act.payload.total_principal) || 100000,
+            interest_rate_annual: parseFloat(act.payload.interest_rate_annual) || 3.5,
+            monthly_payment: parseFloat(act.payload.monthly_payment) || 2000,
+            start_date: act.payload.start_date || getBeijingDateString(),
+            end_date: act.payload.end_date || '2046-12-31',
+            account_id: accounts[0]?.id || 'acc-1',
+            notes: act.payload.notes || '由 AI 规划录入'
+          });
+
+          actionResult = {
+            type: 'debt_created',
+            data: createdDebt
+          };
+          confetti({ particleCount: 70, spread: 50, origin: { y: 0.7 } });
+          onRefresh();
+        }
+        // 14. Delete Debt
+        else if (act.type === 'delete_debt' && act.payload) {
+          const kw = (act.payload.keyword || act.payload.name || '').toLowerCase();
+          const targetDebt = debts.find(d => d.name.toLowerCase().includes(kw));
+          if (targetDebt) {
+            await api.deleteDebt(targetDebt.id);
+            actionResult = {
+              type: 'debt_deleted',
+              data: targetDebt
+            };
+            onRefresh();
+          }
+        }
+        // 15. Deposit into Goal
+        else if (act.type === 'deposit_goal' && act.payload) {
+          const kw = (act.payload.goal_name || act.payload.name || '').toLowerCase();
+          const amt = parseFloat(act.payload.amount) || 0;
+          const targetGoal = goals.find(g => g.name.toLowerCase().includes(kw)) || goals[0];
+
+          if (targetGoal && amt > 0) {
+            const updatedCurr = targetGoal.current_amount + amt;
+            await api.updateGoal(targetGoal.id, {
+              ...targetGoal,
+              current_amount: updatedCurr
+            });
+
+            actionResult = {
+              type: 'goal_deposited',
+              data: {
+                goalName: targetGoal.name,
+                depositAmount: amt,
+                newTotal: updatedCurr,
+                targetAmount: targetGoal.target_amount
+              }
+            };
+            confetti({ particleCount: 90, spread: 70, origin: { y: 0.7 } });
+            onRefresh();
+          }
+        }
+        // 16. Delete Goal
+        else if (act.type === 'delete_goal' && act.payload) {
+          const kw = (act.payload.keyword || act.payload.name || '').toLowerCase();
+          const targetGoal = goals.find(g => g.name.toLowerCase().includes(kw));
+          if (targetGoal) {
+            await api.deleteGoal(targetGoal.id);
+            actionResult = {
+              type: 'goal_deleted',
+              data: targetGoal
+            };
+            onRefresh();
+          }
+        }
+        // 17. Inter-account Funds Transfer
+        else if (act.type === 'transfer_funds' && act.payload) {
+          const fromName = (act.payload.from_account || '').toLowerCase();
+          const toName = (act.payload.to_account || '').toLowerCase();
+          const amt = Math.abs(parseFloat(act.payload.amount) || 0);
+
+          const fromAcc = accounts.find(a => a.name.toLowerCase().includes(fromName)) || accounts[0];
+          const toAcc = accounts.find(a => a.name.toLowerCase().includes(toName)) || accounts[1];
+
+          if (fromAcc && toAcc && amt > 0) {
+            await api.updateAccount(fromAcc.id, { ...fromAcc, balance: fromAcc.balance - amt });
+            await api.updateAccount(toAcc.id, { ...toAcc, balance: toAcc.balance + amt });
+
+            await api.createTransaction({
+              type: 'transfer',
+              amount: amt,
+              account_id: fromAcc.id,
+              date: getBeijingDateTimeString(),
+              merchant: `转账到 ${toAcc.name}`,
+              note: act.payload.note || `由 AI 执行账户资金调拨 (${fromAcc.name} -> ${toAcc.name})`,
+              source: 'ai_copilot'
+            });
+
+            actionResult = {
+              type: 'funds_transferred',
+              data: {
+                fromAccount: fromAcc.name,
+                toAccount: toAcc.name,
+                amount: amt
+              }
+            };
+            confetti({ particleCount: 80, spread: 60, origin: { y: 0.7 } });
+            onRefresh();
+          }
+        }
+        // 18. Delete Budget
+        else if (act.type === 'delete_budget' && act.payload) {
+          const catName = act.payload.category_name;
+          const targetBudget = budgets.find(b => b.category_name === catName);
+          if (targetBudget) {
+            await api.deleteBudget(targetBudget.id);
+            actionResult = {
+              type: 'budget_deleted',
+              data: { category_name: catName }
+            };
+            onRefresh();
+          }
+        }
+        // 19. Create Asset Snapshot
+        else if (act.type === 'create_snapshot') {
+          const snapshot = await api.createSnapshot(act.payload?.note || 'AI 智能记录资产快照');
+          actionResult = {
+            type: 'snapshot_created',
+            data: snapshot
+          };
+          confetti({ particleCount: 70, spread: 50, origin: { y: 0.7 } });
+          onRefresh();
+        }
+        // 20. Execute Pending Recurring Rules
+        else if (act.type === 'execute_recurring') {
+          const res = await api.executeRecurringRules();
+          actionResult = {
+            type: 'recurring_executed',
+            data: res
+          };
+          confetti({ particleCount: 70, spread: 50, origin: { y: 0.7 } });
+          onRefresh();
+        }
+        // 21. Navigation
         else if (act.type === 'navigate_to' && act.payload?.page) {
           const pageMap: Record<string, string> = {
             dashboard: '首页',
@@ -584,6 +808,8 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
             budgets: '月度预算',
             goals: '存钱目标',
             analytics: '财务图表',
+            investments: '投资持仓',
+            debts: '负债信贷',
             settings: '系统设置'
           };
           actionResult = {
@@ -592,7 +818,7 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
           };
           onNavigate?.(act.payload.page);
         }
-        // 11. Export Data
+        // 22. Export Data
         else if (act.type === 'export_data') {
           const data = await api.exportBackup();
           const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -700,7 +926,7 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
                         ? 'grid-cols-2 max-w-xs' 
                         : 'grid-cols-3 max-w-sm'
                   }`}>
-                    {m.imageUrls.map((imgUrl, i) => (
+                    {m.imageUrls.map((imgUrl: string, i: number) => (
                       <div key={i} className="rounded-xl overflow-hidden border border-white/20 shadow-sm relative group bg-black/20">
                         <img 
                           src={imgUrl} 
@@ -968,7 +1194,107 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
                   </div>
                 )}
 
-                {/* 9. Navigated Card */}
+                {/* 9. Investments Created Card */}
+                {m.actionResult && m.actionResult.type === 'investments_created' && (
+                  <div className="mt-2.5 p-3 rounded-2xl bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-950/50 dark:to-indigo-950/50 border border-purple-300 dark:border-purple-700 text-purple-900 dark:text-purple-200 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 font-bold text-xs">
+                        <TrendingUp className="w-4 h-4 text-purple-600 flex-shrink-0" />
+                        <span>📈 已成功录入投资标的并拉取实时行情</span>
+                      </div>
+                      <span className="text-[9px] px-2 py-0.5 rounded-full bg-purple-200 dark:bg-purple-900 text-purple-800 dark:text-purple-300 font-bold">
+                        共 {m.actionResult.data.count} 支
+                      </span>
+                    </div>
+                    <div className="space-y-1 text-[11px] bg-white/70 dark:bg-slate-900/60 p-2 rounded-xl border border-purple-100 dark:border-purple-800">
+                      {m.actionResult.data.items.map((it: any, idx: number) => (
+                        <div key={idx} className="flex items-center justify-between">
+                          <span className="font-bold text-slate-800 dark:text-slate-200">{it.name} ({it.code})</span>
+                          <span className="font-mono text-purple-600 dark:text-purple-300 font-bold">¥{it.market_value?.toFixed(2) || (it.shares * it.current_price).toFixed(2)}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onNavigate?.('investments');
+                        onClose();
+                      }}
+                      className="w-full py-1 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-[10px] font-bold flex items-center justify-center gap-1 shadow-sm transition"
+                    >
+                      <TrendingUp className="w-3 h-3" /> 前往投资持仓查看
+                    </button>
+                  </div>
+                )}
+
+                {/* 10. Investments Refreshed Card */}
+                {m.actionResult && m.actionResult.type === 'investments_refreshed' && (
+                  <div className="mt-2.5 p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-300 dark:border-emerald-700 text-emerald-900 dark:text-emerald-200 space-y-1">
+                    <div className="font-bold text-[11px] flex items-center gap-1.5">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>⚡ 实时行情刷新完成</span>
+                    </div>
+                    <div className="text-[10px] text-emerald-800 dark:text-emerald-300 flex items-center justify-between">
+                      <span>总持仓市值: <strong className="font-mono">¥{m.actionResult.data.totalMarketVal?.toFixed(2)}</strong></span>
+                      <span>累计浮盈: <strong className="font-mono">{m.actionResult.data.totalGain >= 0 ? '+' : ''}¥{m.actionResult.data.totalGain?.toFixed(2)}</strong></span>
+                    </div>
+                  </div>
+                )}
+
+                {/* 11. Debt Created Card */}
+                {m.actionResult && m.actionResult.type === 'debt_created' && (
+                  <div className="mt-2.5 p-3 rounded-2xl bg-rose-50 dark:bg-rose-950/50 border border-rose-300 dark:border-rose-700 text-rose-900 dark:text-rose-200 space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <div className="font-bold text-xs flex items-center gap-1.5">
+                        <WalletCards className="w-4 h-4 text-rose-600 flex-shrink-0" />
+                        <span>💳 已为您录入负债还款规划</span>
+                      </div>
+                    </div>
+                    <div className="text-[11px] bg-white/70 dark:bg-slate-900/60 p-2 rounded-xl border border-rose-100 dark:border-rose-800 flex items-center justify-between">
+                      <span>【{m.actionResult.data.name}】</span>
+                      <span className="font-mono font-bold text-rose-600 dark:text-rose-300">月供 ¥{m.actionResult.data.monthly_payment}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onNavigate?.('debts');
+                        onClose();
+                      }}
+                      className="w-full py-1 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center gap-1 shadow-sm transition"
+                    >
+                      <span>前往负债与还款规划查看</span>
+                      <ArrowRight className="w-3 h-3" />
+                    </button>
+                  </div>
+                )}
+
+                {/* 12. Goal Deposited Card */}
+                {m.actionResult && m.actionResult.type === 'goal_deposited' && (
+                  <div className="mt-2.5 p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-300 dark:border-emerald-700 text-emerald-900 dark:text-emerald-200 space-y-1">
+                    <div className="font-bold text-[11px] flex items-center gap-1.5">
+                      <Target className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>🎯 已存入心愿资金 +¥{m.actionResult.data.depositAmount}</span>
+                    </div>
+                    <div className="text-[10px] text-emerald-800 dark:text-emerald-300">
+                      【{m.actionResult.data.goalName}】当前已存：¥{m.actionResult.data.newTotal} / ¥{m.actionResult.data.targetAmount}
+                    </div>
+                  </div>
+                )}
+
+                {/* 13. Funds Transferred Card */}
+                {m.actionResult && m.actionResult.type === 'funds_transferred' && (
+                  <div className="mt-2.5 p-2.5 rounded-xl bg-cyan-50 dark:bg-cyan-950/50 border border-cyan-300 dark:border-cyan-700 text-cyan-900 dark:text-cyan-200 space-y-0.5">
+                    <div className="font-bold text-[11px] flex items-center gap-1.5">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-cyan-600" />
+                      <span>🔄 账户间资金调拨成功</span>
+                    </div>
+                    <div className="text-[10px] text-cyan-800 dark:text-cyan-300">
+                      从【{m.actionResult.data.fromAccount}】转账 ¥{m.actionResult.data.amount} 至【{m.actionResult.data.toAccount}】
+                    </div>
+                  </div>
+                )}
+
+                {/* 14. Navigated Card */}
                 {m.actionResult && m.actionResult.type === 'navigated' && (
                   <div className="mt-2.5 p-2.5 rounded-xl bg-purple-50 dark:bg-purple-950/50 border border-purple-300 dark:border-purple-700 text-purple-900 dark:text-purple-200 flex items-center justify-between">
                     <div className="flex items-center gap-2">

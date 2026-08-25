@@ -540,6 +540,8 @@ export function App() {
         transactions={transactions}
         goals={goals}
         budgets={budgets}
+        investments={investments}
+        debts={debts}
         onRefresh={loadAllData}
         onNavigate={(page) => {
           setAiChatOpen(false);
