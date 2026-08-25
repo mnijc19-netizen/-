@@ -458,9 +458,11 @@ export async function parseImageWithAiVision(
   }
 }
 
+import { AccountType } from '../types';
+
 export interface ExtractedBalanceResult {
   platform: string;
-  accountType: 'wallet' | 'bank' | 'investment' | 'crypto' | 'credit' | 'cash';
+  accountType: AccountType;
   balance: number;
   currency: string;
   bankName?: string;
@@ -484,18 +486,29 @@ export async function parseBalanceScreenshotWithAi(
   const isZhipu = config.provider === 'zhipu' || config.provider === 'zhipu-vision' || config.baseUrl.includes('bigmodel.cn');
   const visionModel = isZhipu ? 'glm-4v-flash' : config.model || 'glm-4v-flash';
 
-  const prompt = `你是一个专业的财务资产识别专家。请仔细分析这张包含平台资产、钱包余额、银行卡或证券账户的截图。
-请识别并提取出核心资产余额信息，严格按照以下 JSON 格式返回：
+  const prompt = `你是一个专业的财务资产识别专家。请仔细分析这张包含平台资产、钱包余额、银行卡或证券账户的截图：
+【核心识别规则】：
+1. 微信钱包（包含“钱包”、“零钱”、“零钱通”、“支付分”等字样）：
+   - platform 必须判定为 "微信零钱"（若主体为零钱）或 "微信支付-零钱通"（若主体为零钱通）或 "微信钱包"；
+   - account_type 为 "wallet"；
+   - 提取核心零钱金额（如 990.79）。
+2. 支付宝资产（包含“总资产”、“资产概览”、“我的资产”、“余额宝”、“理财资产”等）：
+   - platform 必须判定为 "支付宝-总资产" 或 "支付宝-余额宝"；
+   - account_type 为 "wallet"；
+   - 提取“我的资产”或总资产核心数字（如 1144.45），必须忽略中间或底部的广告推广（如工银科创、宇树等广告词汇）。
+3. 银行卡与证券理财：
+   - 提取银行/机构真实名称与账户可用余额。
+
+请直接输出纯 JSON 字符串（不要带任何 markdown 或其他文本）：
 {
-  "platform": "平台或银行具体名称，例如：微信支付-零钱通、微信零钱、支付宝-余额宝、支付宝余额、招商银行一卡通、中国工商银行、东方财富证券、天天基金等",
-  "account_type": "账户类型，仅限其中之一：wallet (钱包/零钱/余额), bank (银行卡/储蓄卡), investment (理财/基金/股票/证券), credit (信用卡/花呗负债), cash (现金)",
-  "balance": 当前资产余额或可用余额数字（纯数字，例如 12850.50，不要包含货币符号和千分位逗号，若为欠款请写正数）,
-  "currency": "货币符号，如 CNY、USD，默认 CNY",
-  "bank_name": "银行名称（如招商银行、中国银行，无则留空）",
-  "card_last4": "卡号后4位（如有，4位数字，无则留空）",
-  "note": "识别说明（例如：微信零钱通可用余额）"
-}
-请直接输出纯 JSON 字符串，不要带任何 markdown 或其他文本。`;
+  "platform": "微信零钱|支付宝-总资产|招商银行一卡通|...",
+  "account_type": "wallet|bank|investment|credit|cash",
+  "balance": 提取当前核心资产总额数字（纯数字，例如 1144.45，不要千分位逗号）,
+  "currency": "CNY",
+  "bank_name": "银行机构名称（无则留空）",
+  "card_last4": "卡号后4位（无则留空）",
+  "note": "识别说明"
+}`;
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 25000);

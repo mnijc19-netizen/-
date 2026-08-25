@@ -106,7 +106,7 @@ export const BatchBalanceOcrModal: React.FC<BatchBalanceOcrModalProps> = ({
         fileName: file.name,
         status: 'pending',
         selected: true,
-        platform: file.name.replace(/\.[^/.]+$/, ''),
+        platform: '正在智能识别...',
         accountType: 'wallet',
         balance: 0,
         currency: 'CNY',
@@ -137,7 +137,18 @@ export const BatchBalanceOcrModal: React.FC<BatchBalanceOcrModalProps> = ({
           base64 = await fileToDataUrl(item.file);
         }
 
-        const res: ExtractedBalanceResult | null = await parseBalanceScreenshotWithAi(base64);
+        // 1. Try AI multimodal / LLM parsing first
+        let res: ExtractedBalanceResult | null = await parseBalanceScreenshotWithAi(base64);
+
+        // 2. Fallback to local offline balance screenshot parser
+        if (!res || res.balance === undefined || isNaN(res.balance)) {
+          const { extractOcrRawText } = await import('../services/imageOcr');
+          const { parseOfflineBalanceScreenshot } = await import('../services/balanceScreenshotParser');
+          const rawText = await extractOcrRawText(base64);
+          if (rawText) {
+            res = parseOfflineBalanceScreenshot(rawText);
+          }
+        }
 
         if (res && res.balance >= 0) {
           item.platform = res.platform;
@@ -158,11 +169,12 @@ export const BatchBalanceOcrModal: React.FC<BatchBalanceOcrModalProps> = ({
 
           item.status = 'success';
         } else {
-          // Mock intelligent fallback if offline or no AI key
+          item.platform = '资产账户';
           item.status = 'failed';
-          item.errorMsg = '未能提取到有效余额，请手动输入金额或在设置中配置 AI Key';
+          item.errorMsg = '未能自动提取到余额，请手动输入金额';
         }
       } catch (err: any) {
+        item.platform = '资产账户';
         item.status = 'failed';
         item.errorMsg = err.message || '识别超时';
       }
