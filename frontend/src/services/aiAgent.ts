@@ -161,6 +161,38 @@ export const FINANCIAL_AGENT_TOOLS: any[] = [
   {
     type: 'function',
     function: {
+      name: 'batch_create_investments',
+      description: '批量录入股票、ETF、场内基金持仓及券商账户（如 华泰证券/涨乐财富通总览、持仓列表）',
+      parameters: {
+        type: 'object',
+        properties: {
+          broker_name: { type: 'string', description: '券商或所属平台名称，如 华泰证券(66**982) 或 华泰普通账户' },
+          total_assets: { type: 'number', description: '券商总资产金额，如 1966.65' },
+          available_cash: { type: 'number', description: '可用/可取资金余额，如 382.75' },
+          items: {
+            type: 'array',
+            description: '持仓标的列表',
+            items: {
+              type: 'object',
+              properties: {
+                name: { type: 'string', description: '证券/ETF/基金名称，如 纳指ETF广发' },
+                code: { type: 'string', description: '标准股票/ETF代码（6位数字），如 纳指ETF广发为 159941，标普500ETF博时为 513500' },
+                shares: { type: 'number', description: '持仓份额/股数，如 800' },
+                cost_price: { type: 'number', description: '成本价/买入均价，如 1.586' },
+                current_price: { type: 'number', description: '最新现价/市值单价，如 1.643' },
+                market_value: { type: 'number', description: '持仓总市值，如 1314.40' }
+              },
+              required: ['name', 'shares', 'cost_price']
+            }
+          }
+        },
+        required: ['items']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
       name: 'create_debt',
       description: '录入借贷或分期负债',
       parameters: {
@@ -348,6 +380,13 @@ export async function sendAgentMessage(
      - 平台名「民生银行(4091)」: 金额 0.00, 类别 bank
 6. 🧾【消费小票/支付成功页/流水记录】：
    - 提取商户名、扣款金额、支付渠道（微信/支付宝/银行卡），调用 create_transaction 或 batch_create_transactions。
+7. 📈【证券/基金/股票持仓截图 (如 华泰证券/涨乐财富通/天天基金/同花顺)】：
+   - 视觉特征：包含“普通/两融/总资产/持仓/总市值/可用/可取”，下方列出持仓标的表格（如 纳指ETF广发、标普500ETF博时），包含持仓盈亏、持仓/可用股数、现价/成本价、持仓市值。
+   - 提取规则：调用【batch_create_investments】工具！
+     * broker_name 填「华泰证券(66**982)」或识别到的券商名；
+     * total_assets 填大字总资产（如 1966.65），available_cash 填可用现金（如 382.75）；
+     * 自动匹配或联网查询标准 6 位证券代码（如 纳指ETF广发 ➔ 159941，标普500ETF博时 ➔ 513500，纳指科技ETF ➔ 159509，沪深300 ➔ 510300，中证500 ➔ 510500）；
+     * 逐一提取 shares（持仓股数/份额）、cost_price（成本均价）、current_price（现价）、market_value（持仓市值）。
 
 当前用户真实财务态势：
 【资产】:¥${totalAssets.toFixed(2)}，【负债】:¥${totalLiabilities.toFixed(2)}，【净资产】:¥${netWorth.toFixed(2)}

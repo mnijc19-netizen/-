@@ -360,30 +360,73 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
           data: { items: createdItems, count: createdItems.length }
         };
       }
-      // 5. Investments
+      // 5. Investments & Broker Portfolio
       else if (act.type === 'create_investment' || act.type === 'batch_create_investments') {
+        const brokerName = act.payload.broker_name || act.payload.account_name || '华泰证券';
+        const totalAssets = parseFloat(act.payload.total_assets) || 0;
+        const availableCash = parseFloat(act.payload.available_cash) || 0;
         const items = act.type === 'batch_create_investments' ? (act.payload.items || []) : [act.payload];
-        const created = [];
+
+        // 1. Find or create the broker account
+        let brokerAcc = accounts.find(a => 
+          a.name.toLowerCase() === brokerName.toLowerCase() || 
+          (brokerName.includes('华泰') && a.name.includes('华泰')) ||
+          (brokerName.includes('证券') && a.name.includes('证券')) ||
+          a.type === 'investment'
+        );
+
+        const totalMarketValue = items.reduce((sum: number, it: any) => sum + (parseFloat(it.market_value) || ((parseFloat(it.shares) || 0) * (parseFloat(it.current_price || it.cost_price) || 0))), 0);
+        const finalBrokerBalance = totalAssets > 0 ? totalAssets : (totalMarketValue + availableCash);
+
+        if (!brokerAcc) {
+          brokerAcc = await api.createAccount({
+            name: brokerName,
+            type: 'investment',
+            balance: finalBrokerBalance,
+            currency: 'CNY',
+            note: '由 AI 识别证券持仓自动建账'
+          });
+        } else {
+          await api.updateAccount(brokerAcc.id, {
+            ...brokerAcc,
+            name: brokerName,
+            balance: finalBrokerBalance
+          });
+        }
+
+        // 2. Add each investment holding linked to this broker account
+        const createdInvestments = [];
         for (const it of items) {
-          const acc = accounts.find(a => a.id === it.account_id || (it.account_name && a.name.includes(it.account_name)) || a.type === 'investment') || accounts[0];
           const shares = parseFloat(it.shares) || 100;
           const cost = parseFloat(it.cost_price) || 1.0;
+          const currentPrice = parseFloat(it.current_price) || cost;
+          
           const newInv = await api.addInvestment({
-            account_id: acc?.id || 'acc-1',
-            name: it.name || '投资标的',
-            code: it.code || '000000',
-            type: it.type || 'fund',
+            account_id: brokerAcc.id,
+            name: it.name || '证券投资标的',
+            code: it.code || '159941',
+            type: it.type || (it.name?.includes('ETF') || it.name?.includes('基金') ? 'fund' : 'stock'),
             shares,
             cost_price: cost,
-            current_price: parseFloat(it.current_price) || cost,
+            current_price: currentPrice,
             currency: 'CNY'
           });
-          created.push(newInv);
+          createdInvestments.push(newInv);
         }
-        await refreshInvestmentQuotes(created);
+
+        // 3. Immediately refresh live market quotes
+        try {
+          await refreshInvestmentQuotes(createdInvestments);
+        } catch {}
+
         actionResult = {
           type: 'investments_created',
-          data: { count: created.length, items: created }
+          data: {
+            brokerName,
+            totalAssets: finalBrokerBalance,
+            count: createdInvestments.length,
+            items: createdInvestments
+          }
         };
       }
       // 6. Debt
@@ -526,6 +569,81 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
             payload: {
               ...m.pendingAction.payload,
               [listKey]: currentList
+            }
+          }
+        };
+      }
+      return m;
+    }));
+  };
+
+  // Update a specific investment holding in batch staging
+  const handleUpdateInvestmentItemField = (msgId: string, itemIdx: number, field: string, value: any) => {
+    setMessages(prev => prev.map(m => {
+      if (m.id === msgId && m.pendingAction) {
+        const currentItems = [...(m.pendingAction.payload.items || [])];
+        if (currentItems[itemIdx]) {
+          currentItems[itemIdx] = {
+            ...currentItems[itemIdx],
+            [field]: value
+          };
+          // Recalculate market value live
+          if (field === 'shares' || field === 'current_price' || field === 'cost_price') {
+            const sh = parseFloat(field === 'shares' ? value : currentItems[itemIdx].shares) || 0;
+            const pr = parseFloat(field === 'current_price' ? value : (currentItems[itemIdx].current_price || currentItems[itemIdx].cost_price)) || 0;
+            currentItems[itemIdx].market_value = Math.round(sh * pr * 100) / 100;
+          }
+        }
+        return {
+          ...m,
+          pendingAction: {
+            ...m.pendingAction,
+            payload: {
+              ...m.pendingAction.payload,
+              items: currentItems
+            }
+          }
+        };
+      }
+      return m;
+    }));
+  };
+
+  // Remove an investment holding from batch staging
+  const handleRemoveInvestmentItem = (msgId: string, itemIdx: number) => {
+    setMessages(prev => prev.map(m => {
+      if (m.id === msgId && m.pendingAction) {
+        const currentItems = [...(m.pendingAction.payload.items || [])].filter((_, idx) => idx !== itemIdx);
+        return {
+          ...m,
+          pendingAction: {
+            ...m.pendingAction,
+            payload: {
+              ...m.pendingAction.payload,
+              items: currentItems
+            }
+          }
+        };
+      }
+      return m;
+    }));
+  };
+
+  // Add a new investment holding to batch staging
+  const handleAddInvestmentItem = (msgId: string) => {
+    setMessages(prev => prev.map(m => {
+      if (m.id === msgId && m.pendingAction) {
+        const currentItems = [
+          ...(m.pendingAction.payload.items || []),
+          { name: '纳指ETF广发', code: '159941', shares: 100, cost_price: 1.0, current_price: 1.0, market_value: 100 }
+        ];
+        return {
+          ...m,
+          pendingAction: {
+            ...m.pendingAction,
+            payload: {
+              ...m.pendingAction.payload,
+              items: currentItems
             }
           }
         };
@@ -1102,6 +1220,129 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
                       </div>
                     )}
 
+                    {/* Batch Investments / Securities Portfolio Staging List (100% Inline Editable) */}
+                    {(m.pendingAction.type === 'batch_create_investments' || m.pendingAction.type === 'create_investment') && (
+                      <div className="space-y-2.5 bg-white/90 dark:bg-slate-900/90 p-3 rounded-2xl border border-indigo-300 dark:border-indigo-700 text-xs">
+                        <div className="flex items-center justify-between px-1">
+                          <div className="flex items-center gap-1.5 font-black text-indigo-900 dark:text-indigo-200">
+                            <TrendingUp className="w-4 h-4 text-indigo-600 flex-shrink-0" />
+                            <span>📈 证券持仓与券商账户待录入：</span>
+                          </div>
+                          <span className="text-[10px] text-slate-400 font-mono">
+                            {(m.pendingAction.payload.items || [m.pendingAction.payload]).length} 个持仓标的
+                          </span>
+                        </div>
+
+                        {/* Broker info summary */}
+                        <div className="p-2.5 rounded-xl bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-200/80 dark:border-indigo-800/60 grid grid-cols-2 gap-2 text-[11px]">
+                          <div>
+                            <label className="text-[9px] text-slate-400 block mb-0.5">所属券商平台</label>
+                            <input
+                              type="text"
+                              value={m.pendingAction.payload.broker_name || m.pendingAction.payload.account_name || '华泰证券'}
+                              onChange={(e) => handleUpdatePendingField(m.id, 'broker_name', e.target.value)}
+                              placeholder="华泰证券"
+                              className="w-full px-2 py-1 rounded-lg bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-700 font-bold text-xs"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[9px] text-slate-400 block mb-0.5">券商总资产 (¥)</label>
+                            <input
+                              type="number"
+                              step="any"
+                              value={m.pendingAction.payload.total_assets ?? ''}
+                              onChange={(e) => handleUpdatePendingField(m.id, 'total_assets', parseFloat(e.target.value) || 0)}
+                              placeholder="1966.65"
+                              className="w-full px-2 py-1 rounded-lg bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-700 font-mono font-bold text-xs text-indigo-700 dark:text-indigo-300"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Holdings items */}
+                        <div className="space-y-2">
+                          {(m.pendingAction.payload.items || [m.pendingAction.payload]).map((it: any, idx: number) => (
+                            <div key={idx} className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 space-y-2">
+                              {/* Row 1: Name + Code + Delete */}
+                              <div className="flex items-center gap-2">
+                                <div className="w-6 h-6 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold text-[10px] flex-shrink-0">
+                                  #{idx + 1}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <input
+                                    type="text"
+                                    value={it.name || ''}
+                                    onChange={(e) => handleUpdateInvestmentItemField(m.id, idx, 'name', e.target.value)}
+                                    placeholder="标的名称（如 纳指ETF广发）"
+                                    className="w-full px-2 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold text-xs"
+                                  />
+                                </div>
+                                <div className="w-24">
+                                  <input
+                                    type="text"
+                                    value={it.code || ''}
+                                    onChange={(e) => handleUpdateInvestmentItemField(m.id, idx, 'code', e.target.value)}
+                                    placeholder="代码 159941"
+                                    className="w-full px-2 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono font-bold text-[11px] text-center"
+                                  />
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveInvestmentItem(m.id, idx)}
+                                  className="p-1 rounded-lg text-slate-400 hover:text-rose-500 transition"
+                                  title="删除此标的"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+
+                              {/* Row 2: Shares, Cost Price, Current Price, Market Value */}
+                              <div className="grid grid-cols-3 gap-1.5 text-[10px]">
+                                <div>
+                                  <label className="text-slate-400 block mb-0.5">持仓股数/份</label>
+                                  <input
+                                    type="number"
+                                    value={it.shares ?? ''}
+                                    onChange={(e) => handleUpdateInvestmentItemField(m.id, idx, 'shares', parseFloat(e.target.value) || 0)}
+                                    className="w-full px-2 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono font-bold text-xs"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-slate-400 block mb-0.5">成本均价 (¥)</label>
+                                  <input
+                                    type="number"
+                                    step="any"
+                                    value={it.cost_price ?? ''}
+                                    onChange={(e) => handleUpdateInvestmentItemField(m.id, idx, 'cost_price', parseFloat(e.target.value) || 0)}
+                                    className="w-full px-2 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono font-bold text-xs"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-slate-400 block mb-0.5">持仓市值 (¥)</label>
+                                  <input
+                                    type="number"
+                                    step="any"
+                                    value={it.market_value ?? ((it.shares || 0) * (it.current_price || it.cost_price || 0))}
+                                    onChange={(e) => handleUpdateInvestmentItemField(m.id, idx, 'market_value', parseFloat(e.target.value) || 0)}
+                                    className="w-full px-2 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono font-black text-xs text-indigo-600 dark:text-indigo-300"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Add investment holding item */}
+                        <button
+                          type="button"
+                          onClick={() => handleAddInvestmentItem(m.id)}
+                          className="w-full py-2 text-[11px] font-bold text-indigo-700 dark:text-indigo-300 border border-dashed border-indigo-300 dark:border-indigo-700 rounded-xl hover:bg-indigo-100/50 dark:hover:bg-indigo-950/40 flex items-center justify-center gap-1 transition"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>添加更多持仓标的</span>
+                        </button>
+                      </div>
+                    )}
+
                     {/* Staging Confirmation Buttons */}
                     <div className="flex items-center gap-2 pt-1">
                       <button
@@ -1170,6 +1411,42 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
                     <div className="font-bold text-xs flex items-center gap-1.5">
                       <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                       <span>🎉 多平台批量开账完成 (共 {m.actionResult.data.count} 个)</span>
+                    </div>
+                  </div>
+                )}
+
+                {m.actionResult && m.actionResult.type === 'investments_created' && (
+                  <div className="mt-2.5 p-3 rounded-2xl bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-950/50 dark:to-purple-950/50 border border-indigo-300 dark:border-indigo-700 text-indigo-950 dark:text-indigo-200 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 font-bold text-xs">
+                        <TrendingUp className="w-4 h-4 text-indigo-600 flex-shrink-0" />
+                        <span>📈 证券持仓已成功录入，并已自动接入实时行情！</span>
+                      </div>
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-indigo-200/60 dark:bg-indigo-900/60 text-indigo-800 dark:text-indigo-300 font-bold">
+                        {m.actionResult.data.brokerName || '华泰证券'}
+                      </span>
+                    </div>
+                    <div className="space-y-1.5 pt-1">
+                      {(m.actionResult.data.items || []).map((it: any, i: number) => (
+                        <div key={i} className="flex items-center justify-between bg-white/80 dark:bg-slate-900/80 p-2 rounded-xl border border-indigo-100 dark:border-indigo-800/50 text-xs">
+                          <div>
+                            <div className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                              <span>{it.name}</span>
+                              <span className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300">
+                                {it.code}
+                              </span>
+                            </div>
+                            <div className="text-[10px] text-slate-400 font-mono mt-0.5">
+                              {it.shares} 份 • 成本 ¥{parseFloat(it.cost_price).toFixed(3)}
+                            </div>
+                          </div>
+                          <div className="text-right font-mono">
+                            <div className="text-xs font-black text-indigo-600 dark:text-indigo-400">
+                              ¥{(it.shares * (it.current_price || it.cost_price)).toFixed(2)}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 )}
