@@ -23,7 +23,10 @@ import {
   PieChart,
   Undo2,
   ArrowRight,
-  ExternalLink
+  ExternalLink,
+  Plus,
+  Layers,
+  ArrowUpRight
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { Account, Transaction, Category, Goal, Budget, RecurringRule } from '../types';
@@ -48,12 +51,13 @@ interface AiChatAssistantModalProps {
 const DEFAULT_WELCOME_MESSAGE: AgentChatMessage = {
   id: 'welcome-1',
   role: 'assistant',
-  content: `您好！我是您的 **斌斌 AI 财务智能全能管家**。我已接入您的实时账本系统，具备全权限的看图记账、智能开账、预算管控与数据分析能力！
+  content: `您好！我是您的 **斌斌 AI 财务智能全能管家**。我已接入您的实时账本系统，具备全权限的看图记账、多图批量开账、基金证券投资建账、预算管控与数据分析能力！
 
 您可以随时对我下达指令或发送图片：
+• 📸 **批量发多平台余额截图**：支持同时上传微信、支付宝、银行卡、基金持仓多张图片，一键批量开账；
 • 📷 **发消费小票/账单凭证**：发图自动提取明细并入库；
-• 📸 **发钱包/银行余额截图**：发图自动对账与开账；
 • 💬 **一句话自然语言记账**：“中午在麦当劳微信付了35元，买咖啡15”；
+• 📈 **基金与证券持仓建账**：“把华泰证券截图存到资产里，分类为基金”；
 • 📊 **预算与省钱计划**：“把餐饮预算设为1500”、“制定6个月存2万的计划”；
 • ⏰ **周期自动记账**：“每月10号自动记房租2800”；
 • 🧭 **系统导航与查账**：“带我去看图表统计”、“这个月餐饮花了多少”。`,
@@ -74,7 +78,7 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
 }) => {
   const [messages, setMessages] = useState<AgentChatMessage[]>([DEFAULT_WELCOME_MESSAGE]);
   const [inputText, setInputText] = useState('');
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [selectedImages, setSelectedImages] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [recurringRules, setRecurringRules] = useState<RecurringRule[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -99,16 +103,25 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const handleImageFilesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      setSelectedImage(event.target?.result as string);
-    };
-    reader.readAsDataURL(file);
+    files.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const res = event.target?.result as string;
+        if (res) {
+          setSelectedImages(prev => [...prev, res]);
+        }
+      };
+      reader.readAsDataURL(file);
+    });
     e.target.value = '';
+  };
+
+  const handleRemoveImage = (index: number) => {
+    setSelectedImages(prev => prev.filter((_, idx) => idx !== index));
   };
 
   const handleUndoTransaction = async (txId: string) => {
@@ -131,18 +144,41 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
     }
   };
 
+  const handleUndoAccount = async (accId: string, accName: string) => {
+    if (!accId) return;
+    try {
+      await api.deleteAccount(accId);
+      onRefresh();
+      confetti({ particleCount: 40, spread: 40, origin: { y: 0.7 } });
+      setMessages(prev => [
+        ...prev,
+        {
+          id: `undo-acc-${Date.now()}`,
+          role: 'assistant',
+          content: `🗑️ 已成功撤销并删除了【${accName}】资产账户！`,
+          timestamp: getBeijingDateTimeString()
+        }
+      ]);
+    } catch (e: any) {
+      alert(`删除失败: ${e.message}`);
+    }
+  };
+
   const handleSend = async (textToSend?: string) => {
     const text = (textToSend || inputText).trim();
-    if ((!text && !selectedImage) || loading) return;
+    if ((!text && selectedImages.length === 0) || loading) return;
 
-    const currentImg = selectedImage;
-    setSelectedImage(null);
+    const currentImgs = [...selectedImages];
+    setSelectedImages([]);
 
     const userMsg: AgentChatMessage = {
       id: `user-${Date.now()}`,
       role: 'user',
-      content: text || (currentImg ? '📸 上传了一张图片，请帮我分析处理' : ''),
-      imageUrl: currentImg || undefined,
+      content: text || (currentImgs.length > 1 
+        ? `📸 上传了 ${currentImgs.length} 张图片，请帮我综合分析并批量处理` 
+        : '📸 上传了一张图片，请帮我分析处理'),
+      imageUrl: currentImgs[0] || undefined,
+      imageUrls: currentImgs.length > 0 ? currentImgs : undefined,
       timestamp: getBeijingDateTimeString()
     };
 
@@ -158,18 +194,19 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
         categories,
         transactions,
         goals,
-        currentImg || undefined,
+        currentImgs,
         budgets,
         recurringRules
       );
 
       let actionResult: any = undefined;
-      const isQuestionOnly = /这是哪个|什么平台|这是什么|多少钱|帮我看看|分析一下|？|\?|什么模型|你是谁|是哪个/.test(text);
+      const isQuestionOnly = /这是哪个|什么平台|这是什么|多少钱|帮我看看|分析一下|？|\?|什么模型|你是谁|是哪个/.test(text) && 
+                            !/存|加|记|分类|设|改|好|确认|开账/.test(text);
 
       if (response.action && response.action.type !== 'none' && !isQuestionOnly) {
         const act = response.action;
 
-        // 1. Single Transaction
+        // 1. Single Transaction Created
         if (act.type === 'create_transaction' && act.payload) {
           const catObj = categories.find(c => c.name === act.payload.category) || categories[0];
           let accId = accounts[0]?.id || 'acc-1';
@@ -206,7 +243,7 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
             onRefresh();
           }
         }
-        // 2. Batch Transactions
+        // 2. Batch Transactions Created
         else if (act.type === 'batch_create_transactions' && act.payload?.items && Array.isArray(act.payload.items)) {
           const createdItems = [];
           for (const item of act.payload.items) {
@@ -246,28 +283,114 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
             onRefresh();
           }
         }
-        // 3. Delete Transaction
-        else if (act.type === 'delete_transaction' && act.payload) {
-          let txToDelete = transactions.find(t => t.id === act.payload.transaction_id);
-          if (!txToDelete && act.payload.keyword) {
-            const kw = act.payload.keyword.toLowerCase();
-            txToDelete = transactions.find(t => 
-              (t.merchant && t.merchant.toLowerCase().includes(kw)) || 
-              (t.category_name && t.category_name.toLowerCase().includes(kw))
-            );
+        // 3. Create Account (e.g. 华泰证券/基金持仓, 微信, 支付宝, 银行卡)
+        else if (act.type === 'create_account' && act.payload) {
+          const accName = act.payload.name || '新增资产账户';
+          const accType = act.payload.type || (/基金|证券|股票|ETF|理财/.test(accName) ? 'investment' : 'wallet');
+          const bal = parseFloat(act.payload.balance) || 0;
+
+          const createdAcc = await api.createAccount({
+            name: accName,
+            type: accType as any,
+            balance: bal,
+            currency: act.payload.currency || 'CNY',
+            note: act.payload.note || '由 AI 智能管家自动创建'
+          });
+
+          if (bal > 0) {
+            await api.createTransaction({
+              type: 'income',
+              amount: bal,
+              account_id: createdAcc.id,
+              category_name: '余额校准',
+              date: getBeijingDateTimeString(),
+              merchant: `${accName}初始开账`,
+              note: `AI 智能开账自动记录初始资产余额 ¥${bal.toFixed(2)}`,
+              source: 'ai_copilot'
+            });
           }
 
-          if (txToDelete) {
-            await api.deleteTransaction(txToDelete.id);
+          actionResult = {
+            type: 'account_created',
+            data: {
+              id: createdAcc.id,
+              name: accName,
+              type: accType,
+              balance: bal
+            }
+          };
+          confetti({ particleCount: 80, spread: 60, origin: { y: 0.7 } });
+          onRefresh();
+        }
+        // 4. Batch Create Accounts / Batch Update Balances (Multi-Platform Onboarding)
+        else if ((act.type === 'batch_create_accounts' || act.type === 'batch_update_balances') && act.payload) {
+          const list = act.payload.accounts || act.payload.updates || [];
+          const processedList: any[] = [];
+
+          for (const item of list) {
+            const platName = item.platform || item.name || '新增资产账户';
+            const bal = parseFloat(item.balance) || 0;
+            const itemType = item.account_type || item.type || (/基金|证券|股票|ETF|理财/.test(platName) ? 'investment' : 'wallet');
+
+            // Find existing account
+            const matched = accounts.find(a => 
+              a.name.toLowerCase().includes(platName.toLowerCase()) || 
+              platName.toLowerCase().includes(a.name.toLowerCase())
+            );
+
+            if (matched) {
+              const diff = bal - matched.balance;
+              await api.updateAccount(matched.id, { ...matched, balance: bal });
+              if (Math.abs(diff) > 0.01) {
+                await api.createTransaction({
+                  type: diff > 0 ? 'income' : 'expense',
+                  amount: Math.abs(diff),
+                  account_id: matched.id,
+                  category_name: '余额校准',
+                  date: getBeijingDateTimeString(),
+                  merchant: `${matched.name}余额校准`,
+                  note: `AI 批量开账自动对账 (原: ¥${matched.balance.toFixed(2)} -> 现: ¥${bal.toFixed(2)})`,
+                  source: 'ai_copilot'
+                });
+              }
+              processedList.push({ name: matched.name, balance: bal, type: matched.type, isUpdated: true });
+            } else {
+              const newAcc = await api.createAccount({
+                name: platName,
+                type: itemType as any,
+                balance: bal,
+                currency: 'CNY',
+                note: '由 AI 多图批量开账自动创建'
+              });
+              if (bal > 0) {
+                await api.createTransaction({
+                  type: 'income',
+                  amount: bal,
+                  account_id: newAcc.id,
+                  category_name: '余额校准',
+                  date: getBeijingDateTimeString(),
+                  merchant: `${platName}初始建账`,
+                  note: `AI 多图批量开账记录初始余额 ¥${bal.toFixed(2)}`,
+                  source: 'ai_copilot'
+                });
+              }
+              processedList.push({ id: newAcc.id, name: platName, balance: bal, type: itemType, isCreated: true });
+            }
+          }
+
+          if (processedList.length > 0) {
             actionResult = {
-              type: 'transaction_deleted',
-              data: txToDelete
+              type: 'batch_balances_updated',
+              data: {
+                count: processedList.length,
+                items: processedList
+              }
             };
-            confetti({ particleCount: 50, spread: 40, origin: { y: 0.7 } });
+            confetti({ particleCount: 90, spread: 70, origin: { y: 0.7 } });
             onRefresh();
           }
         }
-        // 4. Update Account Balance
+        // 5. Update Account Balance
         else if (act.type === 'update_balance' && act.payload) {
           const targetBal = parseFloat(act.payload.balance) || 0;
           const platformName = (act.payload.platform || '').toLowerCase();
@@ -277,6 +400,8 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
             matchedAcc = accounts.find(a => a.name.includes('微信') || a.name.includes('零钱'));
           } else if (platformName.includes('支付宝') || platformName.includes('余额宝') || platformName.includes('蚂蚁')) {
             matchedAcc = accounts.find(a => a.name.includes('支付宝') || a.name.includes('余额宝'));
+          } else if (platformName.includes('华泰') || platformName.includes('证券') || platformName.includes('基金') || platformName.includes('股票')) {
+            matchedAcc = accounts.find(a => a.name.includes('华泰') || a.name.includes('证券') || a.name.includes('基金') || a.type === 'investment');
           } else if (act.payload.account_id) {
             matchedAcc = accounts.find(a => a.id === act.payload.account_id);
           } else if (act.payload.platform) {
@@ -306,6 +431,7 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
             actionResult = {
               type: 'balance_updated',
               data: {
+                id: matchedAcc.id,
                 platform: matchedAcc.name,
                 balance: targetBal,
                 diff
@@ -314,17 +440,34 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
             confetti({ particleCount: 70, spread: 60, origin: { y: 0.7 } });
             onRefresh();
           } else {
-            await api.createAccount({
-              name: act.payload.platform || '新增资产账户',
-              type: act.payload.account_type || 'wallet',
+            const isInv = /基金|证券|华泰|股票|etf|理财/i.test(act.payload.platform || '');
+            const createdAcc = await api.createAccount({
+              name: act.payload.platform || (isInv ? '华泰证券/基金持仓' : '新增资产账户'),
+              type: isInv ? 'investment' : (act.payload.account_type || 'wallet'),
               balance: targetBal,
-              currency: 'CNY'
+              currency: 'CNY',
+              note: '由 AI 智能管家根据截图创建'
             });
+
+            if (targetBal > 0) {
+              await api.createTransaction({
+                type: 'income',
+                amount: targetBal,
+                account_id: createdAcc.id,
+                category_name: '余额校准',
+                date: getBeijingDateTimeString(),
+                merchant: `${createdAcc.name}初始开账`,
+                note: `AI 智能开账记录初始余额 ¥${targetBal.toFixed(2)}`,
+                source: 'ai_copilot'
+              });
+            }
 
             actionResult = {
               type: 'account_created',
               data: {
-                name: act.payload.platform || '新增资产账户',
+                id: createdAcc.id,
+                name: createdAcc.name,
+                type: createdAcc.type,
                 balance: targetBal
               }
             };
@@ -332,7 +475,28 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
             onRefresh();
           }
         }
-        // 5. Set Budget
+        // 6. Delete Transaction
+        else if (act.type === 'delete_transaction' && act.payload) {
+          let txToDelete = transactions.find(t => t.id === act.payload.transaction_id);
+          if (!txToDelete && act.payload.keyword) {
+            const kw = act.payload.keyword.toLowerCase();
+            txToDelete = transactions.find(t => 
+              (t.merchant && t.merchant.toLowerCase().includes(kw)) || 
+              (t.category_name && t.category_name.toLowerCase().includes(kw))
+            );
+          }
+
+          if (txToDelete) {
+            await api.deleteTransaction(txToDelete.id);
+            actionResult = {
+              type: 'transaction_deleted',
+              data: txToDelete
+            };
+            confetti({ particleCount: 50, spread: 40, origin: { y: 0.7 } });
+            onRefresh();
+          }
+        }
+        // 7. Set Budget
         else if (act.type === 'set_budget' && act.payload) {
           const catObj = categories.find(c => c.name === act.payload.category_name);
           const amt = parseFloat(act.payload.amount) || 1000;
@@ -351,8 +515,8 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
           confetti({ particleCount: 70, spread: 50, origin: { y: 0.7 } });
           onRefresh();
         }
-        // 6. Create Goal
-        else if (act.type === 'create_goal' && act.payload && /存钱|目标|计划|愿望|立项|攒钱|买|省钱/.test(text)) {
+        // 8. Create Goal
+        else if (act.type === 'create_goal' && act.payload) {
           await api.addGoal({
             name: act.payload.name || 'AI 存钱计划',
             target_amount: parseFloat(act.payload.target_amount) || 10000,
@@ -368,7 +532,7 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
           confetti({ particleCount: 80, spread: 60, origin: { y: 0.7 } });
           onRefresh();
         }
-        // 7. Create Recurring Rule
+        // 9. Create Recurring Rule
         else if (act.type === 'create_recurring_rule' && act.payload) {
           const amt = parseFloat(act.payload.amount) || 0;
           if (amt > 0) {
@@ -391,7 +555,7 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
             onRefresh();
           }
         }
-        // 8. Navigation
+        // 10. Navigation
         else if (act.type === 'navigate_to' && act.payload?.page) {
           const pageMap: Record<string, string> = {
             dashboard: '首页',
@@ -408,7 +572,7 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
           };
           onNavigate?.(act.payload.page);
         }
-        // 9. Export Data
+        // 11. Export Data
         else if (act.type === 'export_data') {
           const data = await api.exportBackup();
           const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -453,7 +617,7 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/75 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col h-[90vh] max-h-[750px]">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col h-[90vh] max-h-[780px]">
         {/* Top Header */}
         <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/40">
           <div className="flex items-center gap-3">
@@ -507,8 +671,31 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
                   ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md shadow-purple-500/15 rounded-br-none'
                   : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700/80 text-slate-800 dark:text-slate-100 shadow-sm rounded-bl-none'
               }`}>
-                {/* Render Attached Image */}
-                {m.imageUrl && (
+                {/* Multi-Image Gallery Rendering */}
+                {m.imageUrls && m.imageUrls.length > 0 && (
+                  <div className={`mb-2 grid gap-1.5 ${
+                    m.imageUrls.length === 1 
+                      ? 'grid-cols-1 max-w-xs' 
+                      : m.imageUrls.length === 2 
+                        ? 'grid-cols-2 max-w-xs' 
+                        : 'grid-cols-3 max-w-sm'
+                  }`}>
+                    {m.imageUrls.map((imgUrl, i) => (
+                      <div key={i} className="rounded-xl overflow-hidden border border-white/20 shadow-sm relative group bg-black/20">
+                        <img 
+                          src={imgUrl} 
+                          alt={`截图 ${i + 1}`} 
+                          className="w-full h-24 sm:h-28 object-cover rounded-xl" 
+                        />
+                        <span className="absolute bottom-1 right-1 text-[8px] px-1.5 py-0.5 rounded bg-black/60 text-white font-mono">
+                          #{i + 1}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {/* Legacy single image fallback */}
+                {!m.imageUrls && m.imageUrl && (
                   <div className="mb-2 rounded-xl overflow-hidden border border-white/20 shadow-sm max-w-xs">
                     <img 
                       src={m.imageUrl} 
@@ -569,55 +756,144 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
                   </div>
                 )}
 
-                {/* 3. Transaction Deleted Card */}
-                {m.actionResult && m.actionResult.type === 'transaction_deleted' && (
-                  <div className="mt-2.5 p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-300 dark:border-rose-700 text-rose-800 dark:text-rose-200 flex items-center gap-2">
-                    <Trash2 className="w-4 h-4 text-rose-600 flex-shrink-0" />
-                    <div>
-                      <div className="font-bold text-[11px]">🗑️ 已删除指定记账记录</div>
-                      <div className="text-[10px] text-rose-700 dark:text-rose-300">
-                        {m.actionResult.data.merchant} ¥{m.actionResult.data.amount}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* 4. Balance Updated Card */}
-                {m.actionResult && m.actionResult.type === 'balance_updated' && (
-                  <div className="mt-2.5 p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/50 border border-amber-300 dark:border-amber-700 text-amber-900 dark:text-amber-200 flex items-center gap-2">
-                    <WalletCards className="w-4 h-4 text-amber-600 flex-shrink-0" />
-                    <div>
-                      <div className="font-bold text-[11px]">✨ 账户余额已成功校准</div>
-                      <div className="text-[10px] text-amber-800 dark:text-amber-300">
-                        【{m.actionResult.data.platform}】最新余额：<span className="font-mono font-bold">¥{m.actionResult.data.balance.toFixed(2)}</span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* 5. Account Created Card */}
+                {/* 3. Account Created Card (Single Account / Investment / Fund) */}
                 {m.actionResult && m.actionResult.type === 'account_created' && (
-                  <div className="mt-2.5 p-2.5 rounded-xl bg-purple-50 dark:bg-purple-950/50 border border-purple-300 dark:border-purple-700 text-purple-900 dark:text-purple-200 flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-purple-600 flex-shrink-0" />
-                    <div>
-                      <div className="font-bold text-[11px]">✨ 已为您新建资产账户</div>
-                      <div className="text-[10px] text-purple-800 dark:text-purple-300">
-                        【{m.actionResult.data.name}】开账余额：<span className="font-mono font-bold">¥{m.actionResult.data.balance.toFixed(2)}</span>
+                  <div className="mt-2.5 p-3 rounded-2xl bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-950/50 dark:to-indigo-950/50 border border-purple-300 dark:border-purple-700 text-purple-900 dark:text-purple-200 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 font-bold text-xs">
+                        <Sparkles className="w-4 h-4 text-purple-600 flex-shrink-0" />
+                        <span>✨ 已成功开立新资产账户</span>
+                      </div>
+                      <span className="text-[9px] px-2 py-0.5 rounded-full bg-purple-200 dark:bg-purple-900 text-purple-800 dark:text-purple-300 font-bold">
+                        {m.actionResult.data.type === 'investment' ? '📈 投资/基金持仓' : m.actionResult.data.type === 'bank' ? '🏦 银行储蓄' : '💳 电子钱包'}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between bg-white/70 dark:bg-slate-900/60 p-2 rounded-xl border border-purple-100 dark:border-purple-800">
+                      <div>
+                        <div className="text-xs font-bold text-slate-900 dark:text-white">
+                          {m.actionResult.data.name}
+                        </div>
+                        <div className="text-[10px] text-slate-400">
+                          已同步录入初始资产并记入总资产
+                        </div>
+                      </div>
+                      <div className="text-sm font-black font-mono text-purple-600 dark:text-purple-300">
+                        ¥{m.actionResult.data.balance.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}
                       </div>
                     </div>
+
+                    <div className="flex items-center gap-2 pt-0.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onNavigate?.('accounts');
+                          onClose();
+                        }}
+                        className="flex-1 py-1 px-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-[10px] font-bold shadow-sm flex items-center justify-center gap-1 transition active:scale-95"
+                      >
+                        <ExternalLink className="w-3 h-3" /> 前往资产账户查看
+                      </button>
+                      {m.actionResult.data.id && (
+                        <button
+                          type="button"
+                          onClick={() => handleUndoAccount(m.actionResult?.data?.id, m.actionResult?.data?.name)}
+                          className="py-1 px-2.5 rounded-xl bg-purple-100 dark:bg-purple-900/60 hover:bg-rose-100 hover:text-rose-600 text-purple-700 dark:text-purple-300 text-[10px] font-bold transition active:scale-95"
+                          title="撤销并删除该账户"
+                        >
+                          <Undo2 className="w-3 h-3" /> 撤销
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* 4. Batch Balances Updated / Multi-Platform Onboarding Card */}
+                {m.actionResult && m.actionResult.type === 'batch_balances_updated' && (
+                  <div className="mt-2.5 p-3 rounded-2xl bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/50 dark:to-teal-950/50 border border-emerald-300 dark:border-emerald-700 text-emerald-900 dark:text-emerald-200 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 font-bold text-xs">
+                        <Layers className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                        <span>🎉 多平台资产批量开账完成 (共 {m.actionResult.data.count} 个账户)</span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1 bg-white/70 dark:bg-slate-900/60 p-2 rounded-xl border border-emerald-100 dark:border-emerald-800 divide-y divide-emerald-100/50 dark:divide-slate-800">
+                      {m.actionResult.data.items.map((it: any, idx: number) => (
+                        <div key={idx} className="flex items-center justify-between py-1 text-xs">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-bold text-slate-900 dark:text-white">{it.name}</span>
+                            <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300">
+                              {it.type === 'investment' ? '基金/证券' : '钱包'}
+                            </span>
+                          </div>
+                          <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                            ¥{it.balance.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onNavigate?.('accounts');
+                        onClose();
+                      }}
+                      className="w-full py-1.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold shadow-sm flex items-center justify-center gap-1 transition active:scale-95"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" /> 查看全部资产全景
+                    </button>
+                  </div>
+                )}
+
+                {/* 5. Balance Updated Card */}
+                {m.actionResult && m.actionResult.type === 'balance_updated' && (
+                  <div className="mt-2.5 p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/50 border border-amber-300 dark:border-amber-700 text-amber-900 dark:text-amber-200 flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <WalletCards className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                      <div>
+                        <div className="font-bold text-[11px]">✨ 账户余额已成功校准</div>
+                        <div className="text-[10px] text-amber-800 dark:text-amber-300">
+                          【{m.actionResult.data.platform}】最新余额：<span className="font-mono font-bold">¥{m.actionResult.data.balance.toFixed(2)}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onNavigate?.('accounts');
+                        onClose();
+                      }}
+                      className="px-2 py-1 rounded-lg bg-amber-600 text-white text-[9px] font-bold flex items-center gap-0.5"
+                    >
+                      查看 <ArrowRight className="w-2.5 h-2.5" />
+                    </button>
                   </div>
                 )}
 
                 {/* 6. Budget Set Card */}
                 {m.actionResult && m.actionResult.type === 'budget_set' && (
-                  <div className="mt-2.5 p-2.5 rounded-xl bg-blue-50 dark:bg-blue-950/50 border border-blue-300 dark:border-blue-700 text-blue-900 dark:text-blue-200 flex items-center gap-2">
-                    <PieChart className="w-4 h-4 text-blue-600 flex-shrink-0" />
-                    <div>
-                      <div className="font-bold text-[11px]">📊 已为您设定月度预算</div>
-                      <div className="text-[10px] text-blue-800 dark:text-blue-300">
-                        【{m.actionResult.data.category_name}】限额：<span className="font-mono font-bold">¥{m.actionResult.data.amount}</span>
+                  <div className="mt-2.5 p-2.5 rounded-xl bg-blue-50 dark:bg-blue-950/50 border border-blue-300 dark:border-blue-700 text-blue-900 dark:text-blue-200 flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <PieChart className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                      <div>
+                        <div className="font-bold text-[11px]">📊 已为您设定月度预算</div>
+                        <div className="text-[10px] text-blue-800 dark:text-blue-300">
+                          【{m.actionResult.data.category_name}】限额：<span className="font-mono font-bold">¥{m.actionResult.data.amount}</span>
+                        </div>
                       </div>
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onNavigate?.('budgets');
+                        onClose();
+                      }}
+                      className="px-2 py-1 rounded-lg bg-blue-600 text-white text-[9px] font-bold flex items-center gap-0.5"
+                    >
+                      查看 <ArrowRight className="w-2.5 h-2.5" />
+                    </button>
                   </div>
                 )}
 
@@ -636,14 +912,26 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
 
                 {/* 8. Goal Created Card */}
                 {m.actionResult && m.actionResult.type === 'goal_created' && (
-                  <div className="mt-2.5 p-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-300 dark:border-indigo-700 text-indigo-800 dark:text-indigo-200 flex items-center gap-2">
-                    <Target className="w-4 h-4 text-indigo-600 flex-shrink-0" />
-                    <div>
-                      <div className="font-bold text-[11px]">🎯 已为您立项存钱目标</div>
-                      <div className="text-[10px] text-indigo-700 dark:text-indigo-300">
-                        【{m.actionResult.data.name}】目标 ¥{m.actionResult.data.target_amount} ({m.actionResult.data.note})
+                  <div className="mt-2.5 p-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-300 dark:border-indigo-700 text-indigo-800 dark:text-indigo-200 flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <Target className="w-4 h-4 text-indigo-600 flex-shrink-0" />
+                      <div>
+                        <div className="font-bold text-[11px]">🎯 已为您立项存钱目标</div>
+                        <div className="text-[10px] text-indigo-700 dark:text-indigo-300">
+                          【{m.actionResult.data.name}】目标 ¥{m.actionResult.data.target_amount} ({m.actionResult.data.note})
+                        </div>
                       </div>
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onNavigate?.('goals');
+                        onClose();
+                      }}
+                      className="px-2 py-1 rounded-lg bg-indigo-600 text-white text-[9px] font-bold flex items-center gap-0.5"
+                    >
+                      查看 <ArrowRight className="w-2.5 h-2.5" />
+                    </button>
                   </div>
                 )}
 
@@ -691,7 +979,7 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
           {loading && (
             <div className="flex items-center gap-2 text-xs text-slate-400 p-2">
               <RefreshCw className="w-3.5 h-3.5 animate-spin text-purple-500" />
-              <span>AI 多模态图像识别与账本分析中...</span>
+              <span>AI 多模态多图识别与账本分析中...</span>
             </div>
           )}
 
@@ -701,8 +989,9 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
         {/* Quick Suggestion Chips */}
         <div className="p-2 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
           {[
-            '📸 发送支付宝/微信余额截图帮我开账',
+            '📸 发送支付宝/微信/证券余额截图帮我开账',
             '🍱 中午吃麦当劳35微信付，买咖啡15',
+            '📈 把券商持仓1966.65存到资产里分类为基金',
             '📊 把餐饮预算设为1500',
             '⏰ 每月10号自动记房租2800',
             '💡 帮我制定月存2000省钱计划',
@@ -719,26 +1008,52 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
           ))}
         </div>
 
-        {/* Image Attachment Preview Bar */}
-        {selectedImage && (
-          <div className="px-3.5 py-2 bg-purple-50 dark:bg-purple-950/40 border-t border-purple-200 dark:border-purple-800 flex items-center justify-between animate-in fade-in">
-            <div className="flex items-center gap-2.5">
-              <img 
-                src={selectedImage} 
-                alt="预览" 
-                className="w-8 h-8 rounded-lg object-cover border border-purple-300 dark:border-purple-700" 
-              />
-              <div className="text-[11px] text-purple-900 dark:text-purple-200 font-medium">
-                📷 已附加截图（可输入说明或直接点击发送）
-              </div>
+        {/* Multi-Image Attachment Preview Strip */}
+        {selectedImages.length > 0 && (
+          <div className="px-3.5 py-2.5 bg-purple-50/80 dark:bg-purple-950/50 border-t border-purple-200 dark:border-purple-800 flex items-center justify-between gap-2 animate-in fade-in">
+            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5">
+              {selectedImages.map((img, idx) => (
+                <div key={idx} className="relative group flex-shrink-0">
+                  <img 
+                    src={img} 
+                    alt={`预览 ${idx + 1}`} 
+                    className="w-12 h-12 rounded-xl object-cover border-2 border-purple-400 dark:border-purple-600 shadow-sm" 
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveImage(idx)}
+                    className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-rose-500 text-white flex items-center justify-center text-[10px] shadow hover:bg-rose-600 transition"
+                  >
+                    <X className="w-2.5 h-2.5" />
+                  </button>
+                  <span className="absolute bottom-0.5 left-0.5 text-[8px] bg-black/60 text-white px-1 rounded font-mono">
+                    #{idx + 1}
+                  </span>
+                </div>
+              ))}
+
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="w-12 h-12 rounded-xl border-2 border-dashed border-purple-300 dark:border-purple-700 hover:border-purple-500 text-purple-600 dark:text-purple-400 flex flex-col items-center justify-center text-[9px] font-bold flex-shrink-0 bg-white/50 dark:bg-slate-900/50 transition active:scale-95"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>加图</span>
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={() => setSelectedImage(null)}
-              className="p-1 rounded-lg text-purple-400 hover:text-purple-700 dark:hover:text-purple-200 hover:bg-purple-100 dark:hover:bg-purple-900/50 transition"
-            >
-              <X className="w-4 h-4" />
-            </button>
+
+            <div className="flex flex-col items-end gap-1 flex-shrink-0">
+              <span className="text-[10px] font-bold text-purple-900 dark:text-purple-200">
+                已选 {selectedImages.length} 张图片
+              </span>
+              <button
+                type="button"
+                onClick={() => setSelectedImages([])}
+                className="text-[9px] text-rose-500 hover:underline"
+              >
+                清空全部
+              </button>
+            </div>
           </div>
         )}
 
@@ -751,21 +1066,26 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
             }}
             className="flex items-center gap-2"
           >
-            {/* Hidden File Input */}
+            {/* Hidden File Input supporting MULTIPLE images */}
             <input 
               type="file" 
               ref={fileInputRef} 
+              multiple 
               accept="image/*" 
               className="hidden" 
-              onChange={handleImageFileChange} 
+              onChange={handleImageFilesChange} 
             />
 
-            {/* Photo / Image Upload Button */}
+            {/* Photo / Multi-Image Upload Button */}
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="p-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:text-purple-600 dark:hover:text-purple-400 hover:border-purple-400 transition active:scale-95 shadow-sm flex items-center justify-center flex-shrink-0"
-              title="上传账单小票或资产余额截图"
+              className={`p-2.5 rounded-2xl border transition active:scale-95 shadow-sm flex items-center justify-center flex-shrink-0 ${
+                selectedImages.length > 0
+                  ? 'border-purple-500 bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300'
+                  : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:text-purple-600 dark:hover:text-purple-400 hover:border-purple-400'
+              }`}
+              title="批量上传多平台资产余额截图或账单小票"
             >
               <Camera className="w-4 h-4" />
             </button>
@@ -775,17 +1095,17 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
               placeholder={
-                selectedImage 
-                  ? "可输入补充说明，或直接点击发送..." 
+                selectedImages.length > 0 
+                  ? `已附加 ${selectedImages.length} 张截图，可输入说明或直接点击发送...` 
                   : config.apiKey 
-                    ? "输入指令或点击左侧相机发图..." 
+                    ? "输入指令或点击左侧相机批量发图..." 
                     : "请先在设置中填入 API Key"
               }
               className="flex-1 px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs focus:ring-2 focus:ring-purple-500 focus:outline-none"
             />
             <button
               type="submit"
-              disabled={loading || (!inputText.trim() && !selectedImage)}
+              disabled={loading || (!inputText.trim() && selectedImages.length === 0)}
               className="p-2.5 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md shadow-purple-500/20 hover:from-purple-500 hover:to-indigo-500 active:scale-95 transition disabled:opacity-40 flex-shrink-0"
             >
               <Send className="w-4 h-4" />
