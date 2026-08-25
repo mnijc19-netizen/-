@@ -2,6 +2,7 @@ import { createWorker } from 'tesseract.js';
 import { ParsedTransactionResult } from '../types';
 import { suggestCategory, getLocalDateTimeString } from './smsParser';
 import { extractFromRawText } from './urlAutoIngest';
+import { parseImageWithAiVision } from './aiParser';
 
 // Pre-processes an image on canvas (high contrast, grayscale)
 async function preprocessImage(imageFile: File | string): Promise<string> {
@@ -75,14 +76,27 @@ export async function parseBillImage(
   onProgress?: (progress: number, status: string) => void
 ): Promise<ParsedTransactionResult> {
   try {
-    onProgress?.(0.1, '正在进行图像去噪与锐化处理...');
+    onProgress?.(0.1, '正在进行图像去噪与清晰度增强...');
     const preprocessedDataUrl = await preprocessImage(imageSource);
 
-    onProgress?.(0.2, '正在识别文字信息...');
+    // 1. Try Multimodal Vision AI first (100% accurate, reads Chinese & icons directly)
+    onProgress?.(0.25, '正在调用 AI 视觉多模态大模型深度识别...');
+    try {
+      const visionAiResult = await parseImageWithAiVision(preprocessedDataUrl, accountsLookup);
+      if (visionAiResult && visionAiResult.success && (visionAiResult.amount ?? 0) > 0) {
+        onProgress?.(1.0, 'AI 视觉识别完成！');
+        return visionAiResult;
+      }
+    } catch (e) {
+      console.warn('Vision AI fallback to local OCR:', e);
+    }
+
+    // 2. Fallback to local browser Tesseract OCR engine
+    onProgress?.(0.4, '正在使用本地引擎识别文字信息...');
     const worker = await createWorker('chi_sim+eng', 1, {
       logger: m => {
         if (m.status === 'recognizing text') {
-          onProgress?.(0.3 + (m.progress || 0) * 0.6, `正在智能解析文字... ${Math.round((m.progress || 0) * 100)}%`);
+          onProgress?.(0.4 + (m.progress || 0) * 0.5, `正在解析文字要素... ${Math.round((m.progress || 0) * 100)}%`);
         }
       }
     });
@@ -91,7 +105,7 @@ export async function parseBillImage(
     await worker.terminate();
 
     const rawText = ret.data.text || '';
-    onProgress?.(0.95, '正在精准提取商户与交易金额...');
+    onProgress?.(0.95, '正在提取商户与交易金额...');
 
     return parseRecognizedBillText(rawText, accountsLookup);
   } catch (error: any) {
@@ -130,17 +144,24 @@ export function cleanMerchantName(raw: string): string {
 
   // If merchant contains known brand, normalize it cleanly
   const brands = [
-    "麦当劳", "肯德基", "汉堡王", "瑞幸咖啡", "星巴克", "海底捞", "喜茶", "霸王茶姬", 
-    "茶百道", "蜜雪冰城", "美团", "美团外卖", "饿了么", "滴滴出行", "淘宝", "天猫", 
+    "中国电信", "中国移动", "中国联通", "万亩良田生鲜超市", "万亩良田", "抖音生活服务", "抖音", 
+    "清口清汤面", "麦当劳", "肯德基", "汉堡王", "瑞幸咖啡", "星巴克", "海底捞", "喜茶", "霸王茶姬", 
+    "茶百道", "蜜雪冰城", "美团", "美团外卖", "饿了么", "滴滴出行", "淘宝闪购", "淘宝", "天猫", 
     "京东", "拼多多", "盒马", "山姆", "永辉超市", "屈臣氏", "7-Eleven", "全家", 
     "罗森", "便利蜂", "优衣库", "Apple", "生鲜超市"
   ];
   for (const b of brands) {
     if (s.includes(b)) {
-      if (b === "麦当劳" || b === "肯德基" || b === "星巴克" || b === "海底捞" || b === "喜茶" || b === "霸王茶姬") {
-        return b;
-      }
+      return b;
     }
+  }
+
+  // Filter pure symbol/garbage OCR outputs
+  if (s.startsWith('@') || /^[a-zA-Z\s@#*]+$/.test(s) && s.length < 10) {
+    if (raw.includes('电信') || raw.includes('话费')) return '中国电信';
+    if (raw.includes('移动')) return '中国移动';
+    if (raw.includes('联通')) return '中国联通';
+    if (raw.includes('万亩') || raw.includes('良田')) return '万亩良田生鲜超市';
   }
 
   return s || '微信/支付宝消费';

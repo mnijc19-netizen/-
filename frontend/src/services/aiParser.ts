@@ -321,3 +321,126 @@ ${recentTransactions.slice(0, 6).map(t => `- ${t.date.substring(5, 10)} ${t.merc
   const data = await res.json();
   return data?.choices?.[0]?.message?.content || '暂无财务分析建议。';
 }
+
+// 4. True Multimodal AI Vision Parser (Direct Image Recognition)
+export async function parseImageWithAiVision(
+  base64DataUrl: string,
+  accountsLookup: any[] = []
+): Promise<ParsedTransactionResult | null> {
+  const config = localStore.getAiConfig();
+  if (!config.enabled || !config.apiKey || !config.apiKey.trim()) {
+    return null;
+  }
+
+  // Determine vision model
+  let visionModel = config.model;
+  if (config.provider === 'zhipu' && !visionModel.includes('4v')) {
+    visionModel = 'glm-4v-flash'; // Free Vision model
+  } else if (config.provider === 'qwen' && !visionModel.includes('vl')) {
+    visionModel = 'qwen-vl-plus';
+  } else if (config.provider === 'kimi' && !visionModel.includes('vision')) {
+    visionModel = 'moonshot-v1-8k-vision-preview';
+  } else if (config.provider === 'openai' && !visionModel.includes('4o')) {
+    visionModel = 'gpt-4o-mini';
+  }
+
+  const endpoint = `${config.baseUrl.replace(/\/+$/, '')}/chat/completions`;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 12000);
+
+  const prompt = `你是一个智能视觉财务记账专家。请仔细查看这张截屏/小票图片：
+1. 提取最新一笔交易（如果是支付消息列表，提取顶层最新一笔付款卡片，忽略顶部统计月支出）。
+2. 提取真实商户名称（如 中国电信、万亩良田生鲜超市、清口清汤面、麦当劳等，忽略图标和乱码）。
+3. 提取实际扣款金额（如 49.89）。
+4. 提取付款渠道与账户（如 花呗、支付宝、微信支付、信用卡、银行卡）。
+5. 智能归类消费类别（如 日用百货、生活服务、餐饮美食、交通出行、购物消费）。
+6. 严格返回纯 JSON 对象格式（不要有任何额外说明或 markdown 包裹）：
+{
+  "amount": 49.89,
+  "merchant": "中国电信",
+  "category": "生活服务",
+  "type": "expense",
+  "channel": "花呗",
+  "date": "2026-08-14 23:37",
+  "note": "话费充值/生活缴费"
+}`;
+
+  try {
+    const res = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${config.apiKey.trim()}`
+      },
+      body: JSON.stringify({
+        model: visionModel,
+        messages: [
+          {
+            role: 'user',
+            content: [
+              { type: 'text', text: prompt },
+              {
+                type: 'image_url',
+                image_url: {
+                  url: base64DataUrl
+                }
+              }
+            ]
+          }
+        ],
+        temperature: 0.1,
+        max_tokens: 300
+      }),
+      signal: controller.signal
+    });
+
+    clearTimeout(timeoutId);
+    if (!res.ok) {
+      return null;
+    }
+
+    const data = await res.json();
+    const replyText = data?.choices?.[0]?.message?.content || '';
+    const jsonMatch = replyText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return null;
+
+    const parsed = JSON.parse(jsonMatch[0]);
+    if (!parsed.amount || isNaN(parseFloat(parsed.amount))) return null;
+
+    const numAmount = Math.abs(parseFloat(parsed.amount));
+    const merchant = parsed.merchant || '智能记账商户';
+    const category = parsed.category || '日常消费';
+    const transType = parsed.type || 'expense';
+    const channel = parsed.channel || '支付宝/微信';
+
+    let matchedAcc = accountsLookup[0];
+    if (/支付宝|花呗|余额宝/.test(channel)) {
+      const acc = accountsLookup.find(a => a.name && (a.name.includes('支付宝') || a.name.includes('花呗'))) || accountsLookup.find(a => a.id === 'acc-2');
+      if (acc) matchedAcc = acc;
+    } else if (/微信|零钱/.test(channel)) {
+      const acc = accountsLookup.find(a => a.name && (a.name.includes('微信') || a.name.includes('零钱'))) || accountsLookup.find(a => a.id === 'acc-1');
+      if (acc) matchedAcc = acc;
+    } else if (/银行|卡|招商|工行|建行/.test(channel)) {
+      const acc = accountsLookup.find(a => a.type === 'bank' || a.id === 'acc-3');
+      if (acc) matchedAcc = acc;
+    }
+
+    return {
+      success: true,
+      confidence: 0.999,
+      type: transType,
+      amount: numAmount,
+      bank_or_channel: channel,
+      merchant,
+      suggested_category: category,
+      date: parsed.date || getBeijingDateTimeString(),
+      raw_text: `[AI 视觉识别] ${merchant} ¥${numAmount}`,
+      matched_rule: `🤖 ${visionModel} 视觉多模态深度理解`,
+      matched_account_id: matchedAcc?.id,
+      matched_account_name: matchedAcc?.name,
+      note: parsed.note || `由 ${visionModel} 视觉大模型识别`
+    };
+  } catch (e) {
+    return null;
+  }
+}

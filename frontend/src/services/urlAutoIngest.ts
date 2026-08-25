@@ -35,17 +35,24 @@ export function cleanMerchantName(raw: string): string {
 
   // If merchant contains known brand, normalize it cleanly
   const brands = [
-    "麦当劳", "肯德基", "汉堡王", "瑞幸咖啡", "星巴克", "海底捞", "喜茶", "霸王茶姬", 
-    "茶百道", "蜜雪冰城", "美团", "美团外卖", "饿了么", "滴滴出行", "淘宝", "天猫", 
+    "中国电信", "中国移动", "中国联通", "万亩良田生鲜超市", "万亩良田", "抖音生活服务", "抖音",
+    "清口清汤面", "麦当劳", "肯德基", "汉堡王", "瑞幸咖啡", "星巴克", "海底捞", "喜茶", "霸王茶姬", 
+    "茶百道", "蜜雪冰城", "美团", "美团外卖", "饿了么", "滴滴出行", "淘宝闪购", "淘宝", "天猫", 
     "京东", "拼多多", "盒马", "山姆", "永辉超市", "屈臣氏", "7-Eleven", "全家", 
-    "罗森", "便利蜂", "优衣库", "Apple"
+    "罗森", "便利蜂", "优衣库", "Apple", "生鲜超市"
   ];
   for (const b of brands) {
     if (s.includes(b)) {
-      if (b === "麦当劳" || b === "肯德基" || b === "星巴克" || b === "海底捞" || b === "喜茶" || b === "霸王茶姬") {
-        return b;
-      }
+      return b;
     }
+  }
+
+  // Filter pure symbol/garbage OCR outputs
+  if (s.startsWith('@') || /^[a-zA-Z\s@#*]+$/.test(s) && s.length < 10) {
+    if (raw.includes('电信') || raw.includes('话费')) return '中国电信';
+    if (raw.includes('移动')) return '中国移动';
+    if (raw.includes('联通')) return '中国联通';
+    if (raw.includes('万亩') || raw.includes('良田')) return '万亩良田生鲜超市';
   }
 
   return s || '日常消费';
@@ -62,8 +69,8 @@ export function detectPaymentChannel(clean: string): 'wechat' | 'alipay' {
   if (/商户名称|交易详情/.test(clean)) wxScore += 2;
 
   // Alipay strong signals
-  if (/支付宝|花呗|借呗|余额宝/.test(clean)) aliScore += 10;
-  if (/全部账单|账单详情|支付奖励|解锁了|账单分类|为你推荐|计入收支/.test(clean)) aliScore += 5;
+  if (/支付宝|花呗|借呗|余额宝|蚂蚁/.test(clean)) aliScore += 10;
+  if (/全部账单|账单详情|支付奖励|解锁了|账单分类|为你推荐|计入收支|淘宝|闪购/.test(clean)) aliScore += 5;
 
   if (aliScore > wxScore && aliScore >= 5) {
     return 'alipay';
@@ -74,6 +81,9 @@ export function detectPaymentChannel(clean: string): 'wechat' | 'alipay' {
 export function suggestCategory(merchant: string, fullText: string = ''): string {
   const combined = (merchant + ' ' + fullText).toLowerCase();
   
+  if (/电信|移动|联通|话费|充值|宽带|水费|电费|燃气|物业|房租|生活缴费/.test(combined)) {
+    return '生活服务';
+  }
   if (/餐饮|美食|清汤面|面|饭|餐|吃|外卖|美团|饿了么|麦当劳|肯德基|汉堡|火锅|烧烤|牛肉|海鲜|咖啡|奶茶|茶|霸王茶姬|星巴克|瑞幸|喜茶|早餐|午餐|晚餐|夜宵|甜品|小吃/.test(combined)) {
     return '餐饮美食';
   }
@@ -89,11 +99,8 @@ export function suggestCategory(merchant: string, fullText: string = ''): string
   if (/电影|影城|ktv|酒吧|网吧|游戏|充值|门票|旅游|休闲|娱乐/.test(combined)) {
     return '休闲娱乐';
   }
-  if (/医院|门诊|药房|药店|医疗|体检|就医|挂号|药品/.test(combined)) {
+  if (/医|药|诊所|医院|体检|健康|牙科/.test(combined)) {
     return '医疗健康';
-  }
-  if (/房租|水费|电费|燃气|物业|宽带|话费|充值/.test(combined)) {
-    return '生活服务';
   }
   return '日常消费';
 }
