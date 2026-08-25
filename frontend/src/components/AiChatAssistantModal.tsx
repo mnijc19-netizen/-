@@ -247,8 +247,8 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
           confetti({ particleCount: 80, spread: 60, origin: { y: 0.7 } });
           onRefresh();
         }
-        // 4. Create Goal Action
-        else if (act.type === 'create_goal' && act.payload) {
+        // 4. Create Goal Action (Guard against accidental triggers on identity/general queries)
+        else if (act.type === 'create_goal' && act.payload && /存钱|目标|计划|愿望|立项|攒钱|买|省钱/.test(text)) {
           await api.addGoal({
             name: act.payload.name || 'AI 存钱计划',
             target_amount: parseFloat(act.payload.target_amount) || 10000,
