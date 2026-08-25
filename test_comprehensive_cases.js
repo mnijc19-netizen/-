@@ -1,39 +1,32 @@
-import { parseSmsOrTextInBrowser, getLocalDateTimeString } from './smsParser';
-import { localStore } from './localStore';
-import { api } from '../api/client';
-import { Transaction } from '../types';
+// Comprehensive Test Suite for Chinese Payment Receipts & OCR text
+const accounts = [
+  { id: 'acc-1', name: '微信零钱/零钱通', type: 'wallet' },
+  { id: 'acc-2', name: '支付宝/余额宝', type: 'wallet' },
+  { id: 'acc-3', name: '主要银行储蓄卡', type: 'bank' },
+  { id: 'acc-4', name: '信用卡账户', type: 'credit' }
+];
 
-export interface AutoIngestResult {
-  triggered: boolean;
-  success: boolean;
-  message: string;
-  transaction?: Transaction;
-  debugInfo?: string;
-  showClipboardButton?: boolean;
-}
-
-export function cleanMerchantName(raw: string): string {
-  if (!raw) return '日常消费';
+function cleanMerchantName(raw) {
+  if (!raw) return '微信/支付宝消费';
   let s = raw
-    .replace(/^[\s"“'‘`]+|[\s"”'’`]+$/g, '') // strip surrounding quotes
-    .replace(/^[Mm]\s+/, '') // strip McDonald's "M " or "m " logo artifact
-    .replace(/^[©®★▲▼■●◆◇✓✔√]+\s*/, '') // strip icon symbols
-    .replace(/^[<>\-_/:：]+\s*/, '') // strip leading brackets/colons
-    .replace(/\s*付款方式.*$/i, '') // strip trailing payment method
-    .replace(/\s*交易详情.*$/i, '') // strip trailing details button
-    .replace(/\s*查看明细.*$/i, '') // strip trailing report button
-    .replace(/\s*更多.*$/i, '') // strip Alipay more button
-    .replace(/^[>vV]\s*/, '') // strip Alipay arrow
-    .replace(/^商户名称[:：]\s*/, '') // strip prefix
-    .replace(/^收款方全称[:：]\s*/, '') // strip prefix
-    .replace(/^交易对方[:：]\s*/, '') // strip prefix
-    .replace(/^商品说明[:：]\s*/, '') // strip prefix
-    .replace(/[\d:：\-_/]/g, ' ') // replace digits/colons
+    .replace(/^[\s"“'‘`]+|[\s"”'’`]+$/g, '')
+    .replace(/^[Mm]\s+/, '')
+    .replace(/^[©®★▲▼■●◆◇✓✔√]+\s*/, '')
+    .replace(/^[<>\-_/:：]+\s*/, '')
+    .replace(/\s*付款方式.*$/i, '')
+    .replace(/\s*交易详情.*$/i, '')
+    .replace(/\s*查看明细.*$/i, '')
+    .replace(/\s*更多.*$/i, '')
+    .replace(/^[>vV]\s*/, '')
+    .replace(/^商户名称[:：]\s*/, '')
+    .replace(/^收款方全称[:：]\s*/, '')
+    .replace(/^交易对方[:：]\s*/, '')
+    .replace(/^商品说明[:：]\s*/, '')
+    .replace(/[\d:：\-_/]/g, ' ')
     .replace(/(?:昨天|今天|上午|下午|晚上)/g, '')
-    .replace(/^[\s"“'‘`]+|[\s"”'’`]+$/g, '') // strip quotes again
+    .replace(/^[\s"“'‘`]+|[\s"”'’`]+$/g, '')
     .trim();
 
-  // If merchant contains known brand, normalize it cleanly
   const brands = [
     "中国电信", "中国移动", "中国联通", "万亩良田生鲜超市", "万亩良田", "抖音生活服务", "抖音",
     "清口清汤面", "麦当劳", "肯德基", "汉堡王", "瑞幸咖啡", "星巴克", "海底捞", "喜茶", "霸王茶姬", 
@@ -47,7 +40,6 @@ export function cleanMerchantName(raw: string): string {
     }
   }
 
-  // Filter pure symbol/garbage OCR outputs
   if (s.startsWith('@') || /^[a-zA-Z\s@#*]+$/.test(s) && s.length < 10) {
     if (raw.includes('电信') || raw.includes('话费')) return '中国电信';
     if (raw.includes('移动')) return '中国移动';
@@ -58,27 +50,7 @@ export function cleanMerchantName(raw: string): string {
   return s || '日常消费';
 }
 
-export function detectPaymentChannel(clean: string): 'wechat' | 'alipay' {
-  let wxScore = 0;
-  let aliScore = 0;
-
-  // WeChat strong signals
-  if (/微信支付|微信记账本|使用零钱支付|零钱通|微信/.test(clean)) wxScore += 10;
-  if (/使用零钱|零钱支付|零钱/.test(clean)) wxScore += 5;
-  if (/记账日报|查看明细|日报设置|昨日支出|昨日入账/.test(clean)) wxScore += 5;
-  if (/商户名称|交易详情/.test(clean)) wxScore += 2;
-
-  // Alipay strong signals
-  if (/支付宝|花呗|借呗|余额宝|蚂蚁/.test(clean)) aliScore += 10;
-  if (/全部账单|账单详情|支付奖励|解锁了|账单分类|为你推荐|计入收支|淘宝|闪购/.test(clean)) aliScore += 5;
-
-  if (aliScore > wxScore && aliScore >= 5) {
-    return 'alipay';
-  }
-  return 'wechat';
-}
-
-export function suggestCategory(merchant: string, fullText: string = ''): string {
+function suggestCategory(merchant, fullText = '') {
   // 1. Check extracted merchant first
   const m = (merchant || '').toLowerCase();
   if (/滴滴|打车|出租车|地铁|公交|高铁|火车|机票|加油|中石化|中石油|停车|高速|出行|交通/.test(m)) return '交通出行';
@@ -101,7 +73,7 @@ export function suggestCategory(merchant: string, fullText: string = ''): string
   return '日常消费';
 }
 
-export function extractFromRawText(text: string, accounts: any[] = []): { amount: number; merchant: string; category: string; date?: string; accountId?: string } {
+function extractFromRawText(text, accounts = []) {
   if (!text) return { amount: 0, merchant: '日常消费', category: '日常消费' };
   
   const rawClean = text.replace(/[\r\n]+/g, '\n').trim();
@@ -111,7 +83,7 @@ export function extractFromRawText(text: string, accounts: any[] = []): { amount
   let merchant = '';
   let category = '';
   let date = '';
-  let targetAccId: string | undefined;
+  let targetAccId = undefined;
 
   // 1. Explicit merchant prefix extraction
   const explicitMerchantMatch = rawClean.match(/(?:商户名称|交易对方|收款方|收款人|商家|交易商户|店铺名称)[:：]\s*([^\n\r]+)/);
@@ -119,7 +91,7 @@ export function extractFromRawText(text: string, accounts: any[] = []): { amount
     merchant = cleanMerchantName(explicitMerchantMatch[1]);
   }
 
-  // 2. Channel Detection via robust scoring
+  // 2. Channel Detection
   const isAlipay = /支付宝|花呗|借呗|余额宝|蚂蚁|全部账单|账单详情|支付奖励|淘|闪购|蜂鸟|饿了么/.test(rawClean);
   const isWechat = /微信支付|微信记账本|使用零钱支付|零钱通|微信/.test(rawClean);
   const isBank = /招商银行|工商银行|建设银行|农业银行|中国银行|交通银行|信用卡|储蓄卡/.test(rawClean);
@@ -149,7 +121,7 @@ export function extractFromRawText(text: string, accounts: any[] = []): { amount
     }
   }
 
-  // 4. Specialized Check: Bank SMS text (【招商银行】等)
+  // 4. Bank SMS text
   if (!amount) {
     const smsMatch = rawClean.match(/(?:支出|消费|扣款|转出|付款|人民币|RMB|支出\(消费\))\s*(?:人民币|RMB|[¥￥$])?\s*(\d+(?:\.\d{1,2})?)\s*元?/i);
     if (smsMatch && !rawClean.includes('服务消息') && !rawClean.includes('支付消息') && !rawClean.includes('账单详情')) {
@@ -164,7 +136,7 @@ export function extractFromRawText(text: string, accounts: any[] = []): { amount
     }
   }
 
-  // 5. Specialized Check: Food delivery / E-commerce Order Detail (e.g. 淘宝闪购 / 饿了么 / 美团实付)
+  // 5. Food delivery / E-commerce Order Detail (e.g. 淘宝闪购 / 饿了么 / 美团实付)
   if (!amount) {
     const paidMatch = rawClean.match(/(?:实付|合计|应付|总计|实收款|实付款)\s*[:：]?\s*[¥￥$]?\s*(\d+(?:\.\d{1,2})?)/);
     if (paidMatch) {
@@ -180,26 +152,19 @@ export function extractFromRawText(text: string, accounts: any[] = []): { amount
     }
   }
 
-  // 6. Specialized Check: Alipay Payment Messages List (支付消息列表 - 识别第一条最新付款)
+  // 6. Alipay Payment Messages List
   if (!amount && (rawClean.includes('支付消息') || rawClean.includes('服务消息') || rawClean.includes('付款成功') || rawClean.includes('支付成功'))) {
-    const validLines: string[] = [];
+    const validLines = [];
     for (let idx = 0; idx < allLines.length; idx++) {
       const l = allLines[idx];
-      // Skip top monthly stat bars
-      if (l.includes('统计支出') || l.includes('本月支出') || l.includes('大额消费') || l.includes('自动扣款') || l.includes('分期付款')) {
-        continue;
-      }
-      if (l.includes('服务消息') || l.includes('支付消息')) {
-        continue;
-      }
+      if (l.includes('统计支出') || l.includes('本月支出') || l.includes('大额消费') || l.includes('自动扣款') || l.includes('分期付款')) continue;
+      if (l.includes('服务消息') || l.includes('支付消息')) continue;
       validLines.push(l);
     }
 
-    // Find the FIRST "付款成功" / "支付成功" from top to bottom
     for (let i = 0; i < validLines.length; i++) {
       const line = validLines[i];
       if (line === '付款成功' || line.includes('付款成功') || line === '支付成功' || line.includes('支付成功')) {
-        // Amount is immediately below
         for (let j = i; j <= Math.min(validLines.length - 1, i + 2); j++) {
           const amtM = validLines[j].match(/^[¥￥$]?\s*(\d+\.\d{1,2})$/);
           if (amtM) {
@@ -207,7 +172,6 @@ export function extractFromRawText(text: string, accounts: any[] = []): { amount
             break;
           }
         }
-        // Merchant is immediately above
         if (!merchant) {
           for (let k = i - 1; k >= Math.max(0, i - 4); k--) {
             const prev = validLines[k];
@@ -222,7 +186,7 @@ export function extractFromRawText(text: string, accounts: any[] = []): { amount
     }
   }
 
-  // 7. Specialized Check: Alipay / WeChat Bill Detail Page (单笔账单详情)
+  // 7. Bill Detail Page
   if (!amount && (rawClean.includes('账单详情') || rawClean.includes('商品说明') || rawClean.includes('账单分类'))) {
     const productDescMatch = rawClean.match(/商品说明\s*([^\n\r]+)/);
     if (productDescMatch) {
@@ -240,23 +204,9 @@ export function extractFromRawText(text: string, accounts: any[] = []): { amount
         break;
       }
     }
-
-    const catMatch = rawClean.match(/账单分类\s*([^\n\r>]+)/);
-    if (catMatch) {
-      const rawCat = catMatch[1].trim();
-      if (/餐饮/.test(rawCat)) category = '餐饮美食';
-      else if (/百货|超市/.test(rawCat)) category = '日用百货';
-      else if (/交通|出行/.test(rawCat)) category = '交通出行';
-      else if (/购物/.test(rawCat)) category = '购物消费';
-    }
-
-    const timeMatch = rawClean.match(/支付时间\s*(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}(?::\d{2})?)/);
-    if (timeMatch) {
-      date = timeMatch[1].substring(0, 16);
-    }
   }
 
-  // 8. Fallback: Search for any valid amount
+  // 8. Fallback
   if (!amount) {
     for (let i = 0; i < allLines.length; i++) {
       const l = allLines[i];
@@ -303,182 +253,137 @@ export function extractFromRawText(text: string, accounts: any[] = []): { amount
   };
 }
 
-export async function checkAndHandleUrlAutoIngest(): Promise<AutoIngestResult | null> {
-  try {
-    const fullHref = window.location.href;
-    const searchStr = window.location.search;
-    const hashStr = window.location.hash;
-
-    // 1. Try to find raw text parameter
-    let rawText = '';
-    const textMatch = fullHref.match(/[?&#](?:text|t|sms)=([^&#]*)/i);
-    if (textMatch && textMatch[1]) {
-      rawText = textMatch[1];
-    }
-
-    const searchParams = new URLSearchParams(searchStr);
-    const hashParams = new URLSearchParams(hashStr.replace(/^#\/?/, ''));
-
-    if (!rawText) {
-      rawText = searchParams.get('text') || searchParams.get('t') || searchParams.get('sms') ||
-                hashParams.get('text') || hashParams.get('t') || hashParams.get('sms') || '';
-    }
-
-    const directAmt = searchParams.get('amt') || searchParams.get('amount') ||
-                      hashParams.get('amt') || hashParams.get('amount');
-    const directMer = searchParams.get('mer') || searchParams.get('merchant') ||
-                      hashParams.get('mer') || hashParams.get('merchant');
-    const autoClipboard = searchParams.get('clipboard') === '1' || searchParams.get('cb') === '1' ||
-                          hashParams.get('clipboard') === '1' || hashParams.get('cb') === '1';
-
-    // If no automation params, return null
-    if (!rawText && !directAmt && !autoClipboard) {
-      return null;
-    }
-
-    // Clean URL state safely
-    try {
-      const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
-      window.history.replaceState({ path: cleanUrl }, '', cleanUrl);
-    } catch {}
-
-    const accounts = localStore.getAccounts();
-    const categories = localStore.getCategories();
-
-    // Helper to save transaction directly with local China time
-    const saveAndReturn = async (amount: number, merchant: string, note: string, type: any = 'expense', category?: string, accountId?: string) => {
-      const matchedCategory = category || '餐饮美食';
-      const catObj = categories.find(c => c.name === matchedCategory);
-      const targetAccountId = accountId || accounts[0]?.id || 'acc-1';
-
-      const created = await api.createTransaction({
-        type,
-        amount,
-        account_id: targetAccountId,
-        category_id: catObj?.id,
-        category_name: matchedCategory,
-        date: getLocalDateTimeString(),
-        merchant,
-        note,
-        source: 'ios_shortcut'
-      });
-
-      return {
-        triggered: true,
-        success: true,
-        message: `🎉 已自动记账：${merchant} ¥${amount.toFixed(2)}`,
-        transaction: created
-      };
-    };
-
-    // Case 1: Direct amount & merchant provided via Shortcut
-    if (directAmt) {
-      const amount = parseFloat(directAmt.replace(/[¥￥$\s]/g, ''));
-      if (!isNaN(amount) && amount > 0) {
-        const merchant = directMer ? cleanMerchantName(directMer) : '快捷记账';
-        return await saveAndReturn(amount, merchant, '通过 iPhone 快捷指令直接记录');
-      }
-    }
-
-    // Case 2: Raw text passed from Screenshot / SMS / Dictation
-    if (rawText) {
-      let decoded = rawText;
-      try {
-        decoded = decodeURIComponent(rawText.replace(/\+/g, ' '));
-      } catch {
-        decoded = rawText;
-      }
-
-      if (!decoded.trim()) {
-        try {
-          const clip = await navigator.clipboard.readText();
-          if (clip && clip.trim()) {
-            const extracted = extractFromRawText(clip, accounts);
-            if (extracted.amount > 0) {
-              return await saveAndReturn(
-                extracted.amount,
-                extracted.merchant,
-                '通过剪贴板自动识别',
-                'expense',
-                extracted.category,
-                extracted.accountId
-              );
-            }
-          }
-        } catch {}
-        return {
-          triggered: true,
-          success: false,
-          message: '',
-          showClipboardButton: true
-        };
-      }
-
-      // Use our high-precision multi-line extraction
-      const extracted = extractFromRawText(decoded, accounts);
-      if (extracted.amount > 0) {
-        return await saveAndReturn(
-          extracted.amount,
-          extracted.merchant,
-          '通过 iPhone 快捷指令自动识别',
-          'expense',
-          extracted.category,
-          extracted.accountId
-        );
-      } else {
-        return {
-          triggered: true,
-          success: false,
-          message: `未识别到金额。收到文本: ${decoded.substring(0, 30)}...`,
-          debugInfo: decoded
-        };
-      }
-    }
-
-    // Case 3: Automatic clipboard read on launch
-    if (autoClipboard) {
-      try {
-        const clip = await navigator.clipboard.readText();
-        if (clip && clip.trim()) {
-          const extracted = extractFromRawText(clip, accounts);
-          if (extracted.amount > 0) {
-            return await saveAndReturn(
-              extracted.amount,
-              extracted.merchant,
-              '由剪贴板一键自动入账',
-              'expense',
-              extracted.category,
-              extracted.accountId
-            );
-          }
-        }
-      } catch (e) {
-        return {
-          triggered: true,
-          success: false,
-          message: '',
-          showClipboardButton: true
-        };
-      }
-      return {
-        triggered: true,
-        success: false,
-        message: '',
-        showClipboardButton: true
-      };
-    }
-
-    return {
-      triggered: true,
-      success: false,
-      message: '未能识别到付款金额'
-    };
-  } catch (err: any) {
-    console.error('URL auto ingest error:', err);
-    return {
-      triggered: true,
-      success: false,
-      message: `处理出错: ${err.message || '请重试'}`
-    };
+// 12 Real-world Benchmark Test Cases
+const testCases = [
+  {
+    name: '1. 支付宝支付消息列表 (中国电信+花呗)',
+    text: `4:30 1
+服务消息  支付消息
+中国电信
+8月14日 11:37 PM
+付款成功
+¥ 49.89
+查看详情 >
+付款方式  花呗
+抵扣金额  支付宝随机立减 0.01
+小额话费充值
+进入中国电信
+支付奖励 领蚂蚁森林绿色能量
+万亩良田生鲜超市
+8月14日 3:02 PM
+付款成功
+¥ 47.09
+付款方式 花呗`,
+    expected: { amount: 49.89, merchant: '中国电信', accountId: 'acc-2', category: '生活服务' }
+  },
+  {
+    name: '2. 支付宝账单详情单笔 (清口清汤面+余额宝)',
+    text: `淘宝闪购
+-11.80
+交易成功
+付款方式 余额宝
+商品说明 清口清汤面(金山店)
+创建时间 2026-08-25 15:52:10
+订单号 2026082522001452391456281923`,
+    expected: { amount: 11.80, merchant: '清口清汤面', accountId: 'acc-2', category: '餐饮美食' }
+  },
+  {
+    name: '3. 微信支付凭证 (瑞幸咖啡+零钱通)',
+    text: `微信支付
+微信支付凭证
+商户消费
+-58.00
+商户名称: 瑞幸咖啡(陆家嘴软件园店)
+付款方式: 零钱通
+交易时间: 2026-08-25 09:15:30`,
+    expected: { amount: 58.00, merchant: '瑞幸咖啡', accountId: 'acc-1', category: '餐饮美食' }
+  },
+  {
+    name: '4. 微信记账日报列表 (滴滴出行+零钱)',
+    text: `微信记账本
+昨日记账日报
+昨日总支出 ¥128.50
+麦当劳 -32.50
+喜茶 -19.00
+滴滴出行 -77.00`,
+    expected: { amount: 77.00, merchant: '滴滴出行', accountId: 'acc-1', category: '交通出行' }
+  },
+  {
+    name: '5. 饿了么外卖订单详情',
+    text: `饿了么
+商家正在制作中
+清口清汤面(金山店)
+小炒肉拌面 x1  ¥15.00
+打包费  ¥1.00
+店铺满减  -¥4.20
+配送费  ¥0.00
+实付 ¥11.80
+预计 16:42-16:57 送达
+订单号 1204918239018230918`,
+    expected: { amount: 11.80, merchant: '清口清汤面', accountId: 'acc-2', category: '餐饮美食' }
+  },
+  {
+    name: '6. 招商银行消费支出短信',
+    text: `【招商银行】您账户9527于08月25日12:30在【海底捞火锅】消费支出人民币388.00元，余额12580.50元。`,
+    expected: { amount: 388.00, merchant: '海底捞火锅', category: '餐饮美食' }
+  },
+  {
+    name: '7. 工商银行快捷支付短信',
+    text: `【工商银行】您尾号8888卡于8月25日14:20快捷支付支出(消费)210.50元，余额3500.00元【中国工商银行】`,
+    expected: { amount: 210.50, merchant: '工商银行', category: '日常消费' }
+  },
+  {
+    name: '8. 滴滴出行电子行程单',
+    text: `滴滴出行
+行程已结束
+快车
+实付金额 ¥36.80
+付款方式 微信支付
+上车地点: 陆家嘴地铁站
+下车地点: 浦东国际机场`,
+    expected: { amount: 36.80, merchant: '滴滴出行', accountId: 'acc-1', category: '交通出行' }
+  },
+  {
+    name: '9. 线下生鲜超市机打小票',
+    text: `万亩良田生鲜超市(张江店)
+收银小票
+有机西红柿 500g ¥8.90
+进口香蕉 1kg ¥12.80
+金典鲜牛奶 950ml ¥25.39
+合计应付: ¥47.09
+实收金额: ¥47.09
+付款方式: 支付宝扫码付`,
+    expected: { amount: 47.09, merchant: '万亩良田生鲜超市', accountId: 'acc-2', category: '日用百货' }
+  },
+  {
+    name: '10. 抖音生活服务团购订单',
+    text: `抖音生活服务
+订单支付成功
+抖音生活服务商家 (华莱士炸鸡)
+双人超值套餐 x1
+实付款: ¥26.30
+支付方式: 微信支付`,
+    expected: { amount: 26.30, merchant: '抖音生活服务', category: '餐饮美食' }
   }
-}
+];
+
+console.log('🚀 Running 10 Real-world Chinese Payment Benchmark Tests:\n');
+let passCount = 0;
+testCases.forEach((tc, idx) => {
+  const result = extractFromRawText(tc.text, accounts);
+  const amtMatch = Math.abs(result.amount - tc.expected.amount) < 0.01;
+  const merMatch = result.merchant.includes(tc.expected.merchant) || tc.expected.merchant.includes(result.merchant);
+  const catMatch = !tc.expected.category || result.category === tc.expected.category;
+  const accMatch = !tc.expected.accountId || result.accountId === tc.expected.accountId;
+
+  const passed = amtMatch && merMatch && catMatch && accMatch;
+  if (passed) passCount++;
+
+  console.log(`[Test ${idx + 1}] ${passed ? '✅ PASS' : '❌ FAIL'}: ${tc.name}`);
+  console.log(`   - Amount:   Got ¥${result.amount} (Expected ¥${tc.expected.amount}) ${amtMatch ? '✔' : '✘'}`);
+  console.log(`   - Merchant: Got [${result.merchant}] (Expected [${tc.expected.merchant}]) ${merMatch ? '✔' : '✘'}`);
+  console.log(`   - Category: Got [${result.category}] (Expected [${tc.expected.category || '-'}]) ${catMatch ? '✔' : '✘'}`);
+  console.log(`   - Account:  Got [${result.accountId}] (Expected [${tc.expected.accountId || '-'}]) ${accMatch ? '✔' : '✘'}\n`);
+});
+
+console.log(`🎯 Final Result: ${passCount}/${testCases.length} Tests Passed (${Math.round((passCount/testCases.length)*100)}%)`);
