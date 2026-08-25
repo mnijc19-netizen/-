@@ -31,7 +31,9 @@ import {
   BarChart3,
   Cloud,
   CloudUpload,
-  Server
+  Server,
+  Lock,
+  LockOpen
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { api } from '../api/client';
@@ -73,6 +75,12 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   const [ruleNote, setRuleNote] = useState('');
   const [statusMsg, setStatusMsg] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // 🧪 Liquid Glass Unlock State (内测密码: 给斌斌一包辣条)
+  const [liquidGlassUnlocked, setLiquidGlassUnlocked] = useState<boolean>(() => localStore.getLiquidGlassUnlocked());
+  const [unlockModalOpen, setUnlockModalOpen] = useState(false);
+  const [unlockPassword, setUnlockPassword] = useState('');
+  const [unlockError, setUnlockError] = useState('');
 
   // 🧪 Laboratory AI Config State
   const [aiConfig, setAiConfig] = useState<AiConfig>(() => localStore.getAiConfig());
@@ -133,6 +141,36 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     const updated = { ...aiConfig, enabled };
     setAiConfig(updated);
     localStore.saveAiConfig(updated);
+  };
+
+  const handleToggleLiquidGlass = (checked: boolean) => {
+    if (checked) {
+      if (!liquidGlassUnlocked) {
+        setUnlockPassword('');
+        setUnlockError('');
+        setUnlockModalOpen(true);
+        return;
+      }
+      onToggleLiquidGlass?.(true);
+    } else {
+      onToggleLiquidGlass?.(false);
+    }
+  };
+
+  const handleVerifyUnlock = (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = unlockPassword.trim();
+    if (trimmed === '给斌斌一包辣条') {
+      localStore.saveLiquidGlassUnlocked(true);
+      setLiquidGlassUnlocked(true);
+      setUnlockModalOpen(false);
+      onToggleLiquidGlass?.(true);
+      confetti({ particleCount: 90, spread: 70, origin: { y: 0.6 } });
+      setStatusMsg('🎉 恭喜！已成功解锁【iOS 液态毛玻璃 UI】内测功能！');
+      setTimeout(() => setStatusMsg(''), 4000);
+    } else {
+      setUnlockError('⚠️ 暗号错误！请输入正确的内测密码（提示：给斌斌一包辣条）');
+    }
   };
 
   const handleSeedDemo = async () => {
@@ -303,7 +341,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         </div>
       </div>
 
-      {/* 🧪 Laboratory Feature: iOS Liquid Glass UI (液态毛玻璃质感) */}
+      {/* 🧪 Laboratory Feature: iOS Liquid Glass UI (液态毛玻璃质感 - 内测加锁保护) */}
       <div className="p-4 sm:p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex items-center justify-between transition">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-600 text-white flex items-center justify-center shadow-md shadow-cyan-500/20 flex-shrink-0">
@@ -314,12 +352,20 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
               <h3 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
                 🧪 实验室：iOS 液态毛玻璃 UI
               </h3>
-              <span className="text-[8px] font-mono font-bold px-1.5 py-0.2 rounded bg-cyan-500/15 text-cyan-600 dark:text-cyan-400">
-                BETA
-              </span>
+              {liquidGlassUnlocked ? (
+                <span className="text-[8px] font-mono font-bold px-1.5 py-0.2 rounded bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5">
+                  <LockOpen className="w-2.5 h-2.5" /> 已解锁
+                </span>
+              ) : (
+                <span className="text-[8px] font-mono font-bold px-1.5 py-0.2 rounded bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center gap-0.5">
+                  <Lock className="w-2.5 h-2.5" /> 内测功能
+                </span>
+              )}
             </div>
             <p className="text-[10px] text-slate-400 mt-0.5">
-              开启 iOS 拟真磨砂液态玻璃与高光倒角质感
+              {liquidGlassUnlocked 
+                ? '开启 iOS 拟真磨砂液态玻璃与高光倒角质感' 
+                : '内测功能：输入专属密码后解锁并开启'}
             </p>
           </div>
         </div>
@@ -328,7 +374,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
           <input 
             type="checkbox" 
             checked={liquidGlass}
-            onChange={(e) => onToggleLiquidGlass && onToggleLiquidGlass(e.target.checked)}
+            onChange={(e) => handleToggleLiquidGlass(e.target.checked)}
             className="sr-only peer"
           />
           <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-cyan-600"></div>
@@ -986,6 +1032,87 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                 {webDavSaved ? '已保存！' : '保存配置'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 🧪 Liquid Glass Unlock Modal (内测密码解锁弹窗) */}
+      {unlockModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+            {/* Header */}
+            <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-gradient-to-r from-cyan-500/10 via-blue-500/10 to-transparent">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-cyan-500/20 text-cyan-600 dark:text-cyan-400 flex items-center justify-center shadow-inner">
+                  <Lock className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                      内测功能解锁
+                    </h3>
+                    <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-600 dark:text-cyan-300">
+                      实验室
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-400">iOS 液态毛玻璃 UI</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setUnlockModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1.5 rounded-lg transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <form onSubmit={handleVerifyUnlock} className="p-5 space-y-4">
+              <div className="p-3.5 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-800 dark:text-cyan-200 text-xs leading-relaxed">
+                💡 <span className="font-bold">内测体验须知</span>：液态毛玻璃 UI 属于高拟真视觉渲染实验。请输入暗号解锁体验，<span className="font-bold text-cyan-600 dark:text-cyan-300">解锁后永久有效</span>，后续无需再次输入！
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1.5">
+                  🔑 请输入解锁暗号
+                </label>
+                <input
+                  type="text"
+                  value={unlockPassword}
+                  onChange={(e) => {
+                    setUnlockPassword(e.target.value);
+                    if (unlockError) setUnlockError('');
+                  }}
+                  placeholder="请输入暗号（例如：给斌斌一包辣条）"
+                  autoFocus
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-xs focus:ring-2 focus:ring-cyan-500 focus:outline-none placeholder:text-slate-400"
+                />
+                {unlockError && (
+                  <p className="text-[11px] font-bold text-rose-500 mt-1.5 flex items-center gap-1 animate-in fade-in">
+                    <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
+                    {unlockError}
+                  </p>
+                )}
+              </div>
+
+              <div className="pt-2 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setUnlockModalOpen(false)}
+                  className="flex-1 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-600 dark:text-slate-300 font-bold text-xs transition"
+                >
+                  取消
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold text-xs shadow-md shadow-cyan-500/20 active:scale-95 transition flex items-center justify-center gap-1"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  解锁并开启
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

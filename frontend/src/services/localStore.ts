@@ -119,6 +119,13 @@ export const localStore = {
     dbStore.set(STORAGE_KEYS.LIQUID_GLASS, enabled);
   },
 
+  getLiquidGlassUnlocked(): boolean {
+    return dbStore.getSync('smartwealth_liquid_glass_unlocked_v1', false);
+  },
+  saveLiquidGlassUnlocked(unlocked: boolean): void {
+    dbStore.set('smartwealth_liquid_glass_unlocked_v1', unlocked);
+  },
+
   getWebDavConfig(): { url: string; user: string; pass: string; autoSync: boolean } {
     return dbStore.getSync(STORAGE_KEYS.WEBDAV_CONFIG, {
       url: '',
