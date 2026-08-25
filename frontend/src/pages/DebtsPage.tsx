@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { Debt, Account } from '../types';
 import { api } from '../api/client';
+import { BrandLogo } from '../components/BrandLogo';
 
 interface DebtsPageProps {
   debts: Debt[];
@@ -81,32 +82,32 @@ export const DebtsPage: React.FC<DebtsPageProps> = ({ debts, accounts, onRefresh
         <div>
           <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
             <CreditCard className="w-5 h-5 text-rose-500" />
-            负债清偿与信用管理中心
+            负债与还款智能规划
           </h2>
           <p className="text-xs text-slate-400">
-            信用卡账单周期、房贷车贷跟踪与雪球/雪崩科学还债规划
+            涵盖美团月付、抖音月付、花呗、白条、借呗、信用卡与房贷，科学清偿规划
           </p>
         </div>
         <button
-          type="button"
           onClick={() => setModalOpen(true)}
-          className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow-lg shadow-rose-500/20 flex items-center gap-1.5"
+          className="flex items-center gap-2 px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-bold shadow-md shadow-rose-500/20 active:scale-95 transition"
         >
-          <Plus className="w-4 h-4" /> 添加负债/信用卡
+          <Plus className="w-4 h-4" />
+          新增负债 / 账单
         </button>
       </div>
 
-      {/* Summary Cards */}
+      {/* Overview Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
-          <div className="text-xs text-slate-400 mb-1">当前总负债余额</div>
-          <div className="text-2xl font-black text-rose-500 font-mono">
+          <div className="text-xs text-slate-400 mb-1">总待还负债</div>
+          <div className="text-2xl font-black text-rose-600 dark:text-rose-400 font-mono">
             ¥{totalDebt.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}
           </div>
         </div>
 
         <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
-          <div className="text-xs text-slate-400 mb-1">每月固定还款支出</div>
+          <div className="text-xs text-slate-400 mb-1">每月总应还</div>
           <div className="text-2xl font-black text-slate-800 dark:text-slate-200 font-mono">
             ¥{totalMonthlyPay.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}
           </div>
@@ -130,13 +131,15 @@ export const DebtsPage: React.FC<DebtsPageProps> = ({ debts, accounts, onRefresh
           {debts.map(d => (
             <div key={d.id} className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
               <div className="flex items-start justify-between">
-                <div>
-                  <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                    {d.type === 'credit_card' ? <CreditCard className="w-4 h-4 text-rose-500" /> : <Building className="w-4 h-4 text-slate-500" />}
-                    {d.name}
-                  </h4>
-                  <div className="text-[11px] text-slate-400">
-                    年化利率: {(d.interest_rate_annual * 100).toFixed(2)}% • 月供 ¥{d.monthly_payment.toFixed(2)}
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <BrandLogo type={d.type} name={d.name} size="md" />
+                  <div>
+                    <h4 className="text-sm font-bold text-slate-900 dark:text-white truncate">
+                      {d.name}
+                    </h4>
+                    <div className="text-[11px] text-slate-400">
+                      年化利率: {(d.interest_rate_annual * 100).toFixed(2)}% • 月供 ¥{d.monthly_payment.toFixed(2)}
+                    </div>
                   </div>
                 </div>
 
