@@ -43,6 +43,9 @@ export function App() {
   const [darkMode, setDarkMode] = useState<boolean>(() => {
     return localStorage.getItem('theme') === 'dark';
   });
+  const [liquidGlass, setLiquidGlass] = useState<boolean>(() => {
+    return localStore.getLiquidGlass();
+  });
 
   // Modals
   const [smartParserOpen, setSmartParserOpen] = useState(false);
@@ -87,6 +90,18 @@ export function App() {
       if (metaThemeColor) metaThemeColor.setAttribute('content', '#f8fafc');
     }
   }, [darkMode]);
+
+  // Sync liquid glass theme class
+  useEffect(() => {
+    if (liquidGlass) {
+      document.documentElement.classList.add('liquid-glass-theme');
+      document.body.classList.add('liquid-glass-theme');
+    } else {
+      document.documentElement.classList.remove('liquid-glass-theme');
+      document.body.classList.remove('liquid-glass-theme');
+    }
+    localStore.saveLiquidGlass(liquidGlass);
+  }, [liquidGlass]);
 
   // Load all data
   const loadAllData = async () => {
@@ -347,6 +362,8 @@ export function App() {
                   accounts={accounts}
                   categories={categories}
                   onRefresh={loadAllData}
+                  liquidGlass={liquidGlass}
+                  onToggleLiquidGlass={(val) => setLiquidGlass(val)}
                 />
               )}
             </>

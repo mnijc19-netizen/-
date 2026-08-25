@@ -38,7 +38,8 @@ const STORAGE_KEYS = {
   GOALS: 'smartwealth_goals_v2',
   SNAPSHOTS: 'smartwealth_snapshots_v2',
   RECURRING: 'smartwealth_recurring_v2',
-  AI_CONFIG: 'smartwealth_ai_config_v1'
+  AI_CONFIG: 'smartwealth_ai_config_v1',
+  LIQUID_GLASS: 'smartwealth_liquid_glass_v1'
 };
 
 const DEFAULT_CATEGORIES: Category[] = [
@@ -203,5 +204,13 @@ export const localStore = {
         ]
       }
     };
+  },
+
+  getLiquidGlass(): boolean {
+    return localStorage.getItem(STORAGE_KEYS.LIQUID_GLASS) === 'true';
+  },
+
+  saveLiquidGlass(enabled: boolean): void {
+    localStorage.setItem(STORAGE_KEYS.LIQUID_GLASS, enabled ? 'true' : 'false');
   }
 };

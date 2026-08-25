@@ -22,7 +22,8 @@ import {
   Activity,
   Check,
   Cpu,
-  ChevronRight
+  ChevronRight,
+  Layers
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { api } from '../api/client';
@@ -35,9 +36,17 @@ interface SettingsPageProps {
   accounts: Account[];
   categories: Category[];
   onRefresh: () => void;
+  liquidGlass?: boolean;
+  onToggleLiquidGlass?: (val: boolean) => void;
 }
 
-export const SettingsPage: React.FC<SettingsPageProps> = ({ accounts, categories, onRefresh }) => {
+export const SettingsPage: React.FC<SettingsPageProps> = ({ 
+  accounts, 
+  categories, 
+  onRefresh,
+  liquidGlass = false,
+  onToggleLiquidGlass
+}) => {
   const [recurringRules, setRecurringRules] = useState<RecurringRule[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [aiModalOpen, setAiModalOpen] = useState(false);
@@ -271,6 +280,38 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ accounts, categories
           </span>
           <ChevronRight className="w-4 h-4 text-slate-400 group-hover:translate-x-0.5 transition" />
         </div>
+      </div>
+
+      {/* 🧪 Laboratory Feature: iOS Liquid Glass UI (液态毛玻璃质感) */}
+      <div className="p-4 sm:p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex items-center justify-between transition">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-600 text-white flex items-center justify-center shadow-md shadow-cyan-500/20 flex-shrink-0">
+            <Layers className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
+                🧪 实验室：iOS 液态毛玻璃 UI
+              </h3>
+              <span className="text-[8px] font-mono font-bold px-1.5 py-0.2 rounded bg-cyan-500/15 text-cyan-600 dark:text-cyan-400">
+                BETA
+              </span>
+            </div>
+            <p className="text-[10px] text-slate-400 mt-0.5">
+              开启 iOS 拟真磨砂液态玻璃与高光倒角质感
+            </p>
+          </div>
+        </div>
+
+        <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
+          <input 
+            type="checkbox" 
+            checked={liquidGlass}
+            onChange={(e) => onToggleLiquidGlass && onToggleLiquidGlass(e.target.checked)}
+            className="sr-only peer"
+          />
+          <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-cyan-600"></div>
+        </label>
       </div>
 
       {/* AI Settings Modal Popup */}
