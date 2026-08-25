@@ -126,8 +126,10 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
 
       let actionResult: any = undefined;
 
-      // Execute Action if AI requested
-      if (response.action && response.action.type !== 'none') {
+      // Execute Action if AI requested (only if user did NOT just ask a simple exploratory question)
+      const isQuestionOnly = /这是哪个|什么平台|这是什么|多少钱|帮我看看|分析一下|？|\?|什么模型|你是谁|是哪个/.test(text);
+
+      if (response.action && response.action.type !== 'none' && !isQuestionOnly) {
         const act = response.action;
 
         // 1. Create Transaction Action
@@ -167,16 +169,18 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
         // 2. Update Account Balance Action
         else if (act.type === 'update_balance' && act.payload) {
           const targetBal = parseFloat(act.payload.balance) || 0;
-          let matchedAcc = accounts.find(a => a.id === act.payload.account_id);
+          const platformName = (act.payload.platform || '').toLowerCase();
+          let matchedAcc: Account | undefined = undefined;
           
-          if (!matchedAcc && act.payload.platform) {
-            const pLower = act.payload.platform.toLowerCase();
-            matchedAcc = accounts.find(a => {
-              const aLower = a.name.toLowerCase();
-              if (pLower.includes('微信') && aLower.includes('微信')) return true;
-              if (pLower.includes('支付宝') && aLower.includes('支付宝')) return true;
-              return aLower.includes(pLower) || pLower.includes(aLower);
-            });
+          // Match by platform keywords with strict priority
+          if (platformName.includes('微信') || platformName.includes('零钱')) {
+            matchedAcc = accounts.find(a => a.name.includes('微信') || a.name.includes('零钱'));
+          } else if (platformName.includes('支付宝') || platformName.includes('余额宝') || platformName.includes('蚂蚁')) {
+            matchedAcc = accounts.find(a => a.name.includes('支付宝') || a.name.includes('余额宝'));
+          } else if (act.payload.account_id) {
+            matchedAcc = accounts.find(a => a.id === act.payload.account_id);
+          } else if (act.payload.platform) {
+            matchedAcc = accounts.find(a => a.name.toLowerCase().includes(platformName) || platformName.includes(a.name.toLowerCase()));
           }
 
           if (matchedAcc) {
