@@ -481,23 +481,13 @@ export const api = {
     return localStore.getAnalytics();
   },
   getSankeyFlow: async (month?: string): Promise<SankeyData> => {
-    return {
-      nodes: [
-        { name: '【收入】主营薪资' },
-        { name: '【账户】微信支付' },
-        { name: '【支出】餐饮美食' },
-        { name: '【支出】日常消费' }
-      ],
-      links: [
-        { source: '【收入】主营薪资', target: '【账户】微信支付', value: 5000 },
-        { source: '【账户】微信支付', target: '【支出】餐饮美食', value: 14.9 }
-      ]
-    };
+    const { computeDynamicSankeyFlow } = await import('../services/analyticsEngine');
+    return computeDynamicSankeyFlow(localStore.getTransactions(), localStore.getAccounts(), month);
   },
 
   // System & Snapshots
   seedDemo: async () => {
-    localStorage.clear();
+    localStore.clearAllData();
     return { success: true, message: '数据已重置！' };
   },
   clearData: async () => {
@@ -508,43 +498,100 @@ export const api = {
     return {
       accounts: localStore.getAccounts(),
       transactions: localStore.getTransactions(),
+      categories: localStore.getCategories(),
       budgets: localStore.getBudgets(),
-      goals: localStore.getGoals()
+      investments: localStore.getInvestments(),
+      debts: localStore.getDebts(),
+      goals: localStore.getGoals(),
+      snapshots: localStore.getSnapshots(),
+      recurring: localStore.getRecurringRules()
     };
   },
   restoreBackup: async (file: File) => {
+    const text = await file.text();
+    const parsed = JSON.parse(text);
+    const data = parsed.data || parsed;
+
+    if (data.accounts) localStore.saveAccounts(data.accounts);
+    if (data.transactions) localStore.saveTransactions(data.transactions);
+    if (data.categories) localStore.saveCategories(data.categories);
+    if (data.budgets) localStore.saveBudgets(data.budgets);
+    if (data.investments) localStore.saveInvestments(data.investments);
+    if (data.debts) localStore.saveDebts(data.debts);
+    if (data.goals) localStore.saveGoals(data.goals);
+    if (data.snapshots) localStore.saveSnapshots(data.snapshots);
+    if (data.recurring) localStore.saveRecurringRules(data.recurring);
+
     return { success: true, message: '数据恢复成功！' };
   },
   getSnapshots: async (): Promise<AssetSnapshot[]> => {
-    return [];
+    return localStore.getSnapshots();
   },
   createSnapshot: async (data: { snapshot_date: string; accounts_balances: Record<string, number>; notes?: string }) => {
     const accs = localStore.getAccounts();
-    accs.forEach(a => {
-      if (data.accounts_balances[a.id] !== undefined) {
-        a.balance = data.accounts_balances[a.id];
-      }
+    const snapshots = localStore.getSnapshots();
+    let totalAss = 0;
+    let totalLiab = 0;
+
+    const accsData = accs.map(a => {
+      const oldBal = a.balance;
+      const newBal = data.accounts_balances[a.id] !== undefined ? data.accounts_balances[a.id] : oldBal;
+      a.balance = newBal;
+      if (['credit', 'loan'].includes(a.type)) totalLiab += Math.abs(newBal);
+      else totalAss += newBal;
+
+      return {
+        account_id: a.id,
+        account_name: a.name,
+        account_type: a.type,
+        old_balance: oldBal,
+        new_balance: newBal,
+        diff: newBal - oldBal
+      };
     });
+
     localStore.saveAccounts(accs);
+
+    const newSnap: AssetSnapshot = {
+      id: `snap-${Date.now()}`,
+      snapshot_date: data.snapshot_date,
+      total_assets: totalAss,
+      total_liabilities: totalLiab,
+      net_worth: totalAss - totalLiab,
+      accounts_data: accsData,
+      notes: data.notes
+    };
+    snapshots.unshift(newSnap);
+    localStore.saveSnapshots(snapshots);
+
     return { success: true, message: '快照已保存' };
   },
   getRecurringRules: async (): Promise<RecurringRule[]> => {
-    return [];
+    return localStore.getRecurringRules();
   },
   addRecurringRule: async (data: Partial<RecurringRule>) => {
-    return {
+    const rules = localStore.getRecurringRules();
+    const newR: RecurringRule = {
       id: `rec-${Date.now()}`,
       name: data.name || '周期规则',
       type: data.type || 'expense',
       amount: data.amount || 0,
       account_id: data.account_id || 'acc-1',
+      to_account_id: data.to_account_id,
+      category_id: data.category_id,
       frequency: data.frequency || 'monthly',
       day_of_period: data.day_of_period || 1,
-      is_active: 1
+      is_active: 1,
+      note: data.note
     };
+    rules.push(newR);
+    localStore.saveRecurringRules(rules);
+    return newR;
   },
   executeRecurringRules: async () => {
-    return { success: true, executed_count: 0 };
+    const { executeClientRecurringRules } = await import('../services/analyticsEngine');
+    const count = await executeClientRecurringRules();
+    return { success: true, executed_count: count };
   },
   parseText: async (text: string): Promise<ParsedTransactionResult> => {
     const accs = localStore.getAccounts();

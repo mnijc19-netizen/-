@@ -11,6 +11,7 @@ import { AiHubModal } from './components/AiHubModal';
 import { AiChatAssistantModal } from './components/AiChatAssistantModal';
 import { UniversalQuickAddModal } from './components/UniversalQuickAddModal';
 import { BatchBalanceOcrModal } from './components/BatchBalanceOcrModal';
+import { OnboardingGuideModal } from './components/OnboardingGuideModal';
 
 // Pages
 import { Dashboard } from './pages/Dashboard';
@@ -39,7 +40,7 @@ import {
   DashboardAnalytics 
 } from './types';
 import { PageId } from './components/Sidebar';
-import { CheckCircle2, Zap } from 'lucide-react';
+import { CheckCircle2, Zap, Undo2, Sparkles } from 'lucide-react';
 
 export function App() {
   const [currentPage, setCurrentPage] = useState<PageId>('dashboard');
@@ -71,12 +72,11 @@ export function App() {
   const [iphoneShortcutOpen, setIphoneShortcutOpen] = useState(false);
   const [aiHubOpen, setAiHubOpen] = useState(false);
   const [aiChatOpen, setAiChatOpen] = useState(false);
+  const [onboardingOpen, setOnboardingOpen] = useState(false);
 
   // Auto Automation Toast
   const [autoToastMsg, setAutoToastMsg] = useState<string | null>(null);
-
-  // Debug panel for URL auto-ingest diagnostics (visible on page)
-  const [debugInfo, setDebugInfo] = useState<string | null>(null);
+  const [lastCreatedTxId, setLastCreatedTxId] = useState<string | null>(null);
 
   // Clipboard overlay: shown when ?cb=1 and auto-read fails
   const [showClipboardOverlay, setShowClipboardOverlay] = useState(false);
@@ -151,6 +151,9 @@ export function App() {
       setInvestments(investmentsData);
       setDebts(debtsData);
       setGoals(goalsData);
+
+      // Check recurring scheduled items
+      api.executeRecurringRules().catch(() => {});
     } catch (e) {
       console.error('Data load error:', e);
     } finally {
@@ -160,10 +163,6 @@ export function App() {
 
   // Check URL automation parameter on startup (iPhone Action Button / Shortcuts trigger)
   useEffect(() => {
-    // Capture the original URL before anything modifies it
-    const originalHref = window.location.href;
-    const originalSearch = window.location.search;
-
     const init = async () => {
       try {
         const res = await checkAndHandleUrlAutoIngest();
@@ -171,11 +170,9 @@ export function App() {
         if (res && res.triggered) {
           if (res.success) {
             setAutoToastMsg(res.message);
-            setDebugInfo(null);
             confetti({ particleCount: 80, spread: 60, origin: { y: 0.2 } });
             setTimeout(() => setAutoToastMsg(null), 6000);
           } else if (res.showClipboardButton) {
-            // Clipboard mode: need user gesture to read clipboard
             setShowClipboardOverlay(true);
           } else {
             setAutoToastMsg(res.message);
@@ -204,21 +201,36 @@ export function App() {
     };
   }, []);
 
+  const handleUndoLastTx = async () => {
+    if (!lastCreatedTxId) return;
+    try {
+      await api.deleteTransaction(lastCreatedTxId);
+      setLastCreatedTxId(null);
+      setAutoToastMsg('🗑️ 已成功撤销该笔记账！');
+      confetti({ particleCount: 40, spread: 40, origin: { y: 0.2 } });
+      setTimeout(() => setAutoToastMsg(null), 3000);
+      await loadAllData();
+    } catch (e: any) {
+      alert(`撤销失败: ${e.message}`);
+    }
+  };
+
   // Handle clipboard button tap (provides user gesture for clipboard API)
   const handleClipboardIngest = async () => {
     setShowClipboardOverlay(false);
     try {
       const clipText = await navigator.clipboard.readText();
       if (clipText && clipText.trim()) {
-        const accounts = localStore.getAccounts();
-        const categories = localStore.getCategories();
-        const extracted = extractFromRawText(clipText, accounts);
+        const currentAccounts = localStore.getAccounts();
+        const currentCategories = localStore.getCategories();
+        const extracted = extractFromRawText(clipText, currentAccounts);
 
         if (extracted.amount > 0) {
-          const catObj = categories.find(c => c.name === extracted.category);
-          const accountId = extracted.accountId || accounts[0]?.id || 'acc-1';
+          const catObj = currentCategories.find(c => c.name === extracted.category);
+          const accountId = extracted.accountId || currentAccounts[0]?.id || 'acc-1';
+          const matchedAcc = currentAccounts.find(a => a.id === accountId) || currentAccounts[0];
 
-          await api.createTransaction({
+          const created = await api.createTransaction({
             type: 'expense',
             amount: extracted.amount,
             account_id: accountId,
@@ -230,9 +242,14 @@ export function App() {
             source: 'ios_shortcut'
           });
 
-          setAutoToastMsg(`🎉 已自动记账：${extracted.merchant} ¥${extracted.amount.toFixed(2)}`);
+          const remainingBal = (matchedAcc?.balance || 0) - extracted.amount;
+          setLastCreatedTxId(created.id);
+          setAutoToastMsg(`🎉 已自动记账：${extracted.merchant} -¥${extracted.amount.toFixed(2)}，【${matchedAcc?.name || '账户'}】剩余 ¥${remainingBal.toFixed(2)}`);
           confetti({ particleCount: 80, spread: 60, origin: { y: 0.2 } });
-          setTimeout(() => setAutoToastMsg(null), 6000);
+          setTimeout(() => {
+            setAutoToastMsg(null);
+            setLastCreatedTxId(null);
+          }, 6000);
           await loadAllData();
         } else {
           setAutoToastMsg('❌ 剪贴板中未识别到金额');
@@ -274,20 +291,34 @@ export function App() {
 
       {/* Mobile App Shell Wrapper */}
       <div className="w-full max-w-md mx-auto min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col shadow-2xl relative z-10">
-        {/* Top Automation Toast (Safe from Dynamic Island) */}
+        {/* Top Automation Toast (Safe from Dynamic Island with Undo Button) */}
         {autoToastMsg && (
           <div className="fixed top-[calc(env(safe-area-inset-top,48px)+0.75rem)] left-4 right-4 z-50 max-w-md mx-auto p-3.5 sm:p-4 rounded-2xl bg-emerald-600/95 dark:bg-emerald-600/95 backdrop-blur-md text-white font-bold text-xs shadow-2xl shadow-emerald-500/25 border border-emerald-400/30 flex items-center justify-between gap-2.5 animate-in slide-in-from-top duration-300">
-            <div className="flex items-center gap-2 min-w-0">
+            <div className="flex items-center gap-2 min-w-0 flex-1">
               <CheckCircle2 className="w-5 h-5 flex-shrink-0 text-emerald-100" />
               <span className="truncate">{autoToastMsg}</span>
             </div>
-            <button 
-              type="button"
-              onClick={() => setAutoToastMsg(null)} 
-              className="p-1 rounded-lg text-white/80 hover:text-white hover:bg-white/20 transition flex-shrink-0"
-            >
-              ✕
-            </button>
+
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              {lastCreatedTxId && (
+                <button
+                  type="button"
+                  onClick={handleUndoLastTx}
+                  className="px-2.5 py-1 rounded-xl bg-white/20 hover:bg-rose-500 hover:text-white text-emerald-100 text-[10px] font-bold transition flex items-center gap-1 active:scale-95"
+                  title="撤销这笔记账"
+                >
+                  <Undo2 className="w-3 h-3" />
+                  <span>5秒撤销</span>
+                </button>
+              )}
+              <button 
+                type="button"
+                onClick={() => setAutoToastMsg(null)} 
+                className="p-1 rounded-lg text-white/80 hover:text-white hover:bg-white/20 transition"
+              >
+                ✕
+              </button>
+            </div>
           </div>
         )}
 
@@ -323,6 +354,10 @@ export function App() {
                       setCurrentPage(p);
                     }
                   }}
+                  onOpenQuickTx={() => setUniversalQuickAddOpen(true)}
+                  onOpenBatchBalance={() => setBatchBalanceOcrOpen(true)}
+                  onOpenAiChat={() => setAiChatOpen(true)}
+                  onOpenOnboarding={() => setOnboardingOpen(true)}
                 />
               )}
 
@@ -397,6 +432,7 @@ export function App() {
                   liquidGlass={liquidGlass}
                   onToggleLiquidGlass={(val) => setLiquidGlass(val)}
                   onNavigate={(val) => setCurrentPage(val as any)}
+                  onOpenOnboarding={() => setOnboardingOpen(true)}
                 />
               )}
             </>
@@ -424,6 +460,19 @@ export function App() {
         onSelectBatchBalance={() => setBatchBalanceOcrOpen(true)}
         onSelectSnapshot={() => setSnapshotOpen(true)}
         onClipboardIngest={handleClipboardIngest}
+      />
+
+      {/* Onboarding Guide Modal */}
+      <OnboardingGuideModal
+        isOpen={onboardingOpen}
+        onClose={() => {
+          setOnboardingOpen(false);
+          localStore.saveOnboardingCompleted(true);
+        }}
+        onOpenBatchBalance={() => setBatchBalanceOcrOpen(true)}
+        onOpenBudgets={() => setCurrentPage('budgets')}
+        onOpenIphoneShortcut={() => setIphoneShortcutOpen(true)}
+        onOpenAiChat={() => setAiChatOpen(true)}
       />
 
       {/* Global Modals */}

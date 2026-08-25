@@ -1,0 +1,68 @@
+{
+  "url": "https://mnijc19-netizen.github.io/-/",
+  "timestamp": "2026-08-25T17:10:34.199Z",
+  "tests": {
+    "pageLoad": {
+      "title": "斌斌账本",
+      "success": true
+    },
+    "aiModalOpen": {
+      "success": true
+    },
+    "multiImageUpload": {
+      "thumbnailCount": 2,
+      "badges": [
+        "#1",
+        "#2"
+      ],
+      "deleteBtnCount": 2,
+      "hasAddMoreBtn": true,
+      "countLabelText": "已选 2 张图片"
+    },
+    "imageRemoval": {
+      "countAfterRemoval": 1,
+      "success": true
+    },
+    "aiActionCard": {
+      "found": true,
+      "hasTitle": true,
+      "hasType": true,
+      "hasAccountName": true,
+      "hasBalance": true,
+      "hasNavigateBtn": true,
+      "hasUndoBtn": true,
+      "cardFullTextSnippet": "✨ 已成功开立新资产账户\n📈 投资/基金持仓\n华泰证券/基金持仓\n已同步录入初始资产并记入总资产\n¥1,966.65\n前往资产账户查看\n撤销"
+    },
+    "accountsPage": {
+      "hasFundAccOnUI": true,
+      "hasBalanceOnUI": true,
+      "createdAccInStorage": {
+        "id": "acc-1787677844049",
+        "name": "华泰证券/基金持仓",
+        "type": "investment",
+        "currency": "CNY",
+        "balance": 3933.3,
+        "initial_balance": 1966.65,
+        "is_active": 1,
+        "note": "由 AI 智能管家根据指令自动创建"
+      },
+      "totalAccountsCount": 5
+    },
+    "visualAudit": {
+      "darkModeCaptured": true,
+      "mobileCaptured": true,
+      "mobileNav": {
+        "hasMobileNav": true,
+        "navButtons": [
+          "首页",
+          "资产",
+          "",
+          "明细",
+          "我的"
+        ]
+      }
+    }
+  },
+  "consoleErrors": [],
+  "pageErrors": []
+}

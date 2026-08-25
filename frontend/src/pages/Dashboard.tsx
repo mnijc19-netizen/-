@@ -9,7 +9,11 @@ import {
   ArrowDownRight, 
   ChevronRight,
   Eye,
-  EyeOff
+  EyeOff,
+  Sparkles,
+  Camera,
+  Plus,
+  Bot
 } from 'lucide-react';
 import { DashboardAnalytics, Transaction, Account } from '../types';
 
@@ -20,6 +24,10 @@ interface DashboardProps {
   privacyMode: boolean;
   onTogglePrivacy: () => void;
   onNavigateTo: (page: any) => void;
+  onOpenQuickTx?: () => void;
+  onOpenBatchBalance?: () => void;
+  onOpenAiChat?: () => void;
+  onOpenOnboarding?: () => void;
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({
@@ -28,7 +36,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
   transactions,
   privacyMode,
   onTogglePrivacy,
-  onNavigateTo
+  onNavigateTo,
+  onOpenQuickTx,
+  onOpenBatchBalance,
+  onOpenAiChat,
+  onOpenOnboarding
 }) => {
   if (!analytics) {
     return (
@@ -40,9 +52,32 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
   const recentTransactions = transactions.slice(0, 10);
   const netSurplus = analytics.month_summary.income - analytics.month_summary.expense;
+  const isBrandNew = transactions.length === 0 && analytics.total_assets === 0;
 
   return (
     <div className="space-y-3.5 pb-32 animate-in fade-in duration-200 max-w-lg mx-auto">
+      {/* New User Welcome / Onboarding Card if Ledger is Brand New */}
+      {isBrandNew && (
+        <div className="p-3.5 rounded-3xl bg-gradient-to-r from-purple-600 via-indigo-600 to-pink-600 text-white shadow-lg shadow-indigo-500/20 flex items-center justify-between gap-3 animate-in slide-in-from-top duration-300">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0">
+              <Sparkles className="w-4 h-4 text-white" />
+            </div>
+            <div className="min-w-0">
+              <div className="text-xs font-bold truncate">✨ 3步开启极智财务管家</div>
+              <div className="text-[10px] text-purple-100/90 truncate">批量截图识余额 · 零摩擦记账</div>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onOpenOnboarding}
+            className="px-3 py-1.5 rounded-xl bg-white text-purple-900 font-bold text-[10px] shadow-sm hover:bg-purple-50 transition active:scale-95 flex-shrink-0"
+          >
+            开启向导
+          </button>
+        </div>
+      )}
+
       {/* 1. Sleek Modern Financial Hero Card (with Privacy Eye Toggle) */}
       <div className="p-5 rounded-3xl bg-gradient-to-br from-emerald-600 via-teal-700 to-slate-900 text-white shadow-xl shadow-emerald-500/10 relative overflow-hidden space-y-4">
         <div className="flex items-center justify-between text-emerald-100 text-xs">
@@ -103,7 +138,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
           <div className="p-2 rounded-2xl bg-white/10 backdrop-blur-md space-y-0.5">
             <div className="text-teal-100 text-[10px] flex items-center gap-0.5">
-              <span>结余</span>
+              <span>期间结余</span>
             </div>
             <div className={`text-xs font-bold font-mono truncate ${netSurplus >= 0 ? 'text-emerald-200' : 'text-rose-200'}`}>
               {privacyMode ? '¥ ••••' : `${netSurplus >= 0 ? '+' : ''}¥${netSurplus.toFixed(2)}`}
@@ -127,16 +162,39 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </div>
 
         {recentTransactions.length === 0 ? (
-          <div className="py-8 text-center space-y-2">
+          <div className="py-6 text-center space-y-3">
             <div className="w-10 h-10 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-400 flex items-center justify-center mx-auto">
               <ReceiptText className="w-5 h-5" />
             </div>
-            <div className="text-xs font-bold text-slate-700 dark:text-slate-300">
-              暂无记账记录
+            <div className="space-y-0.5">
+              <div className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                暂无记账记录
+              </div>
+              <p className="text-[10px] text-slate-400">
+                选择一种快捷方式，立即开启全新账本：
+              </p>
             </div>
-            <p className="text-[10px] text-slate-400">
-              点击下方「+」按钮，开启极速记账！
-            </p>
+
+            {/* Quick Action Pills for Empty State */}
+            <div className="grid grid-cols-2 gap-2 max-w-xs mx-auto pt-1">
+              <button
+                type="button"
+                onClick={onOpenBatchBalance}
+                className="p-2.5 rounded-2xl bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800 text-purple-700 dark:text-purple-300 text-[11px] font-bold flex items-center justify-center gap-1.5 hover:bg-purple-100 transition active:scale-95"
+              >
+                <Camera className="w-3.5 h-3.5 text-purple-600" />
+                <span>📸 多图批量开账</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={onOpenQuickTx}
+                className="p-2.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 text-[11px] font-bold flex items-center justify-center gap-1.5 hover:bg-emerald-100 transition active:scale-95"
+              >
+                <Plus className="w-3.5 h-3.5 text-emerald-600" />
+                <span>⚡ 记第一笔账</span>
+              </button>
+            </div>
           </div>
         ) : (
           <div className="divide-y divide-slate-100 dark:divide-slate-800">

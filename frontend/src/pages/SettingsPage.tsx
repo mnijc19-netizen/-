@@ -28,7 +28,10 @@ import {
   Target,
   CreditCard,
   TrendingUp,
-  BarChart3
+  BarChart3,
+  Cloud,
+  CloudUpload,
+  Server
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { api } from '../api/client';
@@ -36,6 +39,7 @@ import { RecurringRule, Account, Category } from '../types';
 import { getBeijingDateString } from '../utils/dateUtils';
 import { localStore, AiConfig, DEFAULT_AI_CONFIG } from '../services/localStore';
 import { AI_PROVIDERS, testAiConnection, AiTestResult } from '../services/aiParser';
+import { webdavSync, WebDavConfig } from '../services/webdavSync';
 
 interface SettingsPageProps {
   accounts: Account[];
@@ -44,6 +48,7 @@ interface SettingsPageProps {
   liquidGlass?: boolean;
   onToggleLiquidGlass?: (val: boolean) => void;
   onNavigate?: (page: string) => void;
+  onOpenOnboarding?: () => void;
 }
 
 export const SettingsPage: React.FC<SettingsPageProps> = ({ 
@@ -52,7 +57,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   onRefresh,
   liquidGlass = false,
   onToggleLiquidGlass,
-  onNavigate
+  onNavigate,
+  onOpenOnboarding
 }) => {
   const [recurringRules, setRecurringRules] = useState<RecurringRule[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
@@ -74,6 +80,14 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   const [aiTestResult, setAiTestResult] = useState<AiTestResult | null>(null);
   const [testingAi, setTestingAi] = useState(false);
   const [aiSaved, setAiSaved] = useState(false);
+
+  // ☁️ WebDAV Cloud Sync State
+  const [webDavConfig, setWebDavConfig] = useState<WebDavConfig>(() => localStore.getWebDavConfig());
+  const [webDavModalOpen, setWebDavModalOpen] = useState(false);
+  const [webDavTesting, setWebDavTesting] = useState(false);
+  const [webDavTestResult, setWebDavTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [webDavSyncing, setWebDavSyncing] = useState(false);
+  const [webDavSaved, setWebDavSaved] = useState(false);
 
   const loadRecurring = () => {
     api.getRecurringRules().then(setRecurringRules).catch(() => {});
@@ -646,6 +660,28 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
             </label>
           </div>
         </div>
+
+        {/* ☁️ Private Cloud Sync (WebDAV / 坚果云) */}
+        <div className="p-4 rounded-2xl bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/40 dark:to-indigo-950/40 border border-blue-200 dark:border-blue-800 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Cloud className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+              <div className="font-bold text-xs text-blue-900 dark:text-blue-200">
+                ☁️ 私有云同步 (WebDAV / 坚果云)
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setWebDavModalOpen(true)}
+              className="px-2.5 py-1 rounded-xl bg-blue-600 text-white text-[10px] font-bold shadow-sm hover:bg-blue-500 transition active:scale-95 flex items-center gap-1"
+            >
+              <Server className="w-3 h-3" /> 配置云盘
+            </button>
+          </div>
+          <p className="text-[11px] text-blue-800/80 dark:text-blue-300">
+            支持坚果云、NextCloud 等任意 WebDAV 云盘，数据本地打包上传，实现跨设备安全漫游。
+          </p>
+        </div>
       </div>
 
       {/* Recurring Rules Section */}
@@ -801,6 +837,155 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* WebDAV Cloud Sync Modal */}
+      {webDavModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3.5 sm:p-4 bg-slate-950/75 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[85vh] my-auto">
+            {/* Modal Header */}
+            <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-gradient-to-r from-blue-500/10 via-indigo-500/10 to-transparent">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-blue-500/20 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+                  <Cloud className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                    WebDAV 私有云同步设置
+                  </h3>
+                  <p className="text-[11px] text-slate-400">
+                    支持坚果云 / NextCloud / 自建云盘
+                  </p>
+                </div>
+              </div>
+              <button 
+                type="button"
+                onClick={() => setWebDavModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1.5 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-5 overflow-y-auto space-y-3.5 flex-1 text-xs">
+              <div>
+                <label className="text-slate-500 dark:text-slate-400 block mb-1 font-bold">
+                  WebDAV 服务器地址 (URL)
+                </label>
+                <input
+                  type="text"
+                  value={webDavConfig.url}
+                  onChange={(e) => setWebDavConfig(prev => ({ ...prev, url: e.target.value }))}
+                  placeholder="例如: https://dav.jianguoyun.com/dav/SmartWealth/"
+                  className="w-full px-3 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-mono text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="text-slate-500 dark:text-slate-400 block mb-1 font-bold">
+                  云盘账号 / 邮箱
+                </label>
+                <input
+                  type="text"
+                  value={webDavConfig.user}
+                  onChange={(e) => setWebDavConfig(prev => ({ ...prev, user: e.target.value }))}
+                  placeholder="例如: your_email@example.com"
+                  className="w-full px-3 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="text-slate-500 dark:text-slate-400 block mb-1 font-bold">
+                  应用授权密码 (App Password)
+                </label>
+                <input
+                  type="password"
+                  value={webDavConfig.pass}
+                  onChange={(e) => setWebDavConfig(prev => ({ ...prev, pass: e.target.value }))}
+                  placeholder="在坚果云【账户信息】➔【安全选项】中生成的应用密码"
+                  className="w-full px-3 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                />
+              </div>
+
+              {/* Test Connection Results Badge */}
+              {webDavTestResult && (
+                <div className={`p-3 rounded-xl text-xs font-bold flex items-center gap-2 ${
+                  webDavTestResult.success 
+                    ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-300 border border-emerald-500/30'
+                    : 'bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-300 border border-rose-500/30'
+                }`}>
+                  <Activity className="w-4 h-4 flex-shrink-0" />
+                  <span>{webDavTestResult.message}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer Actions */}
+            <div className="p-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-800/40">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  disabled={webDavTesting}
+                  onClick={async () => {
+                    setWebDavTesting(true);
+                    setWebDavTestResult(null);
+                    try {
+                      const res = await webdavSync.testConnection(webDavConfig);
+                      setWebDavTestResult(res);
+                      if (res.success) confetti({ particleCount: 40, spread: 40, origin: { y: 0.7 } });
+                    } catch (e: any) {
+                      setWebDavTestResult({ success: false, message: e.message || '连接失败' });
+                    } finally {
+                      setWebDavTesting(false);
+                    }
+                  }}
+                  className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 text-slate-700 dark:text-slate-200 font-bold transition flex items-center gap-1 active:scale-95 text-xs"
+                >
+                  <Cpu className="w-3.5 h-3.5" />
+                  {webDavTesting ? '测试中...' : '测试连接'}
+                </button>
+
+                <button
+                  type="button"
+                  disabled={webDavSyncing || !webDavConfig.url}
+                  onClick={async () => {
+                    setWebDavSyncing(true);
+                    try {
+                      const res = await webdavSync.uploadBackup(webDavConfig);
+                      alert(res.message);
+                      confetti({ particleCount: 60, spread: 50, origin: { y: 0.7 } });
+                    } catch (e: any) {
+                      alert(e.message);
+                    } finally {
+                      setWebDavSyncing(false);
+                    }
+                  }}
+                  className="px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold transition flex items-center gap-1 active:scale-95 text-xs disabled:opacity-40"
+                >
+                  <CloudUpload className="w-3.5 h-3.5" />
+                  {webDavSyncing ? '上传中...' : '立即云备份'}
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  localStore.saveWebDavConfig(webDavConfig);
+                  setWebDavSaved(true);
+                  setTimeout(() => {
+                    setWebDavSaved(false);
+                    setWebDavModalOpen(false);
+                  }, 600);
+                }}
+                className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold transition flex items-center gap-1 shadow-md shadow-blue-500/20 active:scale-95 text-xs"
+              >
+                {webDavSaved ? <Check className="w-3.5 h-3.5" /> : <Sparkles className="w-3.5 h-3.5" />}
+                {webDavSaved ? '已保存！' : '保存配置'}
+              </button>
+            </div>
           </div>
         </div>
       )}
