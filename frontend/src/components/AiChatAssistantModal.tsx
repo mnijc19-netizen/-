@@ -518,7 +518,15 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
       timestamp: getBeijingDateTimeString()
     };
 
-    setMessages(prev => [...prev, userMsg]);
+    const assistantMsgId = `asst-${Date.now()}`;
+    const initialAssistantMsg: AgentChatMessage = {
+      id: assistantMsgId,
+      role: 'assistant',
+      content: '✨ 正在思考并分析账本...',
+      timestamp: getBeijingDateTimeString()
+    };
+
+    setMessages(prev => [...prev, userMsg, initialAssistantMsg]);
     if (!textToSend) setInputText('');
     setLoading(true);
 
@@ -534,7 +542,18 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
         budgets,
         recurringRules,
         investments,
-        debts
+        debts,
+        (streamedText) => {
+          // Live typewriter text update in real-time
+          if (streamedText && streamedText.trim()) {
+            setMessages(prev => prev.map(m => {
+              if (m.id === assistantMsgId) {
+                return { ...m, content: streamedText };
+              }
+              return m;
+            }));
+          }
+        }
       );
 
       let pendingAction: any = undefined;
@@ -578,31 +597,33 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
         } else {
           // All data creation / modifications are STAGED for user editable confirmation!
           pendingAction = {
-            type: act.type,
-            status: 'staged',
-            payload: act.payload
+            ...act,
+            status: 'staged'
           };
         }
       }
 
-      const assistantMsg: AgentChatMessage = {
-        id: `assistant-${Date.now()}`,
-        role: 'assistant',
-        content: response.reply,
-        timestamp: getBeijingDateTimeString(),
-        pendingAction,
-        actionResult
-      };
-
-      setMessages(prev => [...prev, assistantMsg]);
+      setMessages(prev => prev.map(m => {
+        if (m.id === assistantMsgId) {
+          return {
+            ...m,
+            content: response.reply,
+            pendingAction,
+            actionResult
+          };
+        }
+        return m;
+      }));
     } catch (err: any) {
-      const errMsg: AgentChatMessage = {
-        id: `err-${Date.now()}`,
-        role: 'assistant',
-        content: `❌ 请求遇到问题：${err.message || '请检查 AI API Key 与网络连接'}`,
-        timestamp: getBeijingDateTimeString()
-      };
-      setMessages(prev => [...prev, errMsg]);
+      setMessages(prev => prev.map(m => {
+        if (m.id === assistantMsgId) {
+          return {
+            ...m,
+            content: `❌ 请求遇到问题：${err.message || '请检查 AI API Key 与网络连接'}`
+          };
+        }
+        return m;
+      }));
     } finally {
       setLoading(false);
     }
