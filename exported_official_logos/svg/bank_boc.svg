@@ -1,9 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
-  <rect width="1024" height="1024" rx="220" fill="#B60005" />
-  <g transform="translate(512, 450)">
-    <circle cx="0" cy="0" r="280" fill="none" stroke="#FFFFFF" stroke-width="55" />
-    <rect x="-110" y="-110" width="220" height="220" fill="none" stroke="#FFFFFF" stroke-width="50" />
-    <line x1="0" y1="-280" x2="0" y2="280" stroke="#FFFFFF" stroke-width="50" />
-  </g>
-  <text x="512" y="870" fill="#FFFFFF" font-size="75" font-weight="bold" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif">中国银行</text>
-</svg>

@@ -1,8 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 220" width="700" height="220">
-  <g transform="translate(30, 20)">
-    <rect width="180" height="180" rx="42" fill="#FFD000"/>
-    <text x="90" y="118" font-family="Microsoft YaHei, sans-serif" font-size="56" font-weight="900" fill="#222222" text-anchor="middle">月付</text>
-  </g>
-  <text x="240" y="110" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="64" font-weight="bold" fill="#222222" letter-spacing="4">美团月付</text>
-  <text x="242" y="152" font-family="Microsoft YaHei, sans-serif" font-size="22" font-weight="500" fill="#666666">美团官方消费信贷 · 本月买 · 下月还</text>
-</svg>

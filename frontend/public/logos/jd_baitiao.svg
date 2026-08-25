@@ -1,8 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 220" width="700" height="220">
-  <g transform="translate(30, 20)">
-    <rect width="180" height="180" rx="42" fill="#E1251B"/>
-    <text x="90" y="118" font-family="Microsoft YaHei, sans-serif" font-size="62" font-weight="900" fill="#FFFFFF" text-anchor="middle">白条</text>
-  </g>
-  <text x="240" y="110" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="64" font-weight="bold" fill="#E1251B" letter-spacing="4">京东白条</text>
-  <text x="242" y="152" font-family="Microsoft YaHei, sans-serif" font-size="22" font-weight="500" fill="#888888">先消费 · 后付款 · 消费信贷</text>
-</svg>
