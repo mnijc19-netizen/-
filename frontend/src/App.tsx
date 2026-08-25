@@ -9,6 +9,8 @@ import { ImageOcrModal } from './components/ImageOcrModal';
 import { IphoneShortcutModal } from './components/IphoneShortcutModal';
 import { AiHubModal } from './components/AiHubModal';
 import { AiChatAssistantModal } from './components/AiChatAssistantModal';
+import { UniversalQuickAddModal } from './components/UniversalQuickAddModal';
+import { BatchBalanceOcrModal } from './components/BatchBalanceOcrModal';
 
 // Pages
 import { Dashboard } from './pages/Dashboard';
@@ -49,10 +51,12 @@ export function App() {
   });
 
   // Modals
+  const [universalQuickAddOpen, setUniversalQuickAddOpen] = useState(false);
   const [smartParserOpen, setSmartParserOpen] = useState(false);
   const [quickTxOpen, setQuickTxOpen] = useState(false);
   const [snapshotOpen, setSnapshotOpen] = useState(false);
   const [imageOcrOpen, setImageOcrOpen] = useState(false);
+  const [batchBalanceOcrOpen, setBatchBalanceOcrOpen] = useState(false);
   const [iphoneShortcutOpen, setIphoneShortcutOpen] = useState(false);
   const [aiHubOpen, setAiHubOpen] = useState(false);
   const [aiChatOpen, setAiChatOpen] = useState(false);
@@ -281,11 +285,6 @@ export function App() {
           analytics={analytics}
           darkMode={darkMode}
           onToggleDarkMode={() => setDarkMode(prev => !prev)}
-          onOpenSmartParser={() => setSmartParserOpen(true)}
-          onOpenQuickTx={() => setQuickTxOpen(true)}
-          onOpenSnapshot={() => setSnapshotOpen(true)}
-          onOpenImageOcr={() => setImageOcrOpen(true)}
-          onOpenAiHub={() => setAiHubOpen(true)}
           onOpenAiChat={() => setAiChatOpen(true)}
           onReload={loadAllData}
         />
@@ -306,13 +305,6 @@ export function App() {
                   budgets={budgets}
                   goals={goals}
                   onRefresh={loadAllData}
-                  onOpenSmartParser={() => setSmartParserOpen(true)}
-                  onOpenQuickTx={() => setQuickTxOpen(true)}
-                  onOpenSnapshot={() => setSnapshotOpen(true)}
-                  onOpenImageOcr={() => setImageOcrOpen(true)}
-                  onOpenAiHub={() => setAiHubOpen(true)}
-                  onOpenAiChat={() => setAiChatOpen(true)}
-                  onClipboardIngest={handleClipboardIngest}
                   onNavigateTo={(p) => {
                     if (p === 'iphone_shortcut') {
                       setIphoneShortcutOpen(true);
@@ -406,12 +398,31 @@ export function App() {
         currentPage={currentPage}
         onSelectPage={(p) => setCurrentPage(p)}
         onOpenSmartParser={() => setSmartParserOpen(true)}
-        onOpenQuickTx={() => setQuickTxOpen(true)}
+        onOpenQuickTx={() => setUniversalQuickAddOpen(true)}
         onOpenSnapshot={() => setSnapshotOpen(true)}
         onOpenImageOcr={() => setImageOcrOpen(true)}
       />
 
+      {/* Universal 5-in-1 Quick Add Action Sheet */}
+      <UniversalQuickAddModal
+        isOpen={universalQuickAddOpen}
+        onClose={() => setUniversalQuickAddOpen(false)}
+        onSelectManual={() => setQuickTxOpen(true)}
+        onSelectImageOcr={() => setImageOcrOpen(true)}
+        onSelectSmartParser={() => setSmartParserOpen(true)}
+        onSelectBatchBalance={() => setBatchBalanceOcrOpen(true)}
+        onSelectSnapshot={() => setSnapshotOpen(true)}
+        onClipboardIngest={handleClipboardIngest}
+      />
+
       {/* Global Modals */}
+      <BatchBalanceOcrModal
+        isOpen={batchBalanceOcrOpen}
+        onClose={() => setBatchBalanceOcrOpen(false)}
+        onSuccess={loadAllData}
+        existingAccounts={accounts}
+      />
+
       <ImageOcrModal
         isOpen={imageOcrOpen}
         onClose={() => setImageOcrOpen(false)}

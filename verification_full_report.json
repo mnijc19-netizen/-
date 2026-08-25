@@ -1,0 +1,84 @@
+{
+  "dashboardData": {
+    "title": "斌斌账本",
+    "netWorthCard": "斌斌账本\nPRO\n净资产: ¥0.00\nAI对话\n净资产总额 (CNY)\n实时汇总\n¥0.00\n本月收入\n+¥0.00\n本月支出\n-¥0.00\n📋 快捷指令 / 剪贴板一键极速入账\nAI\n\n长按侧边键截屏后，点此自动读取并瞬间入库\n\n💬 斌斌 AI 对话管家\nBETA\n\n文字聊天直接帮您记账、查账、定存钱计划\n\n✨ 智能大脑 & 实验室\nAI\n\nAI 财务体检报告 • 多笔提取\n\n📸 拍照/截屏识别\nAI\n扫小票或账单图片\n✨ 智能文本记账\nAI\n自然语言与短信解析\n⚡ 极速手动记账\n支出/收入/转账\n📸 懒人余额快照\n免逐笔记账对盘\n⚙️ 查看 iPhone 快捷指令与按键配置指南\n我的主要账户 (4)\n全部资产\n微信零钱/零钱通\n¥0.00\n支付宝/余额宝\n¥0.00\n主要银行储蓄卡\n¥0.00\n信用卡账户\n¥0.00\n最新记账明细\n查看全部\n账本已清空，准备就绪\n\n点击上方「📋 剪贴板一键存」或「拍照识别」，开启您的第一笔智能极速记账！\n\n首页\n资产\n明细\n我的",
+    "incomeText": "",
+    "expenseText": "",
+    "hasBudgetSection": false,
+    "budgetText": "",
+    "budgetButtons": [],
+    "budgetProgressBars": 0,
+    "hasGoalsSection": false,
+    "goalsText": "",
+    "goalsButtons": [],
+    "goalsProgressBars": 0,
+    "buttonsSnippet": [
+      "AI对话",
+      "📋 快捷指令 / 剪贴板一键极速入账\nAI\n\n长按侧边键截屏后，点此自动读取并瞬间入库",
+      "💬 斌斌 AI 对话管家\nBETA\n\n文字聊天直接帮您记账、查账、定存钱计划",
+      "✨ 智能大脑 & 实验室\nAI\n\nAI 财务体检报告 • 多笔提取",
+      "📸 拍照/截屏识别\nAI\n扫小票或账单图片",
+      "✨ 智能文本记账\nAI\n自然语言与短信解析",
+      "⚡ 极速手动记账\n支出/收入/转账",
+      "📸 懒人余额快照\n免逐笔记账对盘",
+      "⚙️ 查看 iPhone 快捷指令与按键配置指南",
+      "全部资产",
+      "查看全部",
+      "首页",
+      "资产",
+      "明细",
+      "我的"
+    ]
+  },
+  "transactionsData": {
+    "breakdownFound": false,
+    "breakdownText": "",
+    "hasCalibrationInBreakdown": false,
+    "summaryText": "",
+    "sampleTxRows": [
+      "所选时间区间内暂无符合条件的流水 可切换上方「本月 / 本周 / 全部」或点击「记一笔」"
+    ]
+  },
+  "settingsData": {
+    "hubFound": false,
+    "hubButtons": [],
+    "hubSnippet": "",
+    "hasAiSection": true,
+    "hasGlassSection": true
+  },
+  "hubBudgetsClick": {
+    "success": false,
+    "reason": "hub not found"
+  },
+  "navigatedBudgetsPageText": {
+    "pageTitle": "系统设置与数据中心",
+    "bodySnippet": "斌斌账本\nPRO\n净资产: ¥0.00\nAI对话\n系统设置与数据中心\n\n管理全量数据存储、备份还原、固定周期收支及实验室 AI 智能引擎\n\n🧪 实验室特性：AI 智能大模型\nAI\n\n未配置 • 点击接入 DeepSeek / 智谱 GLM-4V\n\n去配置\n🧪 实验室：iOS 液态毛玻璃 UI\nBETA\n\n开启 iOS 拟真磨砂液态玻璃与高光倒角质感\n\n演示数据与快速重置\n\n可以一键载入高拟真财务数据体验系统全部图表，或重置账本为干净的初始状态。\n\n载入全场景演示数据\n清空所有数据\n数据全量备份与还原\n导出全量 JSON 备份\n\n将所有账户、流水、分类、预算与持仓导出为单文件备份\n\n立即导出"
+  },
+  "mobileNavInfo": {
+    "hasBottomNav": true,
+    "bottomNavButtons": [
+      "首页",
+      "资产",
+      "",
+      "明细",
+      "我的"
+    ]
+  },
+  "darkModeResult": {
+    "isDarkBefore": false,
+    "themeBtnFound": false,
+    "themeBtnTitle": null,
+    "isDarkAfter": false
+  },
+  "consoleLogs": [
+    {
+      "type": "warn",
+      "text": "<meta name=\"apple-mobile-web-app-capable\" content=\"yes\"> is deprecated. Please include <meta name=\"mobile-web-app-capable\" content=\"yes\">"
+    },
+    {
+      "type": "warn",
+      "text": "<meta name=\"apple-mobile-web-app-capable\" content=\"yes\"> is deprecated. Please include <meta name=\"mobile-web-app-capable\" content=\"yes\">"
+    }
+  ],
+  "pageErrors": []
+}

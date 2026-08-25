@@ -1,0 +1,108 @@
+{
+  "dashboardVerification": {
+    "netWorthCard": "未识别到金额。收到文本: 1787674228592... | ✕ | 斌斌账本 | PRO | 净资产: ¥0.00 | AI对话 | 净资产总额 (CNY) | 实时汇总 | ¥0.00 | 本月日常收入 | +¥0.00 | 本月日常支出 | -¥0.00 | 📋 快捷指令 / 剪贴板一键极速入账 | AI | 截图或复制文本后，点此自动识别入库 | 💬 斌斌 AI 对话管家 | BETA | 自然语言/发图直接帮您记账、对账、定存钱计划 | ✨ 智能大脑 & 实验室 | AI | AI 财务体检报告 • 多图批量提取 | 月度预算监控 (未设置) | + 设定预算 | 💡 尚未设置月度支出上限 | 设定餐饮与日常预算，超支时 AI 自动预警防剁手 | 立即配置 | 储蓄计划与心愿目标 (未立项) | + 新建立项 | 🎯 设定您的第一个存钱目标 | 如【6个月存2万备用金】或【年终旅游心愿】 | 一键立项 | 📸 拍照记账 | AI | 扫小票或账单图片 | ✨ 智能文本记账 | AI | 自然语言与短信解析 | ⚡ 极速手动记账 | 支出/收入/转账 | 📸 懒人余额快照 | 免逐笔记账对盘 | 我的主要账户 (4) | 全部资产 | 微信零钱/零钱通 | ¥0.00 | 支付宝/余额宝 | ¥0.00 | 主要银行储蓄卡 | ¥0.00 | 信用卡账户 | ¥0.00 | 最新记账流水 | 查看全部 | 账本准备就绪 | 点击上方「📋 剪贴板入账」或「拍照记账」，开启您的第一笔记账！ | 首页 | 资产 | 明细 | 我的",
+    "incomeText": "未识别到金额。收到文本: 1787674228592... ✕ 斌斌账本 PRO 净资产: ¥0.00 AI对话 净资产总额 (CNY) 实时汇总 ¥0.00 本月日常收入 +¥0.00 本月日常支出 -¥0.00 📋 快捷指令 / 剪贴板一键极速入账 AI 截图或复制文本后，点此自动识别入库 💬 斌斌 AI 对话管家 BETA 自然语言/发图直接帮您记账、对账、定存钱计划 ✨ 智能大脑 & 实验室 AI AI 财务体检报告 • 多图批量提取 月度预算监控 (未设置) + 设定预算 💡 尚未设置月度支出上限 设定餐饮与日常预算，超支时 AI 自动预警防剁手 立即配置 储蓄计划与心愿目标 (未立项) + 新建立项 🎯 设定您的第一个存钱目标 如【6个月存2万备用金】或【年终旅游心愿】 一键立项 📸 拍照记账 AI 扫小票或账单图片 ✨ 智能文本记账 AI 自然语言与短信解析 ⚡ 极速手动记账 支出/收入/转账 📸 懒人余额快照 免逐笔记账对盘 我的主要账户 (4) 全部资产 微信零钱/零钱通 ¥0.00 支付宝/余额宝 ¥0.00 主要银行储蓄卡 ¥0.00 信用卡账户 ¥0.00 最新记账流水 查看全部 账本准备就绪 点击上方「📋 剪贴板入账」或「拍照记账」，开启您的第一笔记账！ 首页 资产 明细 我的",
+    "expenseText": "未识别到金额。收到文本: 1787674228592... ✕ 斌斌账本 PRO 净资产: ¥0.00 AI对话 净资产总额 (CNY) 实时汇总 ¥0.00 本月日常收入 +¥0.00 本月日常支出 -¥0.00 📋 快捷指令 / 剪贴板一键极速入账 AI 截图或复制文本后，点此自动识别入库 💬 斌斌 AI 对话管家 BETA 自然语言/发图直接帮您记账、对账、定存钱计划 ✨ 智能大脑 & 实验室 AI AI 财务体检报告 • 多图批量提取 月度预算监控 (未设置) + 设定预算 💡 尚未设置月度支出上限 设定餐饮与日常预算，超支时 AI 自动预警防剁手 立即配置 储蓄计划与心愿目标 (未立项) + 新建立项 🎯 设定您的第一个存钱目标 如【6个月存2万备用金】或【年终旅游心愿】 一键立项 📸 拍照记账 AI 扫小票或账单图片 ✨ 智能文本记账 AI 自然语言与短信解析 ⚡ 极速手动记账 支出/收入/转账 📸 懒人余额快照 免逐笔记账对盘 我的主要账户 (4) 全部资产 微信零钱/零钱通 ¥0.00 支付宝/余额宝 ¥0.00 主要银行储蓄卡 ¥0.00 信用卡账户 ¥0.00 最新记账流水 查看全部 账本准备就绪 点击上方「📋 剪贴板入账」或「拍照记账」，开启您的第一笔记账！ 首页 资产 明细 我的",
+    "budgets": {
+      "found": true,
+      "header": "月度预算监控 (未设置)",
+      "buttons": [
+        "+ 设定预算",
+        "立即配置"
+      ],
+      "itemsCount": 1,
+      "items": [
+        {
+          "text": "💡 尚未设置月度支出上限 | 设定餐饮与日常预算，超支时 AI 自动预警防剁手 | 立即配置",
+          "hasProgressBar": false
+        }
+      ]
+    },
+    "goals": {
+      "found": true,
+      "header": "储蓄计划与心愿目标 (未立项)",
+      "buttons": [
+        "+ 新建立项",
+        "一键立项"
+      ],
+      "itemsCount": 1,
+      "items": [
+        {
+          "text": "🎯 设定您的第一个存钱目标 | 如【6个月存2万备用金】或【年终旅游心愿】 | 一键立项",
+          "hasProgressBar": false
+        }
+      ]
+    }
+  },
+  "transactionsVerification": {
+    "breakdownCardFound": false,
+    "hasCalibrationInBreakdown": false,
+    "breakdownRowsSnippet": [],
+    "summaryCardText": "",
+    "sampleTransactions": []
+  },
+  "settingsVerification": {
+    "hubFound": true,
+    "hubTitle": "📱 财务系统功能快捷入口",
+    "hubButtons": [
+      "📊 月度预算 | 餐饮/日常限额预警",
+      "🎯 存钱目标 | 心愿单与备用金计划",
+      "📈 财务图表 | 桑基流向与收支透视",
+      "💳 负债与还款 | 雪球/雪崩还债规划",
+      "💰 投资持仓 | 股票基金浮动盈亏",
+      "🤖 智能识别 | 文本与短信自动解析"
+    ],
+    "hasAiCard": true,
+    "hasGlassCard": true
+  },
+  "routingTest": {
+    "月度预算": {
+      "clicked": true,
+      "navigatedTitle": ""
+    },
+    "存钱目标": {
+      "clicked": true,
+      "navigatedTitle": ""
+    },
+    "财务图表": {
+      "clicked": true,
+      "navigatedTitle": ""
+    },
+    "负债与还款": {
+      "clicked": true,
+      "navigatedTitle": ""
+    },
+    "投资持仓": {
+      "clicked": true,
+      "navigatedTitle": ""
+    }
+  },
+  "mobileNav": {
+    "exists": true,
+    "buttons": [
+      "首页",
+      "资产",
+      "",
+      "明细",
+      "我的"
+    ]
+  },
+  "darkModeToggle": {
+    "before": false,
+    "buttonFound": false,
+    "after": false
+  },
+  "consoleLogs": [
+    {
+      "type": "warn",
+      "text": "<meta name=\"apple-mobile-web-app-capable\" content=\"yes\"> is deprecated. Please include <meta name=\"mobile-web-app-capable\" content=\"yes\">"
+    },
+    {
+      "type": "warn",
+      "text": "<meta name=\"apple-mobile-web-app-capable\" content=\"yes\"> is deprecated. Please include <meta name=\"mobile-web-app-capable\" content=\"yes\">"
+    }
+  ],
+  "pageErrors": [
+    "TypeError: Cannot read properties of undefined (reading 'push')"
+  ]
+}

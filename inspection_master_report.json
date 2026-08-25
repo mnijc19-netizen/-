@@ -1,0 +1,122 @@
+{
+  "dashboardResult": {
+    "monthlyIncomeDisplay": "斌斌账本 PRO 净资产: ¥33,000.00 AI对话 净资产总额 (CNY) 实时汇总 ¥33,000.00 本月日常收入 +¥16000.00 本月日常支出 -¥500.00 📋 快捷指令 / 剪贴板一键极速入账 AI 截图或复制文本后，点此自动识别入库 💬 斌斌 AI 对话管家 BETA 自然语言/发图直接帮您记账、对账、定存钱计划 ✨ 智能大脑 & 实验室 AI AI 财务体检报告 • 多图批量提取 月度预算监控 (2项) 管理全部预算 餐饮美食 剩余 ¥1312.00 ¥188.00 / ¥1500.00 (13%) 日用百货 剩余 ¥688.00 ¥312.00 / ¥1000.00 (31%) 储蓄计划与心愿目标 (2个) 全部目标清单 6个月存2万备用金计划 40% 完成 已存 ¥8000.00 / 目标 ¥20000.00 截止 2026-12-31 年终全家海岛游心愿 33% 完成 已存 ¥5000.00 / 目标 ¥15000.00 截止 2026-12-25 📸 拍照记账 AI 扫小票或账单图片 ✨ 智能文本记账 AI 自然语言与短信解析 ⚡ 极速手动记账 支出/收入/转账 📸 懒人余额快照 免逐笔记账对盘 我的主要账户 (3) 全部资产 微信零钱/零钱通 ¥5000.00 支付宝/余额宝 ¥8000.00 主要银行储蓄卡 ¥20000.00 最新记账流水 查看全部 微信零钱 (余额校准) 08-26 10:00 • 微信零钱/零钱通 -¥50000.00 外婆家餐厅 08-26 12:30 • 微信零钱/零钱通 -¥188.00 山姆会员商店 08-26 15:45 • 支付宝/余额宝 -¥312.00 公司工资 08-26 09:00 • 主要银行储蓄卡 +¥16000.00 首页 资产 明细 我的",
+    "monthlyExpenseDisplay": "斌斌账本 PRO 净资产: ¥33,000.00 AI对话 净资产总额 (CNY) 实时汇总 ¥33,000.00 本月日常收入 +¥16000.00 本月日常支出 -¥500.00 📋 快捷指令 / 剪贴板一键极速入账 AI 截图或复制文本后，点此自动识别入库 💬 斌斌 AI 对话管家 BETA 自然语言/发图直接帮您记账、对账、定存钱计划 ✨ 智能大脑 & 实验室 AI AI 财务体检报告 • 多图批量提取 月度预算监控 (2项) 管理全部预算 餐饮美食 剩余 ¥1312.00 ¥188.00 / ¥1500.00 (13%) 日用百货 剩余 ¥688.00 ¥312.00 / ¥1000.00 (31%) 储蓄计划与心愿目标 (2个) 全部目标清单 6个月存2万备用金计划 40% 完成 已存 ¥8000.00 / 目标 ¥20000.00 截止 2026-12-31 年终全家海岛游心愿 33% 完成 已存 ¥5000.00 / 目标 ¥15000.00 截止 2026-12-25 📸 拍照记账 AI 扫小票或账单图片 ✨ 智能文本记账 AI 自然语言与短信解析 ⚡ 极速手动记账 支出/收入/转账 📸 懒人余额快照 免逐笔记账对盘 我的主要账户 (3) 全部资产 微信零钱/零钱通 ¥5000.00 支付宝/余额宝 ¥8000.00 主要银行储蓄卡 ¥20000.00 最新记账流水 查看全部 微信零钱 (余额校准) 08-26 10:00 • 微信零钱/零钱通 -¥50000.00 外婆家餐厅 08-26 12:30 • 微信零钱/零钱通 -¥188.00 山姆会员商店 08-26 15:45 • 支付宝/余额宝 -¥312.00 公司工资 08-26 09:00 • 主要银行储蓄卡 +¥16000.00 首页 资产 明细 我的",
+    "budgetsSection": {
+      "visible": true,
+      "headerText": "月度预算监控 (2项)",
+      "buttons": [
+        "管理全部预算"
+      ],
+      "items": [
+        {
+          "text": "餐饮美食 | 剩余 ¥1312.00 | ¥188.00 / ¥1500.00 (13%)",
+          "progressStyle": "width: 13%;"
+        },
+        {
+          "text": "日用百货 | 剩余 ¥688.00 | ¥312.00 / ¥1000.00 (31%)",
+          "progressStyle": "width: 31%;"
+        }
+      ]
+    },
+    "goalsSection": {
+      "visible": true,
+      "headerText": "储蓄计划与心愿目标 (2个)",
+      "buttons": [
+        "全部目标清单"
+      ],
+      "items": [
+        {
+          "text": "6个月存2万备用金计划 | 40% 完成 | 已存 ¥8000.00 / 目标 ¥20000.00 | 截止 2026-12-31",
+          "progressStyle": "width: 40%;"
+        },
+        {
+          "text": "年终全家海岛游心愿 | 33% 完成 | 已存 ¥5000.00 / 目标 ¥15000.00 | 截止 2026-12-25",
+          "progressStyle": "width: 33%;"
+        }
+      ]
+    }
+  },
+  "transactionsResult": {
+    "breakdownVisible": true,
+    "breakdownContainsCalibration": false,
+    "breakdownCategories": [
+      "日用百货 | ¥312.00 (62.4%)",
+      "餐饮美食 | ¥188.00 (37.6%)"
+    ],
+    "totalExpenseDisplay": "总支出 ¥500.00",
+    "totalIncomeDisplay": "总收入 ¥16000.00",
+    "netBalanceDisplay": "期间结余 +¥15500.00"
+  },
+  "settingsResult": {
+    "hubVisible": true,
+    "hubTitle": "📱 财务系统功能快捷入口",
+    "hubButtons": [
+      "📊 月度预算 | 餐饮/日常限额预警",
+      "🎯 存钱目标 | 心愿单与备用金计划",
+      "📈 财务图表 | 桑基流向与收支透视",
+      "💳 负债与还款 | 雪球/雪崩还债规划",
+      "💰 投资持仓 | 股票基金浮动盈亏",
+      "🤖 智能识别 | 文本与短信自动解析"
+    ]
+  },
+  "hubRoutingVerification": {
+    "月度预算": {
+      "clicked": true,
+      "navigatedH2": "",
+      "success": false
+    },
+    "存钱目标": {
+      "clicked": false,
+      "navigatedH2": "",
+      "success": false
+    },
+    "财务图表": {
+      "clicked": false,
+      "navigatedH2": "",
+      "success": false
+    },
+    "负债与还款": {
+      "clicked": false,
+      "navigatedH2": "",
+      "success": false
+    },
+    "投资持仓": {
+      "clicked": false,
+      "navigatedH2": "",
+      "success": false
+    }
+  },
+  "mobileNavResult": {
+    "visible": true,
+    "items": [
+      "首页",
+      "资产",
+      "",
+      "明细",
+      "我的"
+    ]
+  },
+  "darkModeResult": {
+    "before": false,
+    "buttonFound": true,
+    "after": false
+  },
+  "consoleLogs": [
+    {
+      "type": "warn",
+      "text": "<meta name=\"apple-mobile-web-app-capable\" content=\"yes\"> is deprecated. Please include <meta name=\"mobile-web-app-capable\" content=\"yes\">"
+    },
+    {
+      "type": "warn",
+      "text": "<meta name=\"apple-mobile-web-app-capable\" content=\"yes\"> is deprecated. Please include <meta name=\"mobile-web-app-capable\" content=\"yes\">"
+    },
+    {
+      "type": "warn",
+      "text": "<meta name=\"apple-mobile-web-app-capable\" content=\"yes\"> is deprecated. Please include <meta name=\"mobile-web-app-capable\" content=\"yes\">"
+    }
+  ],
+  "pageErrors": [
+    "TypeError: Cannot read properties of undefined (reading 'toFixed')"
+  ]
+}
