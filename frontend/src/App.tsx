@@ -237,20 +237,20 @@ export function App() {
       {liquidGlass && (
         <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
           <div 
-            className="absolute -top-12 -left-12 w-80 h-80 rounded-full bg-gradient-to-tr from-cyan-400/40 via-blue-500/35 to-indigo-500/40 blur-3xl animate-pulse" 
-            style={{ animationDuration: '7s' }} 
+            className="absolute -top-12 -left-12 w-80 h-80 rounded-full bg-gradient-to-tr from-sky-400/20 via-indigo-400/18 to-blue-500/20 blur-3xl animate-pulse" 
+            style={{ animationDuration: '8s' }} 
           />
           <div 
-            className="absolute top-1/4 -right-16 w-88 h-88 rounded-full bg-gradient-to-bl from-purple-500/40 via-pink-500/35 to-rose-400/35 blur-3xl animate-pulse" 
-            style={{ animationDuration: '9s', animationDelay: '1.5s' }} 
+            className="absolute top-1/4 -right-16 w-88 h-88 rounded-full bg-gradient-to-bl from-purple-400/20 via-fuchsia-400/18 to-pink-400/18 blur-3xl animate-pulse" 
+            style={{ animationDuration: '10s', animationDelay: '1.5s' }} 
           />
           <div 
-            className="absolute top-2/3 -left-16 w-80 h-80 rounded-full bg-gradient-to-tr from-emerald-400/35 via-teal-500/35 to-cyan-500/30 blur-3xl animate-pulse" 
-            style={{ animationDuration: '8s', animationDelay: '3s' }} 
+            className="absolute top-2/3 -left-16 w-80 h-80 rounded-full bg-gradient-to-tr from-teal-400/18 via-emerald-400/18 to-sky-400/15 blur-3xl animate-pulse" 
+            style={{ animationDuration: '9s', animationDelay: '3s' }} 
           />
           <div 
-            className="absolute -bottom-16 right-1/4 w-80 h-80 rounded-full bg-gradient-to-tl from-amber-400/30 via-orange-500/25 to-pink-500/30 blur-3xl animate-pulse" 
-            style={{ animationDuration: '10s', animationDelay: '4.5s' }} 
+            className="absolute -bottom-16 right-1/4 w-80 h-80 rounded-full bg-gradient-to-tl from-amber-400/15 via-rose-400/15 to-orange-400/15 blur-3xl animate-pulse" 
+            style={{ animationDuration: '11s', animationDelay: '4.5s' }} 
           />
         </div>
       )}
@@ -288,7 +288,7 @@ export function App() {
         />
 
         {/* Main Content Page */}
-        <main className="flex-1 p-3.5 sm:p-4 pb-28 overflow-y-auto">
+        <main className="flex-1 p-3.5 sm:p-4 pb-32">
           {loading ? (
             <div className="flex items-center justify-center h-80">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-500"></div>
@@ -391,16 +391,20 @@ export function App() {
             </>
           )}
         </main>
+      </div>
 
-        {/* Mobile Bottom Navigation Bar */}
-        <MobileBottomNav
-          currentPage={currentPage}
-          onSelectPage={(p) => setCurrentPage(p)}
-          onOpenSmartParser={() => setSmartParserOpen(true)}
-          onOpenQuickTx={() => setQuickTxOpen(true)}
-          onOpenSnapshot={() => setSnapshotOpen(true)}
-          onOpenImageOcr={() => setImageOcrOpen(true)}
-        />
+      {/* Mobile Bottom Navigation Bar (Guaranteed fixed to viewport on all pages) */}
+      <div className="fixed bottom-0 left-0 right-0 z-40 pointer-events-none">
+        <div className="w-full max-w-md mx-auto pointer-events-auto">
+          <MobileBottomNav
+            currentPage={currentPage}
+            onSelectPage={(p) => setCurrentPage(p)}
+            onOpenSmartParser={() => setSmartParserOpen(true)}
+            onOpenQuickTx={() => setQuickTxOpen(true)}
+            onOpenSnapshot={() => setSnapshotOpen(true)}
+            onOpenImageOcr={() => setImageOcrOpen(true)}
+          />
+        </div>
       </div>
 
       {/* Global Modals */}
