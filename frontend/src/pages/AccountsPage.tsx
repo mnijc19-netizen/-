@@ -395,16 +395,64 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({
             </div>
 
             <form onSubmit={handleSave} className="space-y-3 text-xs">
+              {/* Quick Brand Preset Chips */}
+              {!editingAccount && (
+                <div>
+                  <label className="text-slate-500 block mb-1.5 font-bold">✨ 点击快速选择品牌与机构</label>
+                  <div className="flex items-center gap-1.5 overflow-x-auto pb-2 scrollbar-none">
+                    {[
+                      { name: '微信零钱', type: 'wallet', bank: '微信支付' },
+                      { name: '支付宝', type: 'wallet', bank: '支付宝' },
+                      { name: '招商银行卡', type: 'bank', bank: '招商银行' },
+                      { name: '工商银行卡', type: 'bank', bank: '工商银行' },
+                      { name: '建设银行卡', type: 'bank', bank: '建设银行' },
+                      { name: '农业银行卡', type: 'bank', bank: '农业银行' },
+                      { name: '中国银行卡', type: 'bank', bank: '中国银行' },
+                      { name: '福建农信卡', type: 'bank', bank: '福建农信' },
+                      { name: '厦门银行卡', type: 'bank', bank: '厦门银行' },
+                      { name: '兴业银行卡', type: 'bank', bank: '兴业银行' },
+                      { name: '美团月付', type: 'meituan_pay', bank: '美团' },
+                      { name: '京东白条', type: 'baitiao', bank: '京东金融' },
+                      { name: '抖音月付', type: 'douyin_pay', bank: '抖音' },
+                      { name: '蚂蚁花呗', type: 'huabei', bank: '蚂蚁消金' },
+                      { name: '蚂蚁借呗', type: 'jiebei', bank: '蚂蚁借呗' },
+                      { name: '华泰证券', type: 'investment', bank: '华泰证券' },
+                      { name: '天天基金', type: 'investment', bank: '天天基金' },
+                      { name: '富途牛牛', type: 'investment', bank: '富途证券' },
+                    ].map(p => (
+                      <button
+                        key={p.name}
+                        type="button"
+                        onClick={() => {
+                          setName(p.name);
+                          setType(p.type as AccountType);
+                          setBankName(p.bank);
+                        }}
+                        className="flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:border-blue-500 hover:bg-blue-50/50 dark:hover:bg-blue-950/40 active:scale-95 transition text-[11px] font-medium text-slate-700 dark:text-slate-200"
+                      >
+                        <BrandLogo type={p.type} name={p.name} size="sm" />
+                        <span>{p.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div>
                 <label className="text-slate-500 block mb-1">账户名称</label>
-                <input
-                  type="text"
-                  required
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="例如：招商银行储蓄卡、富途美股"
-                  className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
-                />
+                <div className="flex items-center gap-2">
+                  <div className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center flex-shrink-0">
+                    <BrandLogo type={type} name={name || bankName} size="md" />
+                  </div>
+                  <input
+                    type="text"
+                    required
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="例如：招商银行储蓄卡、富途美股"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">

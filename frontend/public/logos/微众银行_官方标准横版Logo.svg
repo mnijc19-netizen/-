@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 750 220" width="750" height="220">
+  <g transform="translate(30, 20)">
+    <rect width="180" height="180" rx="42" fill="#0052D9"/>
+    <circle cx="90" cy="90" r="54" fill="none" stroke="#FFFFFF" stroke-width="12"/>
+    <path d="M65 95 Q90 125 115 95" stroke="#FFFFFF" stroke-width="12" stroke-linecap="round" fill="none"/>
+    <circle cx="72" cy="72" r="6" fill="#FFFFFF"/>
+    <circle cx="108" cy="72" r="6" fill="#FFFFFF"/>
+  </g>
+  <text x="240" y="105" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="58" font-weight="bold" fill="#0052D9" letter-spacing="3">微众银行</text>
+  <text x="242" y="150" font-family="Arial, sans-serif" font-size="22" font-weight="bold" fill="#888888" letter-spacing="1">WeBank · 腾讯发起设立的互联网银行</text>
+</svg>

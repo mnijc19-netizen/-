@@ -254,28 +254,19 @@ export const DebtsPage: React.FC<DebtsPageProps> = ({ debts, accounts, onRefresh
 
             <form onSubmit={handleSaveDebt} className="space-y-3 text-xs">
               <div>
-                <label className="text-slate-500 block mb-1">负债名称</label>
-                <input
-                  type="text"
-                  required
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="例如：招商银行信用卡账单、住房公积金贷款"
-                  className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
-                />
-              </div>
-
-              <div>
-                <label className="text-slate-500 block mb-1">快速选择现代消费信贷模板</label>
-                <div className="flex flex-wrap gap-1.5 mb-2">
+                <label className="text-slate-500 block mb-1 font-bold">✨ 快速选择消费信贷与负债模板</label>
+                <div className="flex items-center gap-1.5 overflow-x-auto pb-2 scrollbar-none">
                   {[
-                    { label: '🌸 蚂蚁花呗', type: 'huabei', name: '蚂蚁花呗账单', billDay: '1', repayDay: '10' },
-                    { label: '🐕 京东白条', type: 'baitiao', name: '京东白条账单', billDay: '1', repayDay: '20' },
-                    { label: '🦘 美团月付', type: 'meituan_pay', name: '美团月付账单', billDay: '1', repayDay: '8' },
-                    { label: '🎵 抖音月付', type: 'douyin_pay', name: '抖音月付账单', billDay: '1', repayDay: '6' },
-                    { label: '💰 蚂蚁借呗', type: 'jiebei', name: '蚂蚁借呗借款', billDay: '1', repayDay: '15' },
-                    { label: '💬 微信分付', type: 'fenfu', name: '微信分付借款', billDay: '1', repayDay: '25' },
-                    { label: '💳 信用卡分期', type: 'credit_card', name: '信用卡账单', billDay: '10', repayDay: '28' }
+                    { label: '蚂蚁花呗', type: 'huabei', name: '蚂蚁花呗账单', billDay: '1', repayDay: '10' },
+                    { label: '京东白条', type: 'baitiao', name: '京东白条账单', billDay: '1', repayDay: '20' },
+                    { label: '美团月付', type: 'meituan_pay', name: '美团月付账单', billDay: '1', repayDay: '8' },
+                    { label: '抖音月付', type: 'douyin_pay', name: '抖音月付账单', billDay: '1', repayDay: '6' },
+                    { label: '蚂蚁借呗', type: 'jiebei', name: '蚂蚁借呗借款', billDay: '1', repayDay: '15' },
+                    { label: '微信分付', type: 'fenfu', name: '微信分付借款', billDay: '1', repayDay: '25' },
+                    { label: '微粒贷', type: 'weilidai', name: '微粒贷借款', billDay: '1', repayDay: '20' },
+                    { label: '招商信用卡', type: 'credit_card', name: '招商银行信用卡', billDay: '10', repayDay: '28' },
+                    { label: '工商信用卡', type: 'credit_card', name: '工商银行信用卡', billDay: '1', repayDay: '25' },
+                    { label: '建设信用卡', type: 'credit_card', name: '建设银行信用卡', billDay: '7', repayDay: '27' },
                   ].map((p, idx) => (
                     <button
                       key={idx}
@@ -286,11 +277,29 @@ export const DebtsPage: React.FC<DebtsPageProps> = ({ debts, accounts, onRefresh
                         setBillDay(p.billDay);
                         setRepayDay(p.repayDay);
                       }}
-                      className="px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-rose-50 hover:text-rose-600 text-[10px] font-bold text-slate-700 dark:text-slate-300 transition"
+                      className="flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:border-rose-500 hover:bg-rose-50/50 dark:hover:bg-rose-950/40 text-[11px] font-medium text-slate-700 dark:text-slate-200 active:scale-95 transition"
                     >
-                      {p.label}
+                      <BrandLogo type={p.type} name={p.name} size="sm" />
+                      <span>{p.label}</span>
                     </button>
                   ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="text-slate-500 block mb-1">负债名称</label>
+                <div className="flex items-center gap-2">
+                  <div className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center flex-shrink-0">
+                    <BrandLogo type={type} name={name} size="md" />
+                  </div>
+                  <input
+                    type="text"
+                    required
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="例如：招商银行信用卡账单、美团月付"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
+                  />
                 </div>
               </div>
 

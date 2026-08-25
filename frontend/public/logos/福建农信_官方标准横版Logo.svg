@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 240" width="800" height="240">
+  <rect width="100%" height="100%" fill="none"/>
+  <g transform="translate(40, 30)">
+    <!-- 福建农信 经典绿色徽标 -->
+    <circle cx="90" cy="90" r="85" fill="#008848"/>
+    <!-- 金色麦穗环与内环 -->
+    <circle cx="90" cy="90" r="72" fill="#008848" stroke="#F6B000" stroke-width="5"/>
+    <path d="M90 28 C125 28 152 55 152 90 C152 125 125 152 90 152 C55 152 28 125 28 90 C28 55 55 28 90 28 Z" fill="none" stroke="#FFFFFF" stroke-width="4"/>
+    <!-- 核心麦穗与造型 -->
+    <path d="M90 40 L90 140 M90 55 Q115 70 125 95 M90 75 Q115 90 120 115 M90 55 Q65 70 55 95 M90 75 Q65 90 60 115" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round" fill="none"/>
+    <circle cx="90" cy="52" r="7" fill="#F6B000"/>
+  </g>
+  <!-- 中文官方标准字体 -->
+  <text x="250" y="115" font-family="Microsoft YaHei, SimHei, sans-serif" font-size="64" font-weight="bold" fill="#008848" letter-spacing="4">福建农信</text>
+  <!-- 英文副标题 -->
+  <text x="252" y="155" font-family="Arial, sans-serif" font-size="20" font-weight="600" fill="#666666" letter-spacing="2">FUJIAN RURAL CREDIT</text>
+</svg>
