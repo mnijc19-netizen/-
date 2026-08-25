@@ -1,5 +1,5 @@
 import { ParsedTransactionResult, DashboardAnalytics, Transaction } from '../types';
-import { localStore, AiConfig } from './localStore';
+import { localStore, AiConfig, getModelMaxTokens } from './localStore';
 import { getBeijingDateTimeString } from '../utils/dateUtils';
 
 export interface AiTestResult {
@@ -218,7 +218,7 @@ export async function testAiConnection(config: AiConfig): Promise<AiTestResult> 
           { role: 'user', content: '你好，请用一句话确认连接正常。' }
         ],
         temperature: 0.1,
-        max_tokens: 1024 // Allow enough tokens for reasoning models (GLM-4.6V generates reasoning_content first)
+        max_tokens: Math.min(1024, getModelMaxTokens(config.model || 'glm-4.6v')) // Dynamically safe for 4V-Flash (1024 cap) and 4.6V (8192)
       })
     });
 
@@ -317,7 +317,7 @@ ${clean}`;
           { role: 'user', content: prompt }
         ],
         temperature: 0.1,
-        max_tokens: 2048
+        max_tokens: getModelMaxTokens(config.model || 'glm-4.6v')
       }),
       signal: controller.signal
     });
@@ -412,7 +412,7 @@ ${text.trim()}`;
         { role: 'user', content: prompt }
       ],
       temperature: 0.1,
-      max_tokens: 2048
+      max_tokens: getModelMaxTokens(config.model || 'glm-4.6v')
     })
   });
 
@@ -550,7 +550,7 @@ export async function parseImageWithAiVision(
           }
         ],
         temperature: 0.1,
-        max_tokens: 8192
+        max_tokens: getModelMaxTokens(visionModel)
       }),
       signal: controller.signal
     });
@@ -728,7 +728,7 @@ export async function parseBalanceScreenshotWithAi(
           }
         ],
         temperature: 0.1,
-        max_tokens: 8192
+        max_tokens: getModelMaxTokens(visionModel)
       }),
       signal: controller.signal
     });

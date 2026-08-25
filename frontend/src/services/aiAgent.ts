@@ -10,7 +10,7 @@ import {
   AgentChatMessage, 
   AgentResponse 
 } from '../types';
-import { localStore } from './localStore';
+import { localStore, getModelMaxTokens } from './localStore';
 import { api } from '../api/client';
 import { getBeijingDateTimeString, getBeijingDateString } from '../utils/dateUtils';
 import { optimizeImagesBatch } from './imageOptimizer';
@@ -297,12 +297,13 @@ export async function sendAgentMessage(
 
   // For pure text chat with Zhipu, if selected model is 4.6v, we can use 4.6v or fast model
   const activeModel = config.model || 'glm-4.6v';
+  const modelMaxTokens = getModelMaxTokens(activeModel);
 
   const reqBody: any = {
     model: activeModel,
     messages: apiMessages,
     temperature: 0.1,
-    max_tokens: 8192, // Maximum token ceiling supported by GLM-4.6V for large multi-image batch analysis
+    max_tokens: modelMaxTokens, // Dynamically adapted to model limit (e.g. 1024 for 4v-flash, 8192 for 4.6v)
     stream: true // Enable SSE streaming for instant TTFT response
   };
 
@@ -407,7 +408,7 @@ export async function sendAgentMessage(
     };
   } catch (err: any) {
     // If streaming fetch fails (e.g. proxy blocks SSE), fallback to standard non-streaming call
-    const fallbackBody = { ...reqBody, stream: false, max_tokens: 8192 };
+    const fallbackBody = { ...reqBody, stream: false, max_tokens: modelMaxTokens };
     const fbResponse = await fetch(url, {
       method: 'POST',
       headers: {

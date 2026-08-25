@@ -29,6 +29,24 @@ export const DEFAULT_AI_CONFIG: AiConfig = {
   model: 'glm-4.6v'
 };
 
+/**
+ * Automatically calculates the maximum safe token limit based on model constraints.
+ * GLM-4V-Flash (Free vision): max 1024
+ * GLM-4.6V (Vision flagship 600W pack): max 8192
+ * GLM-4.5-Air (Speed flagship 1200W pack): max 8192
+ * GLM-4-Flash / DeepSeek / OpenAI: max 8192
+ */
+export function getModelMaxTokens(modelName: string): number {
+  const m = (modelName || '').toLowerCase().trim();
+  if (m.includes('4v-flash') || m === 'glm-4v-flash') {
+    return 1024; // Zhipu 4V-Flash API hard ceiling
+  }
+  if (m.includes('4.6v') || m.includes('4.5-air') || m.includes('4-plus') || m.includes('4-flash') || m.includes('deepseek') || m.includes('gpt-4o') || m.includes('qwen') || m.includes('kimi')) {
+    return 8192; // Flagship models max ceiling
+  }
+  return 4096;
+}
+
 export const STORAGE_KEYS = {
   ACCOUNTS: 'smartwealth_accounts_v2',
   TRANSACTIONS: 'smartwealth_transactions_v2',
