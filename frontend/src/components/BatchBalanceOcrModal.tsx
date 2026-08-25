@@ -245,9 +245,13 @@ export const BatchBalanceOcrModal: React.FC<BatchBalanceOcrModalProps> = ({
   };
 
   const selectedCount = items.filter(i => i.selected && i.status === 'success').length;
+  const liabilityTypes = ['credit', 'loan', 'huabei', 'baitiao', 'meituan_pay', 'douyin_pay', 'jiebei', 'fenfu'];
   const totalBalanceSum = items
     .filter(i => i.selected && i.status === 'success')
-    .reduce((s, i) => s + (i.accountType === 'credit' ? -i.balance : i.balance), 0);
+    .reduce((s, i) => {
+      const isLiab = liabilityTypes.includes(i.accountType);
+      return s + (isLiab ? -i.balance : i.balance);
+    }, 0);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/75 backdrop-blur-md animate-in fade-in duration-200">

@@ -493,38 +493,81 @@ export interface ExtractedBalanceResult {
 }
 
 /**
- * AI Vision: Parse platform balance screenshots (WeChat, Alipay, Banks, Brokerages, etc.)
+ * AI Vision: Parse platform balance screenshots (WeChat, Alipay, Banks, Brokerages, Huabei, JD Baitiao, Meituan Pay, Douyin Pay, etc.)
  */
 export async function parseBalanceScreenshotWithAi(
   base64DataUrl: string
 ): Promise<ExtractedBalanceResult | null> {
   const config = localStore.getAiConfig();
-  if (!config.enabled || !config.apiKey || !config.apiKey.trim()) {
+  if (!config.apiKey || !config.apiKey.trim()) {
     return null;
   }
 
   const endpoint = `${config.baseUrl.replace(/\/+$/, '')}/chat/completions`;
-  const isZhipu = config.provider === 'zhipu' || config.provider === 'zhipu-vision' || config.baseUrl.includes('bigmodel.cn');
-  const visionModel = isZhipu ? 'glm-4v-flash' : config.model || 'glm-4v-flash';
+  const isVisionModel = /4v|4\.6v|vl|vision|4o|gemini/i.test(config.model || '') || 
+                        config.provider?.includes('vision') || 
+                        config.provider === 'zhipu-4.6v';
+  const visionModel = isVisionModel ? (config.model || 'glm-4.6v') : (config.model || 'glm-4.6v');
 
-  const prompt = `你是一个专业的财务资产识别专家。请仔细分析这张包含平台资产、钱包余额、银行卡或证券账户的截图：
-【核心识别规则】：
-1. 微信钱包（包含“钱包”、“零钱”、“零钱通”、“支付分”等字样）：
-   - platform 必须判定为 "微信零钱"（若主体为零钱）或 "微信支付-零钱通"（若主体为零钱通）或 "微信钱包"；
-   - account_type 为 "wallet"；
-   - 提取核心零钱金额（如 990.79）。
-2. 支付宝资产（包含“总资产”、“资产概览”、“我的资产”、“余额宝”、“理财资产”等）：
-   - platform 必须判定为 "支付宝-总资产" 或 "支付宝-余额宝"；
-   - account_type 为 "wallet"；
-   - 提取“我的资产”或总资产核心数字（如 1144.45），必须忽略中间或底部的广告推广（如工银科创、宇树等广告词汇）。
-3. 银行卡与证券理财：
-   - 提取银行/机构真实名称与账户可用余额。
+  const prompt = `你是一个顶级专业的财务与资产/负债识别专家。请仔细分析这张包含平台资产、钱包余额、银行卡、证券账户或消费信贷待还账单的截图：
 
-请直接输出纯 JSON 字符串（不要带任何 markdown 或其他文本）：
+【严格识别分类规则（100% 精确映射）】：
+1. 🐕 京东白条 (JD Baitiao):
+   - 包含“全部待还账单”、“全部待还 (元)”、“提前结清”、“已出账”、“京东”、“白条”
+   - platform: "京东白条"
+   - account_type: "baitiao"
+   - balance: 提取全部待还核心数字（如 2691.41）
+2. 🦘 美团月付 (Meituan Pay):
+   - 包含“美团月付”、“美团外卖”、“月付账单”、“本月待还”、“下月待还”
+   - platform: "美团月付"
+   - account_type: "meituan_pay"
+   - balance: 提取当前待还账单数字（如 278.22）
+3. 🌸 蚂蚁花呗 (Alipay Huabei):
+   - 包含“花呗”、“花呗分期”、“花呗账单”、“本月应还”、“下月待还”
+   - platform: "蚂蚁花呗"
+   - account_type: "huabei"
+   - balance: 提取花呗待还款数字
+4. 💰 蚂蚁借呗 (Alipay Jiebei):
+   - 包含“借呗”、“网商贷”、“我的借款”、“借款本金”
+   - platform: "蚂蚁借呗"
+   - account_type: "jiebei"
+   - balance: 提取借呗待还本金
+5. 🎵 抖音月付 (Douyin Pay):
+   - 包含“抖音月付”、“抖音支付”、“本月应还”、“待还本金”
+   - platform: "抖音月付"
+   - account_type: "douyin_pay"
+   - balance: 提取抖音月付待还数字
+6. 💬 微信分付 / 微粒贷 (WeChat Fenfu / Weilidai):
+   - 包含“微信分付”、“分付”、“已用额度”、“微粒贷”
+   - platform: "微信分付"
+   - account_type: "fenfu"
+   - balance: 提取已用额度或待还金额
+7. 🟢 微信钱包（微信零钱 / 零钱通）:
+   - 包含“钱包”、“零钱”、“零钱通”、“支付分”
+   - platform: 判定为 "微信零钱" 或 "微信支付-零钱通" 或 "微信钱包"
+   - account_type: "wallet"
+   - balance: 提取零钱或零钱通实际数字
+8. 🔵 支付宝资产（支付宝总资产 / 余额宝）:
+   - 包含“总资产”、“资产概览”、“我的资产”、“余额宝”、“理财资产”
+   - platform: 判定为 "支付宝-总资产" 或 "支付宝-余额宝"
+   - account_type: "wallet"
+   - balance: 提取“我的资产”或总资产核心数字（忽略广告推广）
+9. 📈 证券/基金/股票持仓:
+   - 包含“持仓”、“证券资产”、“ETF”、“华泰证券”、“招商证券”、“天天基金”
+   - platform: 判定为 "华泰证券/基金持仓" 或对应券商名
+   - account_type: "investment"
+   - balance: 提取总资产或持仓总市值
+10. 🏦 银行储蓄卡:
+    - 包含“招商银行”、“工商银行”、“建设银行”、“农业银行”、“中国银行”等
+    - platform: 银行具体名称
+    - account_type: "bank"
+    - balance: 提取活期/可用余额
+
+请直接输出符合格式的纯 JSON 字符串（绝对不要用任何 markdown 代码块包裹）：
 {
-  "platform": "微信零钱|支付宝-总资产|招商银行一卡通|...",
-  "account_type": "wallet|bank|investment|credit|cash",
-  "balance": 提取当前核心资产总额数字（纯数字，例如 1144.45，不要千分位逗号）,
+  "platform": "京东白条|美团月付|蚂蚁花呗|微信零钱|支付宝-总资产|华泰证券/基金持仓|...",
+  "account_type": "baitiao|meituan_pay|huabei|jiebei|douyin_pay|fenfu|wallet|bank|investment|credit|cash",
+  "balance": 提取当前核心数字（纯数字，例如 278.22 或 2691.41，不要逗号）,
   "currency": "CNY",
   "bank_name": "银行机构名称（无则留空）",
   "card_last4": "卡号后4位（无则留空）",
@@ -572,17 +615,33 @@ export async function parseBalanceScreenshotWithAi(
         const parsed = JSON.parse(jsonMatch[0]);
         if (parsed.balance !== undefined && !isNaN(parseFloat(parsed.balance))) {
           const numBalance = Math.abs(parseFloat(parsed.balance));
-          let validAccountType: 'wallet' | 'bank' | 'investment' | 'crypto' | 'credit' | 'cash' = 'wallet';
-          if (['wallet', 'bank', 'investment', 'crypto', 'credit', 'cash'].includes(parsed.account_type)) {
-            validAccountType = parsed.account_type;
+          const allowedTypes = [
+            'baitiao', 'meituan_pay', 'huabei', 'jiebei', 'douyin_pay', 'fenfu',
+            'wallet', 'bank', 'investment', 'crypto', 'credit', 'loan', 'cash'
+          ];
+          let validAccountType: AccountType = 'wallet';
+          if (allowedTypes.includes(parsed.account_type)) {
+            validAccountType = parsed.account_type as AccountType;
+          } else if (/白条|京东/.test(parsed.platform || '')) {
+            validAccountType = 'baitiao';
+          } else if (/美团/.test(parsed.platform || '')) {
+            validAccountType = 'meituan_pay';
+          } else if (/花呗/.test(parsed.platform || '')) {
+            validAccountType = 'huabei';
+          } else if (/借呗/.test(parsed.platform || '')) {
+            validAccountType = 'jiebei';
+          } else if (/抖音/.test(parsed.platform || '')) {
+            validAccountType = 'douyin_pay';
+          } else if (/分付/.test(parsed.platform || '')) {
+            validAccountType = 'fenfu';
           } else if (/银行|卡|储蓄/.test(parsed.platform || '')) {
             validAccountType = 'bank';
-          } else if (/基金|理财|证券|股票|收益/.test(parsed.platform || '')) {
+          } else if (/基金|理财|证券|股票|收益|华泰/.test(parsed.platform || '')) {
             validAccountType = 'investment';
           }
 
           return {
-            platform: parsed.platform || '平台账户',
+            platform: parsed.platform || '资产账户',
             accountType: validAccountType,
             balance: numBalance,
             currency: parsed.currency || 'CNY',
@@ -601,13 +660,23 @@ export async function parseBalanceScreenshotWithAi(
   // 2. Fallback: If Vision model is not supported (e.g. DeepSeek-Chat is text-only), run local OCR then ask LLM to extract JSON
   try {
     const { extractOcrRawText } = await import('./imageOcr');
+    const { parseOfflineBalanceScreenshot } = await import('./balanceScreenshotParser');
     const ocrText = await extractOcrRawText(base64DataUrl);
+    
+    // Check local offline rules first
+    if (ocrText) {
+      const offlineRes = parseOfflineBalanceScreenshot(ocrText);
+      if (offlineRes && offlineRes.balance > 0) {
+        return offlineRes;
+      }
+    }
+
     if (ocrText && ocrText.trim()) {
-      const textPrompt = `你是一个财务资产识别专家。请从以下账户余额截图 OCR 文字中，识别并提取出核心资产余额信息，严格按照 JSON 格式返回（不要用 markdown 代码块包裹）：
+      const textPrompt = `你是一个财务资产与负债识别专家。请从以下账户余额或账单截图 OCR 文字中，识别并提取出平台与金额信息，严格按照 JSON 格式返回（不要用 markdown 代码块包裹）：
 {
-  "platform": "平台或银行具体名称，例如：微信支付-零钱通、微信零钱、支付宝-余额宝、招商银行一卡通、工商银行等",
-  "account_type": "wallet|bank|investment|credit|cash",
-  "balance": 提取当前核心资产总额或可用余额数字（纯数字，例如 12850.50）,
+  "platform": "平台或银行具体名称，例如：京东白条、美团月付、蚂蚁花呗、微信零钱、支付宝-总资产、华泰证券/基金持仓、招商银行等",
+  "account_type": "baitiao|meituan_pay|huabei|jiebei|douyin_pay|fenfu|wallet|bank|investment|credit|cash",
+  "balance": 提取当前核心金额数字（纯数字，例如 278.22 或 2691.41）,
   "currency": "CNY",
   "bank_name": "银行名称（无则留空）",
   "card_last4": "卡号后4位（无则留空）"
@@ -622,7 +691,7 @@ ${ocrText}`;
           'Authorization': `Bearer ${config.apiKey.trim()}`
         },
         body: JSON.stringify({
-          model: config.model || 'deepseek-chat',
+          model: config.model || 'glm-4.5-air',
           messages: [
             { role: 'system', content: '严格只输出符合格式的单个 JSON 对象，不要用 markdown 包裹。' },
             { role: 'user', content: textPrompt }
@@ -640,9 +709,10 @@ ${ocrText}`;
           const tParsed = JSON.parse(tJsonMatch[0]);
           if (tParsed.balance !== undefined && !isNaN(parseFloat(tParsed.balance))) {
             const numBal = Math.abs(parseFloat(tParsed.balance));
+            const allowed = ['baitiao', 'meituan_pay', 'huabei', 'jiebei', 'douyin_pay', 'fenfu', 'wallet', 'bank', 'investment', 'crypto', 'credit', 'cash'];
             return {
-              platform: tParsed.platform || '平台账户',
-              accountType: ['wallet', 'bank', 'investment', 'crypto', 'credit', 'cash'].includes(tParsed.account_type) ? tParsed.account_type : 'wallet',
+              platform: tParsed.platform || '资产账户',
+              accountType: (allowed.includes(tParsed.account_type) ? tParsed.account_type : 'wallet') as AccountType,
               balance: numBal,
               currency: tParsed.currency || 'CNY',
               bankName: tParsed.bank_name || undefined,
