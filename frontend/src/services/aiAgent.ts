@@ -302,8 +302,8 @@ export async function sendAgentMessage(
     model: activeModel,
     messages: apiMessages,
     temperature: 0.1,
-    max_tokens: 1024,
-    stream: true // Enable SSE streaming for instant TTFT response in <300ms!
+    max_tokens: 4096, // High token ceiling to accommodate deep thinking/reasoning + JSON output
+    stream: true // Enable SSE streaming for instant TTFT response
   };
 
   try {
@@ -328,6 +328,7 @@ export async function sendAgentMessage(
 
     // Process SSE Stream
     let rawAccumulated = '';
+    let rawReasoning = '';
     let lastReportedReply = '';
 
     if (response.body) {
@@ -351,13 +352,24 @@ export async function sendAgentMessage(
 
           try {
             const dataJson = JSON.parse(dataStr);
-            const delta = dataJson.choices?.[0]?.delta?.content || '';
+            const deltaObj = dataJson.choices?.[0]?.delta || {};
+            const delta = deltaObj.content || '';
+            const reasoningDelta = deltaObj.reasoning_content || '';
+
+            // Handle live reasoning preview for deep thinking models (e.g. GLM-4.6V)
+            if (reasoningDelta) {
+              rawReasoning += reasoningDelta;
+              if (onStreamChunk && !rawAccumulated) {
+                onStreamChunk('🧠 正在深度思考分析账本...\n' + rawReasoning.slice(-150));
+              }
+            }
+
+            // Handle actual content tokens
             if (delta) {
               rawAccumulated += delta;
 
               // Dynamically extract live reply preview for typewriter effect
               if (onStreamChunk) {
-                // Check if reply string has started
                 const replyMatch = rawAccumulated.match(/"reply"\s*:\s*"([^"]*)/);
                 if (replyMatch && replyMatch[1]) {
                   const currentClean = replyMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"');
@@ -376,7 +388,7 @@ export async function sendAgentMessage(
     } else {
       // Fallback if ReadableStream is unavailable
       const data = await response.json();
-      rawAccumulated = data.choices?.[0]?.message?.content || '';
+      rawAccumulated = data.choices?.[0]?.message?.content || data.choices?.[0]?.message?.reasoning_content || '';
     }
 
     // 4. Parse final JSON and action from accumulated text
@@ -395,7 +407,7 @@ export async function sendAgentMessage(
     };
   } catch (err: any) {
     // If streaming fetch fails (e.g. proxy blocks SSE), fallback to standard non-streaming call
-    const fallbackBody = { ...reqBody, stream: false };
+    const fallbackBody = { ...reqBody, stream: false, max_tokens: 4096 };
     const fbResponse = await fetch(url, {
       method: 'POST',
       headers: {
@@ -410,7 +422,7 @@ export async function sendAgentMessage(
     }
 
     const data = await fbResponse.json();
-    const rawContent = data.choices?.[0]?.message?.content || '';
+    const rawContent = (data.choices?.[0]?.message?.content || data.choices?.[0]?.message?.reasoning_content || '').trim();
     const parsed = extractJsonFromResponse(rawContent);
 
     if (parsed && typeof parsed.reply === 'string') {

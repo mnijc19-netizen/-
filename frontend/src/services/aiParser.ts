@@ -213,12 +213,12 @@ export async function testAiConnection(config: AiConfig): Promise<AiTestResult> 
         'Authorization': `Bearer ${config.apiKey.trim()}`
       },
       body: JSON.stringify({
-        model: config.model || 'glm-4-flash',
+        model: config.model || 'glm-4.6v',
         messages: [
-          { role: 'user', content: '请用一句话回复：你好，我是斌斌财务AI' }
+          { role: 'user', content: '你好，请用一句话确认连接正常。' }
         ],
         temperature: 0.1,
-        max_tokens: 60
+        max_tokens: 1024 // Allow enough tokens for reasoning models (GLM-4.6V generates reasoning_content first)
       })
     });
 
@@ -235,7 +235,7 @@ export async function testAiConnection(config: AiConfig): Promise<AiTestResult> 
       // Parse common Zhipu errors
       if (res.status === 401) {
         if (errBody.includes('过期') || errBody.includes('expired')) {
-          return { success: false, message: '❌ API Key 已过期或格式不正确\n\n请前往 open.bigmodel.cn/usercenter/apikeys 重新生成完整的 Key（格式为 xxx.yyy，中间有英文句号）', latencyMs };
+          return { success: false, message: '❌ API Key 已过期或格式不正确\n\n请前往 open.bigmodel.cn 重新获取完整的 Key（注意包含句号）', latencyMs };
         }
         return { success: false, message: `❌ 认证失败 (401)：API Key 无效\n\n${errBody.substring(0, 100)}`, latencyMs };
       }
@@ -247,11 +247,17 @@ export async function testAiConnection(config: AiConfig): Promise<AiTestResult> 
     }
 
     const data = await res.json();
-    const replyText = data?.choices?.[0]?.message?.content || '';
-    if (replyText) {
+    const choice = data?.choices?.[0];
+    const msg = choice?.message;
+    const replyText = (msg?.content || msg?.reasoning_content || '').trim();
+    
+    if (replyText || (data?.choices && data.choices.length > 0)) {
+      const displayReply = replyText 
+        ? replyText.substring(0, 80).replace(/\n+/g, ' ')
+        : 'API 握手成功，推理引擎已就绪';
       return { 
         success: true, 
-        message: `✅ 连接成功！模型【${config.model}】响应正常\n⏱️ 延迟 ${latencyMs}ms\n💬 ${replyText.trim().substring(0, 80)}`,
+        message: `✅ 连接成功！模型【${config.model}】响应正常\n⏱️ 延迟 ${latencyMs}ms\n💬 ${displayReply}`,
         latencyMs 
       };
     }
@@ -277,7 +283,7 @@ export async function parseWithAi(
   try {
     const endpoint = `${config.baseUrl.replace(/\/+$/, '')}/chat/completions`;
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 6000);
+    const timeoutId = setTimeout(() => controller.abort(), 12000);
 
     const prompt = `你是一个顶级专业财务记账 AI。请从用户输入的账单、小票、银行短信或截屏 OCR 文本中，精准提取单笔真实交易信息并严格返回纯 JSON 对象（禁止输出任何 markdown 代码块、解释或无关文字）：
 {
@@ -305,13 +311,13 @@ ${clean}`;
         'Authorization': `Bearer ${config.apiKey.trim()}`
       },
       body: JSON.stringify({
-        model: config.model || 'deepseek-chat',
+        model: config.model || 'glm-4.6v',
         messages: [
           { role: 'system', content: '严格只输出符合格式的单个 JSON 对象，不要用 markdown 格式包裹。' },
           { role: 'user', content: prompt }
         ],
         temperature: 0.1,
-        max_tokens: 250
+        max_tokens: 2048
       }),
       signal: controller.signal
     });
@@ -320,7 +326,7 @@ ${clean}`;
     if (!res.ok) return null;
 
     const data = await res.json();
-    const replyText = data?.choices?.[0]?.message?.content || '';
+    const replyText = (data?.choices?.[0]?.message?.content || data?.choices?.[0]?.message?.reasoning_content || '').trim();
     
     const jsonMatch = replyText.match(/\{[\s\S]*\}/);
     if (!jsonMatch) return null;
@@ -400,13 +406,13 @@ ${text.trim()}`;
       'Authorization': `Bearer ${config.apiKey.trim()}`
     },
     body: JSON.stringify({
-      model: config.model || 'deepseek-chat',
+      model: config.model || 'glm-4.6v',
       messages: [
         { role: 'system', content: '严格只输出符合格式的 JSON 数组。' },
         { role: 'user', content: prompt }
       ],
       temperature: 0.1,
-      max_tokens: 600
+      max_tokens: 2048
     })
   });
 
@@ -416,7 +422,7 @@ ${text.trim()}`;
   }
 
   const data = await res.json();
-  const replyText = data?.choices?.[0]?.message?.content || '';
+  const replyText = (data?.choices?.[0]?.message?.content || data?.choices?.[0]?.message?.reasoning_content || '').trim();
   const jsonMatch = replyText.match(/\[[\s\S]*\]/);
   if (!jsonMatch) {
     throw new Error('AI 未能返回有效的记账明细列表');
@@ -458,13 +464,13 @@ ${recentTransactions.slice(0, 6).map(t => `- ${t.date.substring(5, 10)} ${t.merc
       'Authorization': `Bearer ${config.apiKey.trim()}`
     },
     body: JSON.stringify({
-      model: config.model || 'deepseek-chat',
+      model: config.model || 'glm-4.6v',
       messages: [
         { role: 'system', content: 'You are an expert personal financial advisor. Be concise, practical and supportive.' },
         { role: 'user', content: prompt }
       ],
       temperature: 0.6,
-      max_tokens: 800
+      max_tokens: 2048
     })
   });
 
@@ -474,7 +480,7 @@ ${recentTransactions.slice(0, 6).map(t => `- ${t.date.substring(5, 10)} ${t.merc
   }
 
   const data = await res.json();
-  return data?.choices?.[0]?.message?.content || '暂无财务分析建议。';
+  return (data?.choices?.[0]?.message?.content || data?.choices?.[0]?.message?.reasoning_content || '暂无财务分析建议。').trim();
 }
 
 // 4. True Multimodal AI Vision Parser (Direct Image Recognition)
@@ -488,9 +494,9 @@ export async function parseImageWithAiVision(
   }
 
   // Determine vision model
-  let visionModel = config.model;
-  if ((config.provider === 'zhipu' || config.provider === 'zhipu-vision') && !visionModel.includes('4v')) {
-    visionModel = 'glm-4v-flash'; // Free Vision model
+  let visionModel = config.model || 'glm-4.6v';
+  if ((config.provider === 'zhipu' || config.provider === 'zhipu-vision') && !visionModel.includes('4v') && !visionModel.includes('4.6v')) {
+    visionModel = 'glm-4.6v';
   } else if (config.provider === 'qwen' && !visionModel.includes('vl')) {
     visionModel = 'qwen-vl-plus';
   } else if (config.provider === 'kimi' && !visionModel.includes('vision')) {
@@ -501,7 +507,7 @@ export async function parseImageWithAiVision(
 
   const endpoint = `${config.baseUrl.replace(/\/+$/, '')}/chat/completions`;
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 12000);
+  const timeoutId = setTimeout(() => controller.abort(), 20000);
 
   const prompt = `你是一个智能视觉财务记账专家。请仔细查看这张截屏/小票图片：
 1. 提取最新一笔交易（如果是支付消息列表，提取顶层最新一笔付款卡片，忽略顶部统计月支出）。
@@ -544,7 +550,7 @@ export async function parseImageWithAiVision(
           }
         ],
         temperature: 0.1,
-        max_tokens: 300
+        max_tokens: 2048
       }),
       signal: controller.signal
     });
@@ -555,7 +561,7 @@ export async function parseImageWithAiVision(
     }
 
     const data = await res.json();
-    const replyText = data?.choices?.[0]?.message?.content || '';
+    const replyText = (data?.choices?.[0]?.message?.content || data?.choices?.[0]?.message?.reasoning_content || '').trim();
     const jsonMatch = replyText.match(/\{[\s\S]*\}/);
     if (!jsonMatch) return null;
 
@@ -722,7 +728,7 @@ export async function parseBalanceScreenshotWithAi(
           }
         ],
         temperature: 0.1,
-        max_tokens: 300
+        max_tokens: 2048
       }),
       signal: controller.signal
     });
@@ -730,7 +736,7 @@ export async function parseBalanceScreenshotWithAi(
     clearTimeout(timeoutId);
     if (res.ok) {
       const data = await res.json();
-      const replyText = data?.choices?.[0]?.message?.content || '';
+      const replyText = (data?.choices?.[0]?.message?.content || data?.choices?.[0]?.message?.reasoning_content || '').trim();
       const jsonMatch = replyText.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         const parsed = JSON.parse(jsonMatch[0]);
@@ -818,13 +824,13 @@ ${ocrText}`;
             { role: 'user', content: textPrompt }
           ],
           temperature: 0.1,
-          max_tokens: 300
+          max_tokens: 2048
         })
       });
 
       if (textRes.ok) {
         const tData = await textRes.json();
-        const tReply = tData?.choices?.[0]?.message?.content || '';
+        const tReply = (tData?.choices?.[0]?.message?.content || tData?.choices?.[0]?.message?.reasoning_content || '').trim();
         const tJsonMatch = tReply.match(/\{[\s\S]*\}/);
         if (tJsonMatch) {
           const tParsed = JSON.parse(tJsonMatch[0]);
