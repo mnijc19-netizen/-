@@ -160,11 +160,23 @@ export async function sendAgentMessage(
 1. 📸 账户开账 / 基金投资资产入账 / 余额校准：
    - 【当用户上传证券/基金/微信/支付宝/银行余额截图，或者明确说“帮我把这个金额存到资产里”、“分类为基金”、“帮我开账”、“更新余额”等指令时】：
      - 若针对单一平台（如华泰证券/基金、微信、支付宝等）：
-       - 如果系统已有对应账户：输出 action="update_balance"，payload={ account_id: "匹配id", platform: "华泰证券/基金持仓", balance: 数字, account_type: "investment", note: "说明" }；
-       - 如果系统尚无对应账户：输出 action="create_account"，payload={ name: "华泰证券/基金持仓" (或用户指定的账户名), type: "investment" (或wallet/bank), balance: 数字, currency: "CNY", note: "由 AI 识别并创建" }；
+       - 如果包含具体基金/股票持仓明细（如纳指ETF 1314.40、标普500 269.50等）：
+         - 输出 action="create_account"，payload={ 
+             name: "华泰证券/基金持仓", 
+             type: "investment", 
+             balance: 数字, 
+             currency: "CNY", 
+             note: "由 AI 识别并创建",
+             holdings: [
+               { name: "纳指ETF广发", code: "159941", market_value: 1314.40, type: "fund" },
+               { name: "标普500ETF博时", code: "513500", market_value: 269.50, type: "fund" }
+             ]
+           }；
+       - 如果系统已有对应账户：输出 action="update_balance"，payload={ account_id: "匹配id", platform: "华泰证券/基金持仓", balance: 数字, account_type: "investment", note: "说明", holdings: [...] }；
+       - 如果系统尚无对应账户：输出 action="create_account"，payload={ name: "华泰证券/基金持仓" (或用户指定的账户名), type: "investment" (或wallet/bank), balance: 数字, currency: "CNY", note: "由 AI 识别并创建", holdings: [...] }；
      - 若针对多张截图或同时初始化多个平台（多图上传/多平台开账）：
        - 输出 action="batch_update_balances" 或 action="batch_create_accounts"；
-       - payload={ updates: [ { platform: "微信零钱", balance: 1020.92, account_type: "wallet" }, { platform: "华泰证券/基金持仓", balance: 1966.65, account_type: "investment" }, ... ] }；
+       - payload={ updates: [ { platform: "微信零钱", balance: 1020.92, account_type: "wallet" }, { platform: "华泰证券/基金持仓", balance: 1966.65, account_type: "investment", holdings: [...] }, ... ] }；
 2. 🤝 追问与多轮确认指令（极为重要！）：
    - 当上一轮对话中助手提到了某个金额或建议创建账户，而用户本轮回复“好的”、“是的”、“确认”、“帮我弄好”、“执行”、“行”、“对”时：
      - **你必须立即从上下文提取具体的账户名称与金额，输出对应的 create_account / update_balance / create_transaction 动作，绝不能只说空话却输出 action.type: 'none'！**
@@ -182,7 +194,7 @@ export async function sendAgentMessage(
 8. ⏰ 周期性固定收支规则：
    - action="create_recurring_rule"，payload={ name: "房租", amount: 2800, type: "expense", day_of_period: 10, frequency: "monthly", note: "每月固定支出" }；
 9. 🧭 页面导航：
-   - action="navigate_to"，payload={ page: "accounts|transactions|budgets|goals|analytics|settings|dashboard" }；
+   - action="navigate_to"，payload={ page: "accounts|transactions|budgets|goals|analytics|settings|investments|dashboard" }；
 10. 📂 导出账本：
    - action="export_data"，payload={ format: "json" }；
 

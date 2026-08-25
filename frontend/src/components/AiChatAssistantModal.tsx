@@ -310,13 +310,33 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
             });
           }
 
+          // If holdings are present, create investment records
+          if (accType === 'investment' && act.payload.holdings && Array.isArray(act.payload.holdings)) {
+            for (const h of act.payload.holdings) {
+              const mVal = parseFloat(h.market_value) || 0;
+              const shares = parseFloat(h.shares) || (mVal > 0 ? Math.round(mVal) : 1000);
+              const price = parseFloat(h.current_price) || (mVal > 0 && shares > 0 ? mVal / shares : 1.0);
+              await api.addInvestment({
+                account_id: createdAcc.id,
+                name: h.name || '基金持仓',
+                code: h.code || '000000',
+                type: h.type || 'fund',
+                shares,
+                cost_price: price,
+                current_price: price,
+                currency: 'CNY'
+              });
+            }
+          }
+
           actionResult = {
             type: 'account_created',
             data: {
               id: createdAcc.id,
               name: accName,
               type: accType,
-              balance: bal
+              balance: bal,
+              holdingsCount: act.payload.holdings?.length || 0
             }
           };
           confetti({ particleCount: 80, spread: 60, origin: { y: 0.7 } });
@@ -784,16 +804,29 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
                     </div>
 
                     <div className="flex items-center gap-2 pt-0.5">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          onNavigate?.('accounts');
-                          onClose();
-                        }}
-                        className="flex-1 py-1 px-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-[10px] font-bold shadow-sm flex items-center justify-center gap-1 transition active:scale-95"
-                      >
-                        <ExternalLink className="w-3 h-3" /> 前往资产账户查看
-                      </button>
+                      {m.actionResult.data.type === 'investment' ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            onNavigate?.('investments');
+                            onClose();
+                          }}
+                          className="flex-1 py-1 px-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-[10px] font-bold shadow-sm flex items-center justify-center gap-1 transition active:scale-95"
+                        >
+                          <TrendingUp className="w-3 h-3" /> 前往持仓 & 刷新实时行情
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            onNavigate?.('accounts');
+                            onClose();
+                          }}
+                          className="flex-1 py-1 px-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-[10px] font-bold shadow-sm flex items-center justify-center gap-1 transition active:scale-95"
+                        >
+                          <ExternalLink className="w-3 h-3" /> 前往资产账户查看
+                        </button>
+                      )}
                       {m.actionResult.data.id && (
                         <button
                           type="button"
