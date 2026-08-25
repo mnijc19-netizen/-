@@ -165,7 +165,7 @@ export const localStore = {
       else if (['investment', 'crypto'].includes(a.type)) totalInv += b * (a.currency === 'USD' ? 7.25 : 1);
       else if (a.type === 'fixed') totalFixed += b;
       else if (a.type === 'receivable') totalRec += b;
-      else if (['credit', 'loan'].includes(a.type)) totalLiab += Math.abs(b);
+      else if (['credit', 'loan', 'huabei', 'baitiao', 'meituan_pay', 'douyin_pay', 'jiebei', 'fenfu'].includes(a.type)) totalLiab += Math.abs(b);
     });
 
     const totalAssets = totalLiquid + totalInv + totalFixed + totalRec;

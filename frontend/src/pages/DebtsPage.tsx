@@ -262,30 +262,65 @@ export const DebtsPage: React.FC<DebtsPageProps> = ({ debts, accounts, onRefresh
                 />
               </div>
 
+              <div>
+                <label className="text-slate-500 block mb-1">快速选择现代消费信贷模板</label>
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {[
+                    { label: '🌸 蚂蚁花呗', type: 'huabei', name: '蚂蚁花呗账单', billDay: '1', repayDay: '10' },
+                    { label: '🐕 京东白条', type: 'baitiao', name: '京东白条账单', billDay: '1', repayDay: '20' },
+                    { label: '🦘 美团月付', type: 'meituan_pay', name: '美团月付账单', billDay: '1', repayDay: '8' },
+                    { label: '🎵 抖音月付', type: 'douyin_pay', name: '抖音月付账单', billDay: '1', repayDay: '6' },
+                    { label: '💰 蚂蚁借呗', type: 'jiebei', name: '蚂蚁借呗借款', billDay: '1', repayDay: '15' },
+                    { label: '💬 微信分付', type: 'fenfu', name: '微信分付借款', billDay: '1', repayDay: '25' },
+                    { label: '💳 信用卡分期', type: 'credit_card', name: '信用卡账单', billDay: '10', repayDay: '28' }
+                  ].map((p, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => {
+                        setName(p.name);
+                        setType(p.type);
+                        setBillDay(p.billDay);
+                        setRepayDay(p.repayDay);
+                      }}
+                      className="px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-rose-50 hover:text-rose-600 text-[10px] font-bold text-slate-700 dark:text-slate-300 transition"
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-slate-500 block mb-1">类型</label>
+                  <label className="text-slate-500 block mb-1">负债类型</label>
                   <select
                     value={type}
                     onChange={(e) => setType(e.target.value)}
                     className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
                   >
-                    <option value="credit_card">信用卡</option>
-                    <option value="mortgage">住房房贷</option>
-                    <option value="car_loan">汽车贷款</option>
-                    <option value="consumer_loan">消费贷/网贷</option>
-                    <option value="personal_borrow">个人借款</option>
+                    <option value="huabei">🌸 蚂蚁花呗</option>
+                    <option value="baitiao">🐕 京东白条</option>
+                    <option value="meituan_pay">🦘 美团月付</option>
+                    <option value="douyin_pay">🎵 抖音月付</option>
+                    <option value="jiebei">💰 蚂蚁借呗</option>
+                    <option value="fenfu">💬 微信分付/微粒贷</option>
+                    <option value="credit_card">💳 银行信用卡</option>
+                    <option value="mortgage">🏠 住房按揭贷款</option>
+                    <option value="car_loan">🚗 汽车分期贷款</option>
+                    <option value="consumer_loan">📱 消费网贷</option>
+                    <option value="personal_borrow">🤝 个人借款</option>
                   </select>
                 </div>
                 <div>
-                  <label className="text-slate-500 block mb-1">年化利率 (如 0.05 为 5%)</label>
+                  <label className="text-slate-500 block mb-1">年化利率 (%)</label>
                   <input
                     type="number"
-                    step="0.001"
+                    step="0.01"
                     value={interestRate}
                     onChange={(e) => setInterestRate(e.target.value)}
-                    placeholder="0.05"
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
+                    placeholder="如 3.5 代表 3.5%"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-mono"
                   />
                 </div>
               </div>

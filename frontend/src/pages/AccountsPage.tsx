@@ -34,13 +34,19 @@ interface AccountsPageProps {
 const ACCOUNT_TYPE_CONFIG: Record<AccountType, { label: string; icon: any; color: string }> = {
   cash: { label: '现金活期', icon: Wallet, color: 'emerald' },
   bank: { label: '银行储蓄卡', icon: Building2, color: 'blue' },
-  wallet: { label: '第三方钱包', icon: CreditCard, color: 'teal' },
-  investment: { label: '证券与基金', icon: TrendingUp, color: 'amber' },
+  wallet: { label: '第三方钱包 (微信/支付宝)', icon: CreditCard, color: 'teal' },
+  investment: { label: '证券与基金持仓', icon: TrendingUp, color: 'amber' },
   crypto: { label: '加密资产', icon: Coins, color: 'yellow' },
   fixed: { label: '实体固定资产', icon: Building, color: 'purple' },
   receivable: { label: '债权与应收', icon: HandCoins, color: 'cyan' },
-  credit: { label: '信用卡负债', icon: CreditCard, color: 'rose' },
-  loan: { label: '贷款与按揭', icon: Building, color: 'slate' }
+  credit: { label: '银行信用卡', icon: CreditCard, color: 'rose' },
+  huabei: { label: '🌸 蚂蚁花呗 (月付信贷)', icon: CreditCard, color: 'rose' },
+  baitiao: { label: '🐕 京东白条 (消费信贷)', icon: CreditCard, color: 'rose' },
+  meituan_pay: { label: '🦘 美团月付 (消费信贷)', icon: CreditCard, color: 'amber' },
+  douyin_pay: { label: '🎵 抖音月付 (消费信贷)', icon: CreditCard, color: 'purple' },
+  jiebei: { label: '💰 蚂蚁借呗 (短期借贷)', icon: Building, color: 'slate' },
+  fenfu: { label: '💬 微信分付/微粒贷', icon: HandCoins, color: 'emerald' },
+  loan: { label: '房贷/车贷/大额按揭', icon: Building, color: 'slate' }
 };
 
 export const AccountsPage: React.FC<AccountsPageProps> = ({ 
@@ -143,8 +149,8 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({
   const groups: { [key: string]: Account[] } = {
     '流动资产 (现金/银行卡/第三方钱包)': accounts.filter(a => ['cash', 'bank', 'wallet'].includes(a.type)),
     '投资理财 (证券/基金/加密资产)': accounts.filter(a => ['investment', 'crypto'].includes(a.type)),
-    '固定资产与债权 (房产/车辆/借出款项)': accounts.filter(a => ['fixed', 'receivable'].includes(a.type)),
-    '负债与信贷 (信用卡/房贷/各类贷款)': accounts.filter(a => ['credit', 'loan'].includes(a.type))
+    '月付与消费信贷 (花呗/白条/美团月付/抖音月付/信用卡)': accounts.filter(a => ['huabei', 'baitiao', 'meituan_pay', 'douyin_pay', 'fenfu', 'credit'].includes(a.type)),
+    '大额借贷与固定资产 (借呗/房贷/车贷/房产)': accounts.filter(a => ['loan', 'jiebei', 'fixed', 'receivable'].includes(a.type))
   };
 
   return (
@@ -223,7 +229,10 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({
       <div className="space-y-6">
         {Object.entries(groups).map(([groupTitle, accList]) => {
           if (accList.length === 0) return null;
-          const groupTotal = accList.reduce((sum, a) => sum + (a.type === 'credit' || a.type === 'loan' ? -Math.abs(a.balance) : a.balance), 0);
+          const groupTotal = accList.reduce((sum, a) => {
+            const isLiab = ['credit', 'loan', 'huabei', 'baitiao', 'meituan_pay', 'douyin_pay', 'jiebei', 'fenfu'].includes(a.type);
+            return sum + (isLiab ? -Math.abs(a.balance) : a.balance);
+          }, 0);
 
           return (
             <div key={groupTitle} className="space-y-3">
@@ -241,7 +250,7 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({
                 {accList.map(acc => {
                   const cfg = ACCOUNT_TYPE_CONFIG[acc.type] || ACCOUNT_TYPE_CONFIG.bank;
                   const Icon = cfg.icon;
-                  const isLiability = acc.type === 'credit' || acc.type === 'loan';
+                  const isLiability = ['credit', 'loan', 'huabei', 'baitiao', 'meituan_pay', 'douyin_pay', 'jiebei', 'fenfu'].includes(acc.type);
 
                   return (
                     <div 

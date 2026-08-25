@@ -7,7 +7,13 @@ export type AccountType =
   | 'fixed' 
   | 'credit' 
   | 'loan' 
-  | 'receivable';
+  | 'receivable'
+  | 'huabei'
+  | 'baitiao'
+  | 'meituan_pay'
+  | 'douyin_pay'
+  | 'jiebei'
+  | 'fenfu';
 
 export interface Account {
   id: string;
@@ -61,20 +67,21 @@ export interface Category {
   icon?: string;
   color?: string;
   is_system?: number;
+  is_custom?: number;
   sort_order?: number;
 }
 
 export interface Budget {
   id: string;
-  period: string;
   category_id?: string;
   category_name?: string;
   amount: number;
-  alert_threshold: number;
+  period: string;
   spent_amount: number;
   remaining_amount: number;
   spent_percentage: number;
-  status: 'normal' | 'warning' | 'danger';
+  alert_threshold: number;
+  status: 'normal' | 'warning' | 'danger' | 'exceeded';
 }
 
 export interface Investment {
@@ -98,7 +105,7 @@ export interface Debt {
   id: string;
   account_id?: string;
   name: string;
-  type: 'credit_card' | 'mortgage' | 'car_loan' | 'consumer_loan' | 'personal_borrow';
+  type: 'credit_card' | 'mortgage' | 'car_loan' | 'consumer_loan' | 'personal_borrow' | 'huabei' | 'baitiao' | 'meituan_pay' | 'douyin_pay' | 'jiebei' | 'fenfu';
   total_principal: number;
   remaining_principal: number;
   interest_rate_annual: number;

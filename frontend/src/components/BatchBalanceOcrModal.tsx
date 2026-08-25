@@ -23,6 +23,7 @@ import { Account, AccountType } from '../types';
 import { api } from '../api/client';
 import { parseBalanceScreenshotWithAi, ExtractedBalanceResult } from '../services/aiParser';
 import { localStore } from '../services/localStore';
+import { optimizeImageForAi } from '../services/imageOptimizer';
 
 interface BatchBalanceItem {
   id: string;
@@ -63,14 +64,9 @@ export const BatchBalanceOcrModal: React.FC<BatchBalanceOcrModalProps> = ({
 
   if (!isOpen) return null;
 
-  // Convert image file to base64 Data URL
-  const fileToDataUrl = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = (e) => resolve(e.target?.result as string);
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
+  // Convert image file to compressed base64 Data URL
+  const fileToDataUrl = async (file: File): Promise<string> => {
+    return optimizeImageForAi(file);
   };
 
   // Match platform name to existing account
@@ -78,6 +74,12 @@ export const BatchBalanceOcrModal: React.FC<BatchBalanceOcrModalProps> = ({
     const pLower = platform.toLowerCase();
     return existingAccounts.find(acc => {
       const aLower = acc.name.toLowerCase();
+      if (pLower.includes('花呗') && aLower.includes('花呗')) return true;
+      if (pLower.includes('借呗') && aLower.includes('借呗')) return true;
+      if (pLower.includes('白条') && aLower.includes('白条')) return true;
+      if (pLower.includes('美团') && aLower.includes('美团')) return true;
+      if (pLower.includes('抖音') && aLower.includes('抖音')) return true;
+      if (pLower.includes('分付') && aLower.includes('分付')) return true;
       if (pLower.includes('零钱') && (aLower.includes('微信') || aLower.includes('零钱'))) return true;
       if (pLower.includes('余额宝') && (aLower.includes('支付宝') || aLower.includes('余额宝'))) return true;
       if (pLower.includes('支付宝') && aLower.includes('支付宝')) return true;
