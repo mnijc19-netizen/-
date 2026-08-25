@@ -19,6 +19,7 @@ interface NavbarProps {
   onOpenSnapshot: () => void;
   onOpenImageOcr: () => void;
   onOpenAiHub: () => void;
+  onOpenAiChat?: () => void;
   onReload: () => void;
 }
 
@@ -29,6 +30,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenSmartParser,
   onOpenImageOcr,
   onOpenAiHub,
+  onOpenAiChat,
   onReload
 }) => {
   return (
@@ -59,6 +61,17 @@ export const Navbar: React.FC<NavbarProps> = ({
 
       {/* Top Quick Actions */}
       <div className="flex items-center gap-1.5">
+        {/* AI Chat Copilot button */}
+        <button
+          type="button"
+          onClick={onOpenAiChat}
+          className="p-2 rounded-xl bg-purple-50 dark:bg-purple-950/60 border border-purple-200 dark:border-purple-800 text-purple-600 dark:text-purple-400 hover:bg-purple-100 transition active:scale-95 shadow-sm flex items-center gap-1"
+          title="💬 斌斌 AI 智能对话助手"
+        >
+          <Bot className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+          <span className="text-[10px] font-bold hidden sm:inline">AI对话</span>
+        </button>
+
         {/* Quick AI Hub button */}
         <button
           type="button"
@@ -66,7 +79,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           className="p-2 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 transition active:scale-95 shadow-sm"
           title="斌斌 AI 财务智能大脑"
         >
-          <Bot className="w-4 h-4" />
+          <Sparkles className="w-4 h-4" />
         </button>
 
         {/* Quick Camera OCR button */}

@@ -20,32 +20,53 @@ export interface AiExtractedItem {
 
 export const AI_PROVIDERS = [
   {
-    id: 'zhipu-vision',
-    name: '智谱 GLM-4V-Flash (免费·支持图片视觉识别 + 文本记账)',
+    id: 'zhipu-4.6v',
+    name: '智谱 GLM-4.6V (新用户专享600万资源包·最新超强视觉多模态)',
     baseUrl: 'https://open.bigmodel.cn/api/paas/v4',
-    model: 'glm-4v-flash',
-    hint: '前往 bigmodel.cn 申请免费 Key，支持图片视觉识别与文本记账！'
+    model: 'glm-4.6v',
+    hint: '使用您账号中赠送的【600万 GLM-4.6V 资源包】，支持超高清图片直接识别与深度记账！'
   },
   {
-    id: 'zhipu',
-    name: '智谱 GLM-4-Flash (免费·极速纯文本记账)',
+    id: 'zhipu-4.5air',
+    name: '智谱 GLM-4.5-Air (新用户专享1200万资源包·极速旗舰)',
+    baseUrl: 'https://open.bigmodel.cn/api/paas/v4',
+    model: 'glm-4.5-air',
+    hint: '使用您账号中赠送的【1200万 GLM-4.5-Air 资源包】，响应速度极快、理解力出众！'
+  },
+  {
+    id: 'zhipu-plus',
+    name: '智谱 GLM-4-Plus (新用户专享200万通用资源包·顶配旗舰)',
+    baseUrl: 'https://open.bigmodel.cn/api/paas/v4',
+    model: 'glm-4-plus',
+    hint: '使用您账号中赠送的【200万通用模型推理资源包】，智谱最强推理大模型！'
+  },
+  {
+    id: 'zhipu-vision',
+    name: '智谱 GLM-4V-Flash (永久免费·支持图片视觉直读 + 文本记账)',
+    baseUrl: 'https://open.bigmodel.cn/api/paas/v4',
+    model: 'glm-4v-flash',
+    hint: '智谱开放平台永久免费的视觉大模型，不消耗任何付费额度！'
+  },
+  {
+    id: 'zhipu-flash',
+    name: '智谱 GLM-4-Flash (永久免费·极速纯文本记账)',
     baseUrl: 'https://open.bigmodel.cn/api/paas/v4',
     model: 'glm-4-flash',
-    hint: '前往 bigmodel.cn 申请免费 GLM-4-Flash 密钥'
+    hint: '智谱开放平台永久免费纯文本模型，不消耗任何付费额度！'
   },
   {
     id: 'deepseek',
     name: 'DeepSeek (推荐·超强语义理解与推理)',
     baseUrl: 'https://api.deepseek.com/v1',
     model: 'deepseek-chat',
-    hint: '前往 platform.deepseek.com 获取 sk- 密钥'
+    hint: '前往 platform.deepseek.com 获取 sk- 密钥，输入即可直接调用 DeepSeek-Chat！'
   },
   {
     id: 'openai',
-    name: 'OpenAI GPT-4o-mini (多模态看图 + 语义)',
+    name: 'OpenAI GPT-4o / GPT-4o-mini (多模态看图 + 语义)',
     baseUrl: 'https://api.openai.com/v1',
     model: 'gpt-4o-mini',
-    hint: '前往 platform.openai.com 获取密钥'
+    hint: '前往 platform.openai.com 获取 API Key，支持 GPT-4o 与 4o-mini！'
   },
   {
     id: 'qwen',
@@ -63,10 +84,10 @@ export const AI_PROVIDERS = [
   },
   {
     id: 'custom',
-    name: '自定义兼容接口 (OneAPI / 中转站)',
-    baseUrl: '',
-    model: '',
-    hint: '支持任何标准 OpenAI 兼容的 /v1/chat/completions 接口'
+    name: '自定义通用接口 (OneAPI / 自建中转站 / 任意模型与URL)',
+    baseUrl: 'https://api.openai.com/v1',
+    model: 'gpt-4o',
+    hint: '支持任何标准 OpenAI 兼容的 /chat/completions 接口，可自由填写任意 Base URL 和 Model！'
   }
 ];
 

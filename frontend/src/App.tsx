@@ -8,6 +8,7 @@ import { SnapshotModal } from './components/SnapshotModal';
 import { ImageOcrModal } from './components/ImageOcrModal';
 import { IphoneShortcutModal } from './components/IphoneShortcutModal';
 import { AiHubModal } from './components/AiHubModal';
+import { AiChatAssistantModal } from './components/AiChatAssistantModal';
 
 // Pages
 import { Dashboard } from './pages/Dashboard';
@@ -54,6 +55,7 @@ export function App() {
   const [imageOcrOpen, setImageOcrOpen] = useState(false);
   const [iphoneShortcutOpen, setIphoneShortcutOpen] = useState(false);
   const [aiHubOpen, setAiHubOpen] = useState(false);
+  const [aiChatOpen, setAiChatOpen] = useState(false);
 
   // Auto Automation Toast
   const [autoToastMsg, setAutoToastMsg] = useState<string | null>(null);
@@ -284,6 +286,7 @@ export function App() {
           onOpenSnapshot={() => setSnapshotOpen(true)}
           onOpenImageOcr={() => setImageOcrOpen(true)}
           onOpenAiHub={() => setAiHubOpen(true)}
+          onOpenAiChat={() => setAiChatOpen(true)}
           onReload={loadAllData}
         />
 
@@ -305,6 +308,7 @@ export function App() {
                   onOpenSnapshot={() => setSnapshotOpen(true)}
                   onOpenImageOcr={() => setImageOcrOpen(true)}
                   onOpenAiHub={() => setAiHubOpen(true)}
+                  onOpenAiChat={() => setAiChatOpen(true)}
                   onClipboardIngest={handleClipboardIngest}
                   onNavigateTo={(p) => {
                     if (p === 'iphone_shortcut') {
@@ -448,6 +452,20 @@ export function App() {
         categories={categories}
         analytics={analytics}
         transactions={transactions}
+      />
+
+      <AiChatAssistantModal
+        isOpen={aiChatOpen}
+        onClose={() => setAiChatOpen(false)}
+        accounts={accounts}
+        categories={categories}
+        transactions={transactions}
+        goals={goals}
+        onRefresh={loadAllData}
+        onOpenSettings={() => {
+          setAiChatOpen(false);
+          setCurrentPage('settings');
+        }}
       />
     </div>
   );

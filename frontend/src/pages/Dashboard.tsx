@@ -27,6 +27,7 @@ interface DashboardProps {
   onOpenSnapshot: () => void;
   onOpenImageOcr: () => void;
   onOpenAiHub: () => void;
+  onOpenAiChat?: () => void;
   onClipboardIngest: () => void;
   onNavigateTo: (page: any) => void;
 }
@@ -40,6 +41,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onOpenSnapshot,
   onOpenImageOcr,
   onOpenAiHub,
+  onOpenAiChat,
   onClipboardIngest,
   onNavigateTo
 }) => {
@@ -117,30 +119,56 @@ export const Dashboard: React.FC<DashboardProps> = ({
         <ArrowRight className="w-4 h-4 text-emerald-500 flex-shrink-0" />
       </button>
 
-      {/* 🤖 AI Financial Copilot & Laboratory Hero Card */}
-      <button
-        type="button"
-        onClick={onOpenAiHub}
-        className="w-full p-3.5 rounded-2xl bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-pink-500/10 dark:from-indigo-950/50 dark:via-purple-950/40 dark:to-slate-900/80 border border-indigo-300/60 dark:border-indigo-500/30 flex items-center justify-between text-left hover:border-indigo-400 active:scale-98 transition shadow-sm group"
-      >
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-600 text-white flex items-center justify-center flex-shrink-0 shadow-md shadow-indigo-500/30 group-hover:scale-105 transition">
-            <Bot className="w-5 h-5" />
-          </div>
-          <div>
-            <div className="text-xs font-bold text-indigo-950 dark:text-white flex items-center gap-1.5">
-              <span>✨ 斌斌 AI 财务智能大脑 & 实验室</span>
-              <span className="text-[9px] font-mono font-bold px-1.5 py-0.2 rounded bg-indigo-500/15 dark:bg-purple-500/25 text-indigo-700 dark:text-purple-300">
-                AI
-              </span>
+      {/* 🤖 AI Financial Copilot & Laboratory Action Matrix */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+        <button
+          type="button"
+          onClick={onOpenAiChat}
+          className="p-3.5 rounded-2xl bg-gradient-to-r from-purple-600 via-indigo-600 to-pink-600 text-white flex items-center justify-between text-left shadow-lg shadow-purple-500/20 active:scale-98 transition group"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-md text-white flex items-center justify-center flex-shrink-0 shadow-sm group-hover:scale-105 transition">
+              <Bot className="w-5 h-5" />
             </div>
-            <p className="text-[10px] text-slate-600 dark:text-slate-300 mt-0.5">
-              一句话自动记多笔 • AI 财务体检 • 智能看图
-            </p>
+            <div>
+              <div className="text-xs font-bold text-white flex items-center gap-1.5">
+                <span>💬 斌斌 AI 对话管家</span>
+                <span className="text-[9px] font-mono font-bold px-1.5 py-0.2 rounded bg-white/20 text-white">
+                  BETA
+                </span>
+              </div>
+              <p className="text-[10px] text-purple-100 mt-0.5">
+                文字聊天直接帮您记账、查账、定存钱计划
+              </p>
+            </div>
           </div>
-        </div>
-        <ArrowRight className="w-4 h-4 text-indigo-600 dark:text-indigo-400 flex-shrink-0" />
-      </button>
+          <ArrowRight className="w-4 h-4 text-purple-200 flex-shrink-0" />
+        </button>
+
+        <button
+          type="button"
+          onClick={onOpenAiHub}
+          className="p-3.5 rounded-2xl bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-pink-500/10 dark:from-indigo-950/50 dark:via-purple-950/40 dark:to-slate-900/80 border border-indigo-300/60 dark:border-indigo-500/30 flex items-center justify-between text-left hover:border-indigo-400 active:scale-98 transition shadow-sm group"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-600 text-white flex items-center justify-center flex-shrink-0 shadow-md shadow-indigo-500/30 group-hover:scale-105 transition">
+              <Sparkles className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="text-xs font-bold text-indigo-950 dark:text-white flex items-center gap-1.5">
+                <span>✨ 智能大脑 & 实验室</span>
+                <span className="text-[9px] font-mono font-bold px-1.5 py-0.2 rounded bg-indigo-500/15 dark:bg-purple-500/25 text-indigo-700 dark:text-purple-300">
+                  AI
+                </span>
+              </div>
+              <p className="text-[10px] text-slate-600 dark:text-slate-300 mt-0.5">
+                AI 财务体检报告 • 多笔提取
+              </p>
+            </div>
+          </div>
+          <ArrowRight className="w-4 h-4 text-indigo-600 dark:text-indigo-400 flex-shrink-0" />
+        </button>
+      </div>
 
       {/* Mobile 4-Grid Quick Action Matrix */}
       <div className="grid grid-cols-2 gap-2.5">
