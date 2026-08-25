@@ -15,6 +15,49 @@ import { getBeijingDateTimeString, getBeijingDateString } from '../utils/dateUti
 import { optimizeImagesBatch } from './imageOptimizer';
 
 /**
+ * Strips degenerated repetitive token loops (e.g. infinite apology loops from lightweight models)
+ */
+export function cleanRepetitiveText(text: string): string {
+  if (!text || text.length < 15) return text;
+  
+  // 1. Remove consecutive duplicate lines
+  const lines = text.split('\n');
+  const cleanLines: string[] = [];
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line) {
+      cleanLines.push(lines[i]);
+      continue;
+    }
+    if (cleanLines.length > 0 && cleanLines[cleanLines.length - 1].trim() === line) {
+      continue;
+    }
+    cleanLines.push(lines[i]);
+  }
+  let result = cleanLines.join('\n');
+
+  // 2. Specific pattern filter for common apology/disclaimer loops
+  const apologizePattern = /((?:对不起，我之前的回答可能有误[。，]?|以下是按照您的要求生成的文本[：:]?|抱歉[，,]我之前的回答)[\s\S]{0,40}?)\1{2,}/g;
+  result = result.replace(apologizePattern, '$1');
+
+  // 3. General N-gram repetition filter
+  for (let len = 40; len >= 12; len--) {
+    for (let start = 0; start <= result.length - len * 3; start++) {
+      const chunk = result.substring(start, start + len);
+      if (chunk.includes('\n') || chunk.length < 12) continue;
+      const tripleChunk = chunk + chunk + chunk;
+      if (result.includes(tripleChunk)) {
+        const firstPos = result.indexOf(chunk);
+        result = result.substring(0, firstPos + len);
+        break;
+      }
+    }
+  }
+
+  return result.trim();
+}
+
+/**
  * Official Function Calling Tools Schema for Financial System Integration
  */
 export const FINANCIAL_AGENT_TOOLS: any[] = [
@@ -445,15 +488,20 @@ export async function sendAgentMessage(
     }
   }
 
-  // 2. Format history (keep last 8 turns)
+  // 2. Format history (keep last 8 turns) and sanitize past repetitive loops
   const apiMessages: any[] = [
     { role: 'system', content: systemPrompt }
   ];
 
   for (const h of history.slice(-8)) {
+    const cleanedMsg = cleanRepetitiveText(h.content || '');
+    if (!cleanedMsg.trim()) continue;
+    // Strip empty or degenerate past apologies from infecting new prompts
+    if (cleanedMsg.includes('对不起，我之前的回答可能有误') && cleanedMsg.length < 50) continue;
+
     apiMessages.push({
       role: h.role === 'user' ? 'user' : 'assistant',
-      content: h.content
+      content: cleanedMsg
     });
   }
 
@@ -485,7 +533,8 @@ export async function sendAgentMessage(
     model: activeModel,
     messages: apiMessages,
     tools: toolsList,
-    temperature: 0.1,
+    temperature: 0.35,
+    top_p: 0.8,
     max_tokens: modelMaxTokens,
     stream: true
   };
@@ -519,8 +568,9 @@ export async function sendAgentMessage(
       const reader = response.body.getReader();
       const decoder = new TextDecoder('utf-8');
       let buffer = '';
+      let loopDetected = false;
 
-      while (true) {
+      while (!loopDetected) {
         const { done, value } = await reader.read();
         if (done) break;
 
@@ -550,7 +600,25 @@ export async function sendAgentMessage(
             // Handle live conversational content
             if (deltaContent) {
               rawAccumulatedContent += deltaContent;
-              onStreamChunk?.(rawAccumulatedContent, rawAccumulatedReasoning);
+
+              // Anti-repetition stream circuit breaker
+              if (rawAccumulatedContent.length > 50) {
+                const last160 = rawAccumulatedContent.slice(-160);
+                const sentences = last160.split(/[。\n！？]/).filter(s => s.trim().length >= 8);
+                if (sentences.length >= 3) {
+                  const sLast = sentences[sentences.length - 1].trim();
+                  const sPrev1 = sentences[sentences.length - 2].trim();
+                  const sPrev2 = sentences[sentences.length - 3].trim();
+                  if (sLast === sPrev1 || sPrev1 === sPrev2) {
+                    console.warn('⚠️ Anti-Repetition Circuit Breaker triggered on stream.');
+                    try { reader.cancel(); } catch {}
+                    loopDetected = true;
+                    break;
+                  }
+                }
+              }
+
+              onStreamChunk?.(cleanRepetitiveText(rawAccumulatedContent), rawAccumulatedReasoning);
             }
 
             // Aggregate streamed tool call parameters
@@ -568,6 +636,7 @@ export async function sendAgentMessage(
           } catch {}
         }
       }
+      rawAccumulatedContent = cleanRepetitiveText(rawAccumulatedContent);
     } else {
       // Non-streaming fallback
       const data = await response.json();

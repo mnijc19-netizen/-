@@ -37,7 +37,7 @@ import confetti from 'canvas-confetti';
 import { Account, Transaction, Category, Goal, Budget, RecurringRule, Investment, Debt, AgentChatMessage, AccountType } from '../types';
 import { api } from '../api/client';
 import { localStore, AiConfig } from '../services/localStore';
-import { sendAgentMessage } from '../services/aiAgent';
+import { sendAgentMessage, cleanRepetitiveText } from '../services/aiAgent';
 import { getBeijingDateTimeString, getBeijingDateString } from '../utils/dateUtils';
 import { refreshInvestmentQuotes } from '../services/marketData';
 import { optimizeImagesBatch } from '../services/imageOptimizer';
@@ -810,7 +810,7 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
         if (m.id === assistantMsgId) {
           return {
             ...m,
-            content: response.reply,
+            content: cleanRepetitiveText(response.reply) || '✨ 分析完成',
             reasoning: response.reasoning || m.reasoning,
             pendingAction,
             actionResult
