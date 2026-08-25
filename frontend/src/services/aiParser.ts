@@ -614,60 +614,43 @@ export async function parseBalanceScreenshotWithAi(
   const prompt = `你是一个顶级专业的财务与资产/负债识别专家。请仔细分析这张包含平台资产、钱包余额、银行卡、证券账户或消费信贷待还账单的截图：
 
 【严格识别分类规则（100% 精确映射）】：
-1. 🐕 京东白条 (JD Baitiao):
-   - 包含“全部待还账单”、“全部待还 (元)”、“提前结清”、“已出账”、“京东”、“白条”
-   - platform: "京东白条"
-   - account_type: "baitiao"
-   - balance: 提取全部待还核心数字（如 2691.41）
-2. 🦘 美团月付 (Meituan Pay):
-   - 包含“美团月付”、“美团外卖”、“月付账单”、“本月待还”、“下月待还”
-   - platform: "美团月付"
-   - account_type: "meituan_pay"
-   - balance: 提取当前待还账单数字（如 278.22）
+1. 🦘 美团月付 (Meituan Pay):
+   - 视觉特征：薄荷绿渐变顶部背景，标题为“X月账单”，“X月X日前待还(元)”，“分期还款/提前还款”，“0元下单 待收货/使用的订单未计入账单”，下方有生活服务/外卖订单消费记录。
+   - platform: "美团月付", account_type: "meituan_pay", balance: 提取当前待还账单数字（如 278.22）
+2. 🐕 京东白条 (JD Baitiao):
+   - 视觉特征：顶部标题“全部待还账单”，有“待还账单/历史账单”选项卡，“全部待还 (元)”，“含未来账单待还金额”，下方列出各月待还（如8月、9月、10月待还），底部有“提前结清”。
+   - platform: "京东白条", account_type: "baitiao", balance: 提取“全部待还 (元)”大字数字（如 2691.41）
 3. 🌸 蚂蚁花呗 (Alipay Huabei):
    - 包含“花呗”、“花呗分期”、“花呗账单”、“本月应还”、“下月待还”
-   - platform: "蚂蚁花呗"
-   - account_type: "huabei"
-   - balance: 提取花呗待还款数字
+   - platform: "蚂蚁花呗", account_type: "huabei", balance: 提取花呗待还款数字
 4. 💰 蚂蚁借呗 (Alipay Jiebei):
    - 包含“借呗”、“网商贷”、“我的借款”、“借款本金”
-   - platform: "蚂蚁借呗"
-   - account_type: "jiebei"
-   - balance: 提取借呗待还本金
+   - platform: "蚂蚁借呗", account_type: "jiebei", balance: 提取借呗待还本金
 5. 🎵 抖音月付 (Douyin Pay):
    - 包含“抖音月付”、“抖音支付”、“本月应还”、“待还本金”
-   - platform: "抖音月付"
-   - account_type: "douyin_pay"
-   - balance: 提取抖音月付待还数字
+   - platform: "抖音月付", account_type: "douyin_pay", balance: 提取抖音月付待还数字
 6. 💬 微信分付 / 微粒贷 (WeChat Fenfu / Weilidai):
    - 包含“微信分付”、“分付”、“已用额度”、“微粒贷”
-   - platform: "微信分付"
-   - account_type: "fenfu"
-   - balance: 提取已用额度或待还金额
+   - platform: "微信分付", account_type: "fenfu", balance: 提取已用额度或待还金额
 7. 🟢 微信钱包（微信零钱 / 零钱通）:
    - 包含“钱包”、“零钱”、“零钱通”、“支付分”
    - platform: 判定为 "微信零钱" 或 "微信支付-零钱通" 或 "微信钱包"
-   - account_type: "wallet"
-   - balance: 提取零钱或零钱通实际数字
+   - account_type: "wallet", balance: 提取零钱或零钱通实际数字
 8. 🔵 支付宝资产（支付宝总资产 / 余额宝）:
    - 包含“总资产”、“资产概览”、“我的资产”、“余额宝”、“理财资产”
    - platform: 判定为 "支付宝-总资产" 或 "支付宝-余额宝"
-   - account_type: "wallet"
-   - balance: 提取“我的资产”或总资产核心数字（忽略广告推广）
-9. 📈 证券/基金/股票持仓:
-   - 包含“持仓”、“证券资产”、“ETF”、“华泰证券”、“招商证券”、“天天基金”
-   - platform: 判定为 "华泰证券/基金持仓" 或对应券商名
-   - account_type: "investment"
-   - balance: 提取总资产或持仓总市值
-10. 🏦 银行储蓄卡:
-    - 包含“招商银行”、“工商银行”、“建设银行”、“农业银行”、“中国银行”等
-    - platform: 银行具体名称
-    - account_type: "bank"
-    - balance: 提取活期/可用余额
+   - account_type: "wallet", balance: 提取“我的资产”或总资产核心数字（忽略广告推广）
+9. 🏦 银行卡管理 / 云闪付 / 储蓄卡列表:
+   - 包含“储蓄卡 (N)”、“工商银行”、“建设银行”、“农业银行”、“中国银行”、“福建农信”等实体银行卡
+   - platform: 银行具体名称（如 "中国银行(4691)"）
+   - account_type: "bank", balance: 提取该行可用余额
+10. 📈 证券/基金/股票持仓:
+    - 包含“持仓”、“证券资产”、“ETF”、“华泰证券”、“招商证券”、“天天基金”
+    - platform: "华泰证券/基金持仓", account_type: "investment", balance: 提取持仓总市值
 
 请直接输出符合格式的纯 JSON 字符串（绝对不要用任何 markdown 代码块包裹）：
 {
-  "platform": "京东白条|美团月付|蚂蚁花呗|微信零钱|支付宝-总资产|华泰证券/基金持仓|...",
+  "platform": "京东白条|美团月付|蚂蚁花呗|微信零钱|支付宝-总资产|中国银行(4691)|华泰证券/基金持仓|...",
   "account_type": "baitiao|meituan_pay|huabei|jiebei|douyin_pay|fenfu|wallet|bank|investment|credit|cash",
   "balance": 提取当前核心数字（纯数字，例如 278.22 或 2691.41，不要逗号）,
   "currency": "CNY",

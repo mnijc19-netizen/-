@@ -253,7 +253,39 @@ export function parseOfflineBalanceScreenshot(rawText: string): ExtractedBalance
     }
   }
 
-  // 10. Securities & Stock Portfolio (华泰证券/招商证券/天天基金/同花顺)
+  // 10. Multi-Bank Card List (e.g. UnionPay / Bank Card Aggregator screenshots)
+  if (/储蓄卡\s*\(\d+\)|卡管理|余额总计/.test(clean)) {
+    const cardLineRegex = /(工商银行|中国银行|建设银行|农业银行|招商银行|交通银行|民生银行|福建省?农村信用社?|农村商业银行|农商行|农信|浦发银行|光大银行|平安银行|中信银行|广发银行|华夏银行|邮政储蓄)[^\d\[\n]*\[?(\d{4})\]?[^\d\n]*[¥￥\s]*([\d,]+\.\d{2})/g;
+    let match;
+    let totalBal = 0;
+    let primaryCard: ExtractedBalanceResult | null = null;
+
+    while ((match = cardLineRegex.exec(clean)) !== null) {
+      const bankName = match[1];
+      const last4 = match[2];
+      const bal = parseFloat(match[3].replace(/,/g, ''));
+      if (bal >= 0) {
+        totalBal += bal;
+        if (!primaryCard && bal > 0) {
+          primaryCard = {
+            platform: `${bankName}(${last4})`,
+            accountType: 'bank',
+            balance: bal,
+            currency: 'CNY',
+            cardLast4: last4,
+            note: `${bankName} [${last4}] 储蓄卡`,
+            confidence: 0.98
+          };
+        }
+      }
+    }
+
+    if (primaryCard) {
+      return primaryCard;
+    }
+  }
+
+  // 11. Securities & Stock Portfolio (华泰证券/招商证券/天天基金/同花顺)
   if (/证券|持仓|股票|ETF|纳指|标普|东方财富|天天基金|同花顺|涨乐财富通|两融|华泰/.test(clean)) {
     const secMatch = clean.match(/(?:总资产|总市值|持仓市值|证券资产)[^\d\n]*[¥￥\s]*([\d,]+\.\d{2})/i) ||
                      clean.match(/([\d,]+\.\d{2})/);
@@ -273,4 +305,32 @@ export function parseOfflineBalanceScreenshot(rawText: string): ExtractedBalance
   }
 
   return null;
+}
+
+/**
+ * Extracts multiple bank card accounts from a single multi-card screenshot
+ */
+export function parseOfflineMultiBankCardList(rawText: string): ExtractedBalanceResult[] {
+  if (!rawText || !rawText.trim()) return [];
+  const clean = rawText.replace(/,/g, '');
+  const results: ExtractedBalanceResult[] = [];
+  const cardLineRegex = /(工商银行|中国银行|建设银行|农业银行|招商银行|交通银行|民生银行|福建省?农村信用社?|农村商业银行|农商行|农信|浦发银行|光大银行|平安银行|中信银行|广发银行|华夏银行|邮政储蓄)[^\d\[\n]*\[?(\d{4})\]?[^\d\n]*[¥￥\s]*([\d,]+\.\d{2})/g;
+  let match;
+
+  while ((match = cardLineRegex.exec(clean)) !== null) {
+    const bankName = match[1];
+    const last4 = match[2];
+    const bal = parseFloat(match[3].replace(/,/g, ''));
+    results.push({
+      platform: `${bankName}(${last4})`,
+      accountType: 'bank',
+      balance: bal,
+      currency: 'CNY',
+      cardLast4: last4,
+      note: `${bankName} [${last4}] 储蓄卡`,
+      confidence: 0.98
+    });
+  }
+
+  return results;
 }
