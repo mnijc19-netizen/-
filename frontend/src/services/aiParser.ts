@@ -550,7 +550,7 @@ export async function parseImageWithAiVision(
           }
         ],
         temperature: 0.1,
-        max_tokens: 2048
+        max_tokens: 8192
       }),
       signal: controller.signal
     });
@@ -728,7 +728,7 @@ export async function parseBalanceScreenshotWithAi(
           }
         ],
         temperature: 0.1,
-        max_tokens: 2048
+        max_tokens: 8192
       }),
       signal: controller.signal
     });

@@ -4,13 +4,13 @@
  * Accelerates AI Multimodal API upload speed by 10x-20x while preserving razor-sharp financial text legibility!
  */
 
-export async function optimizeImageForAi(input: string | File, maxDimension = 1280, quality = 0.85): Promise<string> {
+export async function optimizeImageForAi(input: string | File, maxDimension = 1800, quality = 0.90): Promise<string> {
   return new Promise((resolve) => {
     let src = '';
     if (typeof input === 'string') {
       src = input;
       // If already a tiny JPEG/base64, return quickly
-      if (src.startsWith('data:image/jpeg') && src.length < 250000) {
+      if (src.startsWith('data:image/jpeg') && src.length < 350000) {
         return resolve(src);
       }
     }

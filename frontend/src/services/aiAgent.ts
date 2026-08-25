@@ -302,7 +302,7 @@ export async function sendAgentMessage(
     model: activeModel,
     messages: apiMessages,
     temperature: 0.1,
-    max_tokens: 4096, // High token ceiling to accommodate deep thinking/reasoning + JSON output
+    max_tokens: 8192, // Maximum token ceiling supported by GLM-4.6V for large multi-image batch analysis
     stream: true // Enable SSE streaming for instant TTFT response
   };
 
@@ -407,7 +407,7 @@ export async function sendAgentMessage(
     };
   } catch (err: any) {
     // If streaming fetch fails (e.g. proxy blocks SSE), fallback to standard non-streaming call
-    const fallbackBody = { ...reqBody, stream: false, max_tokens: 4096 };
+    const fallbackBody = { ...reqBody, stream: false, max_tokens: 8192 };
     const fbResponse = await fetch(url, {
       method: 'POST',
       headers: {
