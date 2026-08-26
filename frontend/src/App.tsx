@@ -28,6 +28,7 @@ import { SettingsPage } from './pages/SettingsPage';
 
 import { api } from './api/client';
 import { localStore } from './services/localStore';
+import { webdavSync } from './services/webdavSync';
 import { checkAndHandleUrlAutoIngest, extractFromRawText } from './services/urlAutoIngest';
 import { getBeijingDateTimeString } from './utils/dateUtils';
 import { 
@@ -162,10 +163,11 @@ export function App() {
     }
   };
 
-  // Check URL automation parameter on startup (iPhone Action Button / Shortcuts trigger)
+  // Check URL automation parameter and WebDAV cloud inbox on startup
   useEffect(() => {
     const init = async () => {
       try {
+        // 1. Check URL automation (if opened via old URL scheme)
         const res = await checkAndHandleUrlAutoIngest();
 
         if (res && res.triggered) {
@@ -180,6 +182,17 @@ export function App() {
             setTimeout(() => setAutoToastMsg(null), 8000);
           }
         }
+
+        // 2. Check WebDAV Cloud Inbox (iOS Shortcuts silent background writes)
+        const webDavCfg = localStore.getWebDavConfig();
+        if (webDavCfg.url && webDavCfg.user && webDavCfg.pass) {
+          const syncRes = await webdavSync.checkAndIngestInbox(webDavCfg);
+          if (syncRes.ingestedCount > 0) {
+            setAutoToastMsg(`☁️ 已自动同步 ${syncRes.ingestedCount} 笔快捷指令截图记账！`);
+            confetti({ particleCount: 80, spread: 60, origin: { y: 0.2 } });
+            setTimeout(() => setAutoToastMsg(null), 5000);
+          }
+        }
       } catch (e: any) {
         console.error(e);
       } finally {
@@ -188,9 +201,20 @@ export function App() {
     };
     init();
 
-    // Re-check clipboard and data when switching back to app
-    const handleVisibility = () => {
+    // Re-check WebDAV and data when switching back to app
+    const handleVisibility = async () => {
       if (document.visibilityState === 'visible') {
+        const webDavCfg = localStore.getWebDavConfig();
+        if (webDavCfg.url && webDavCfg.user && webDavCfg.pass) {
+          try {
+            const syncRes = await webdavSync.checkAndIngestInbox(webDavCfg);
+            if (syncRes.ingestedCount > 0) {
+              setAutoToastMsg(`☁️ 已自动同步 ${syncRes.ingestedCount} 笔快捷指令截图记账！`);
+              confetti({ particleCount: 80, spread: 60, origin: { y: 0.2 } });
+              setTimeout(() => setAutoToastMsg(null), 5000);
+            }
+          } catch {}
+        }
         loadAllData();
       }
     };

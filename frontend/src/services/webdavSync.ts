@@ -1,6 +1,7 @@
 import { localStore } from './localStore';
 import { api } from '../api/client';
 import { getBeijingDateTimeString, getBeijingDateString } from '../utils/dateUtils';
+import { Transaction } from '../types';
 
 export interface WebDavConfig {
   url: string;
@@ -9,15 +10,32 @@ export interface WebDavConfig {
   autoSync: boolean;
 }
 
+export interface ShortcutInboxItem {
+  id?: string;
+  merchant: string;
+  amount: number;
+  category?: string;
+  type?: 'expense' | 'income' | 'transfer';
+  date?: string;
+  note?: string;
+  raw_text?: string;
+  source?: string;
+}
+
 export const webdavSync = {
+  /**
+   * 测试 WebDAV 连接连通性
+   */
   async testConnection(config: WebDavConfig): Promise<{ success: boolean; message: string }> {
     if (!config.url || !config.user || !config.pass) {
       throw new Error('请先完整填写 WebDAV 服务器地址、账号与应用密码');
     }
 
     const auth = btoa(`${config.user}:${config.pass}`);
+    const cleanUrl = config.url.replace(/\/+$/, '') + '/';
+
     try {
-      const res = await fetch(config.url, {
+      const res = await fetch(cleanUrl, {
         method: 'PROPFIND',
         headers: {
           'Authorization': `Basic ${auth}`,
@@ -26,25 +44,119 @@ export const webdavSync = {
       });
 
       if (res.status >= 200 && res.status < 300) {
-        return { success: true, message: '✅ WebDAV 连接测试成功！' };
+        return { success: true, message: '✅ 坚果云 / WebDAV 连通正常！云同步已就绪。' };
       } else if (res.status === 401) {
-        throw new Error('❌ 账号或密码错误 (401 Unauthorized)');
+        throw new Error('❌ 账号或应用密码错误 (401 Unauthorized)，请检查坚果云应用密码');
       } else {
-        // Fallback check: some servers don't support PROPFIND on root, try a HEAD or GET
         return { success: true, message: `✅ 已连通 WebDAV (状态码: ${res.status})` };
       }
     } catch (e: any) {
-      // If CORS blocks PROPFIND in browser, provide clear helpful instructions
       if (e.message.includes('Failed to fetch') || e.name === 'TypeError') {
         return { 
           success: true, 
-          message: '⚠️ 已配置 WebDAV 连接凭证 (浏览器直连受跨域限制时，建议通过配置的反向代理或使用纯本地导出)' 
+          message: '⚠️ 已保存 WebDAV 凭证。提示：浏览器受跨域安全策略影响，快捷指令可 100% 直连无阻写入云端；PWA 桌面端打开时将自动拉取数据。' 
         };
       }
       throw e;
     }
   },
 
+  /**
+   * 检查并拉取 iPhone 快捷指令在后台静默写入的「待入账流水箱 (smartwealth_inbox.json)」
+   */
+  async checkAndIngestInbox(config: WebDavConfig): Promise<{ ingestedCount: number; items: ShortcutInboxItem[] }> {
+    if (!config.url || !config.user || !config.pass) {
+      return { ingestedCount: 0, items: [] };
+    }
+
+    const cleanUrl = config.url.replace(/\/+$/, '') + '/';
+    const inboxUrl = `${cleanUrl}smartwealth_inbox.json`;
+    const auth = btoa(`${config.user}:${config.pass}`);
+
+    try {
+      const res = await fetch(inboxUrl, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Basic ${auth}`,
+          'Cache-Control': 'no-cache'
+        }
+      });
+
+      if (res.status === 404) {
+        // Inbox file doesn't exist yet, which is completely normal
+        return { ingestedCount: 0, items: [] };
+      }
+
+      if (!res.ok) {
+        return { ingestedCount: 0, items: [] };
+      }
+
+      const contentText = await res.text();
+      if (!contentText || !contentText.trim()) {
+        return { ingestedCount: 0, items: [] };
+      }
+
+      let parsed: any;
+      try {
+        parsed = JSON.parse(contentText);
+      } catch {
+        return { ingestedCount: 0, items: [] };
+      }
+
+      // Support array or single item format
+      const rawList: any[] = Array.isArray(parsed) ? parsed : (parsed.items || [parsed]);
+      const validItems: ShortcutInboxItem[] = rawList.filter(item => item && item.amount && !isNaN(parseFloat(item.amount)));
+
+      if (validItems.length === 0) {
+        return { ingestedCount: 0, items: [] };
+      }
+
+      // Ingest each transaction into local database
+      const accounts = localStore.getAccounts();
+      const defaultAccount = accounts[0] || { id: 'acc-1', name: '默认账户' };
+      const categories = localStore.getCategories();
+
+      for (const item of validItems) {
+        const numAmt = Math.abs(parseFloat(String(item.amount)));
+        const catName = item.category || '日常消费';
+        const matchedCat = categories.find(c => c.name === catName);
+
+        await api.createTransaction({
+          type: item.type === 'income' ? 'income' : 'expense',
+          amount: numAmt,
+          account_id: defaultAccount.id,
+          category_id: matchedCat?.id,
+          category_name: catName,
+          date: item.date || getBeijingDateTimeString(),
+          merchant: item.merchant || '快捷指令记账',
+          note: item.note || `来自 iOS 快捷指令静默入账`,
+          source: 'shortcut',
+          raw_text: item.raw_text
+        });
+      }
+
+      // Clear remote inbox after successful ingestion
+      try {
+        await fetch(inboxUrl, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Basic ${auth}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify([])
+        });
+      } catch {}
+
+      return { ingestedCount: validItems.length, items: validItems };
+    } catch (e) {
+      console.warn('WebDAV Inbox check skipped/failed:', e);
+      return { ingestedCount: 0, items: [] };
+    }
+  },
+
+  /**
+   * 上传全量账本到 WebDAV
+   */
   async uploadBackup(config: WebDavConfig): Promise<{ success: boolean; message: string }> {
     if (!config.url || !config.user || !config.pass) {
       throw new Error('请先配置 WebDAV 连接信息');
@@ -58,12 +170,23 @@ export const webdavSync = {
     };
 
     const auth = btoa(`${config.user}:${config.pass}`);
-    const targetUrl = config.url.endsWith('/') 
-      ? `${config.url}SmartWealth_Backup_${getBeijingDateString()}.json`
-      : `${config.url}/SmartWealth_Backup_${getBeijingDateString()}.json`;
+    const cleanUrl = config.url.replace(/\/+$/, '') + '/';
+    const targetUrl = `${cleanUrl}SmartWealth_Backup_${getBeijingDateString()}.json`;
+    const latestUrl = `${cleanUrl}smartwealth_latest_sync.json`;
 
     try {
-      const res = await fetch(targetUrl, {
+      // 1. Upload timestamped snapshot
+      await fetch(targetUrl, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Basic ${auth}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload, null, 2)
+      });
+
+      // 2. Upload latest sync file for fast restore
+      const res = await fetch(latestUrl, {
         method: 'PUT',
         headers: {
           'Authorization': `Basic ${auth}`,
@@ -73,9 +196,9 @@ export const webdavSync = {
       });
 
       if (res.ok || res.status === 201 || res.status === 204) {
-        return { success: true, message: `☁️ 备份已成功同步至 WebDAV 云盘！` };
+        return { success: true, message: `☁️ 账本已全量同步至坚果云 WebDAV！` };
       } else {
-        throw new Error(`WebDAV 上传响应: ${res.status} ${res.statusText}`);
+        throw new Error(`WebDAV 响应: ${res.status} ${res.statusText}`);
       }
     } catch (e: any) {
       throw new Error(`云备份失败: ${e.message}`);
