@@ -94,6 +94,29 @@ export function App() {
   const [debts, setDebts] = useState<Debt[]>([]);
   const [goals, setGoals] = useState<Goal[]>([]);
   const [loading, setLoading] = useState(true);
+  const [syncingGist, setSyncingGist] = useState(false);
+
+  const handleManualSyncGist = async () => {
+    if (syncingGist) return;
+    setSyncingGist(true);
+    try {
+      const res = await githubGistSync.pullAndIngestGist();
+      if (res.count > 0) {
+        setAutoToastMsg(res.message || `✅ 成功同步 ${res.count} 笔新账单！`);
+        confetti({ particleCount: 60, spread: 50, origin: { y: 0.2 } });
+        setTimeout(() => setAutoToastMsg(null), 5000);
+        await loadAllData();
+      } else {
+        setAutoToastMsg(res.message || '☁️ GitHub 信箱当前为空（无待入账流水）');
+        setTimeout(() => setAutoToastMsg(null), 4000);
+      }
+    } catch (e: any) {
+      setAutoToastMsg(`❌ 同步失败: ${e.message}`);
+      setTimeout(() => setAutoToastMsg(null), 5000);
+    } finally {
+      setSyncingGist(false);
+    }
+  };
 
   // Sync dark mode class
   useEffect(() => {
@@ -424,6 +447,8 @@ export function App() {
                   onOpenBatchBalance={() => setBatchBalanceOcrOpen(true)}
                   onOpenAiChat={() => setAiChatOpen(true)}
                   onOpenOnboarding={() => setOnboardingOpen(true)}
+                  onSyncGist={handleManualSyncGist}
+                  syncingGist={syncingGist}
                 />
               )}
 
