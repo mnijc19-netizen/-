@@ -294,28 +294,33 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({
                         </div>
                       )}
 
-                      {/* Linked Holdings for Investment Accounts (華泰证券 / 基金持仓) */}
+                      {/* Linked Holdings for Investment Accounts (华泰证券 / 基金持仓) */}
                       {acc.type === 'investment' && (() => {
                         const matchedHoldings = investments.filter(i => i.account_id === acc.id);
+                        const uninvestedCash = typeof acc.cash_balance === 'number' ? acc.cash_balance : 0;
+                        const holdingsMarketVal = matchedHoldings.reduce((s, h) => s + h.market_value, 0);
                         return (
-                          <div className="p-2.5 rounded-2xl bg-purple-50/80 dark:bg-purple-950/40 border border-purple-200/80 dark:border-purple-800/80 flex items-center justify-between text-xs gap-2">
-                            <div className="min-w-0 flex-1">
+                          <div className="p-2.5 rounded-2xl bg-purple-50/80 dark:bg-purple-950/40 border border-purple-200/80 dark:border-purple-800/80 space-y-1.5 text-xs">
+                            <div className="flex items-center justify-between">
                               <div className="font-bold text-[11px] text-purple-900 dark:text-purple-200 truncate flex items-center gap-1">
                                 <TrendingUp className="w-3.5 h-3.5 text-purple-600 flex-shrink-0" />
                                 <span>关联持仓: {matchedHoldings.length > 0 ? matchedHoldings.map(h => `${h.name}(¥${h.market_value.toFixed(2)})`).join('、') : '暂无单项标的'}</span>
                               </div>
-                              <div className="text-[10px] text-purple-600/80 dark:text-purple-300/80 truncate mt-0.5">
-                                市值实时与本账户余额联动对齐，拒绝冲突
-                              </div>
+                              <button
+                                type="button"
+                                onClick={() => onNavigate?.('investments')}
+                                className="px-2 py-0.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-[10px] font-bold shadow-sm transition active:scale-95 flex items-center gap-0.5 flex-shrink-0"
+                              >
+                                <span>管理持仓</span>
+                                <ArrowRight className="w-2.5 h-2.5" />
+                              </button>
                             </div>
-                            <button
-                              type="button"
-                              onClick={() => onNavigate?.('investments')}
-                              className="px-2 py-1 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-[10px] font-bold shadow-sm transition active:scale-95 flex items-center gap-0.5 flex-shrink-0"
-                            >
-                              <span>管理持仓</span>
-                              <ArrowRight className="w-2.5 h-2.5" />
-                            </button>
+                            {uninvestedCash > 0 && (
+                              <div className="text-[10px] text-purple-700 dark:text-purple-300 flex items-center justify-between font-mono bg-purple-100/60 dark:bg-purple-900/40 px-2 py-0.5 rounded-md">
+                                <span>💰 可用现金 (未投): ¥{uninvestedCash.toFixed(2)}</span>
+                                <span>📈 持仓市值: ¥{holdingsMarketVal.toFixed(2)}</span>
+                              </div>
+                            )}
                           </div>
                         );
                       })()}

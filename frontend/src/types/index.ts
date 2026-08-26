@@ -22,6 +22,7 @@ export interface Account {
   currency: string;
   balance: number;
   initial_balance: number;
+  cash_balance?: number; // 券商/理财账户内未投资的可用活期现金
   card_last4?: string;
   bank_name?: string;
   credit_limit?: number;

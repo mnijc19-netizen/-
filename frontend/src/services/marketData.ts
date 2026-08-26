@@ -290,7 +290,8 @@ export async function refreshInvestmentQuotes(
   for (const [accId, mVal] of accountMarketValMap.entries()) {
     const matchedAcc = allAccounts.find(a => a.id === accId && a.type === 'investment');
     if (matchedAcc) {
-      matchedAcc.balance = Math.round(mVal * 100) / 100;
+      const uninvestedCash = typeof matchedAcc.cash_balance === 'number' ? matchedAcc.cash_balance : 0;
+      matchedAcc.balance = Math.round((mVal + uninvestedCash) * 100) / 100;
       accountsUpdated = true;
     }
   }

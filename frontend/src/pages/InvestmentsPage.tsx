@@ -61,6 +61,9 @@ export const InvestmentsPage: React.FC<InvestmentsPageProps> = ({
   const totalMarketVal = investments.reduce((s, i) => s + i.market_value, 0);
   const totalPnl = totalMarketVal - totalCost;
   const totalPnlRate = totalCost > 0 ? (totalPnl / totalCost) * 100 : 0;
+  const totalUninvestedCash = accounts
+    .filter(a => a.type === 'investment' || (a.cash_balance && a.cash_balance > 0))
+    .reduce((sum, a) => sum + (a.cash_balance || 0), 0);
 
   // Auto-deduplicate on mount to heal any legacy duplicate records
   useEffect(() => {
@@ -293,6 +296,23 @@ export const InvestmentsPage: React.FC<InvestmentsPageProps> = ({
               </div>
             </div>
           </div>
+
+          {totalUninvestedCash > 0 && (
+            <div className="pt-2 border-t border-white/10 grid grid-cols-2 gap-2 text-xs">
+              <div>
+                <div className="text-[10px] text-amber-300">💰 证券可用现金 (未投)</div>
+                <div className="font-bold font-mono text-amber-200">
+                  ¥{totalUninvestedCash.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}
+                </div>
+              </div>
+              <div>
+                <div className="text-[10px] text-indigo-300">🏦 券商总资产 (市值+现金)</div>
+                <div className="font-bold font-mono text-white">
+                  ¥{(totalMarketVal + totalUninvestedCash).toLocaleString('zh-CN', { minimumFractionDigits: 2 })}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

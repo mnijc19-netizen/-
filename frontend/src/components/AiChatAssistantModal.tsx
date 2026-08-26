@@ -378,21 +378,25 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
         );
 
         const totalMarketValue = items.reduce((sum: number, it: any) => sum + (parseFloat(it.market_value) || ((parseFloat(it.shares) || 0) * (parseFloat(it.current_price || it.cost_price) || 0))), 0);
-        const finalBrokerBalance = totalAssets > 0 ? totalAssets : (totalMarketValue + availableCash);
+        const brokerCash = availableCash > 0 ? availableCash : Math.max(0, totalAssets - totalMarketValue);
+        const finalBrokerBalance = totalMarketValue + brokerCash;
 
         if (!brokerAcc) {
           brokerAcc = await api.createAccount({
             name: brokerName,
             type: 'investment',
             balance: finalBrokerBalance,
+            cash_balance: brokerCash,
             currency: 'CNY',
-            note: '由 AI 识别证券持仓自动建账'
+            note: `券商账户 (含持仓市值 + 可用现金 ¥${brokerCash.toFixed(2)})`
           });
         } else {
           await api.updateAccount(brokerAcc.id, {
             ...brokerAcc,
             name: brokerName,
-            balance: finalBrokerBalance
+            balance: finalBrokerBalance,
+            cash_balance: brokerCash,
+            note: `券商账户 (含持仓市值 + 可用现金 ¥${brokerCash.toFixed(2)})`
           });
         }
 
