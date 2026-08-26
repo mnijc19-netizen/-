@@ -669,36 +669,36 @@ export const SmartParserPage: React.FC<SmartParserPageProps> = ({ accounts, cate
 
                 {/* 4 Stats Chips */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-3.5">
-                  <div className="p-2.5 rounded-2xl bg-white/80 dark:bg-slate-900/80 border border-slate-200/60 dark:border-slate-800 text-center">
-                    <div className="text-[10px] text-slate-400 font-medium">总识别明细</div>
-                    <div className="text-base font-black font-mono text-slate-900 dark:text-white mt-0.5">
-                      {parsedBill.totalCount} <span className="text-[10px] font-normal">笔</span>
+                  <div className="p-2.5 rounded-2xl bg-white/80 dark:bg-slate-900/80 border border-slate-200/60 dark:border-slate-800 text-center overflow-hidden">
+                    <div className="text-[10px] text-slate-400 font-medium truncate">总识别明细</div>
+                    <div className="text-base font-black font-mono text-slate-900 dark:text-white mt-0.5 truncate">
+                      {parsedBill.totalCount}<span className="text-[10px] font-normal ml-0.5">笔</span>
                     </div>
                   </div>
-                  <div className="p-2.5 rounded-2xl bg-white/80 dark:bg-slate-900/80 border border-slate-200/60 dark:border-slate-800 text-center">
-                    <div className="text-[10px] text-slate-400 font-medium">支出总额 ({parsedBill.expenseCount}笔)</div>
-                    <div className="text-base font-black font-mono text-rose-500 mt-0.5">
-                      ¥{parsedBill.totalExpense.toFixed(2)}
+                  <div className="p-2.5 rounded-2xl bg-white/80 dark:bg-slate-900/80 border border-slate-200/60 dark:border-slate-800 text-center overflow-hidden">
+                    <div className="text-[10px] text-slate-400 font-medium truncate">支出({parsedBill.expenseCount}笔)</div>
+                    <div className="text-sm font-black font-mono text-rose-500 mt-0.5 truncate">
+                      ¥{parsedBill.totalExpense.toFixed(0)}
                     </div>
                   </div>
-                  <div className="p-2.5 rounded-2xl bg-white/80 dark:bg-slate-900/80 border border-slate-200/60 dark:border-slate-800 text-center">
-                    <div className="text-[10px] text-slate-400 font-medium">收入总额 ({parsedBill.incomeCount}笔)</div>
-                    <div className="text-base font-black font-mono text-emerald-500 mt-0.5">
-                      ¥{parsedBill.totalIncome.toFixed(2)}
+                  <div className="p-2.5 rounded-2xl bg-white/80 dark:bg-slate-900/80 border border-slate-200/60 dark:border-slate-800 text-center overflow-hidden">
+                    <div className="text-[10px] text-slate-400 font-medium truncate">收入({parsedBill.incomeCount}笔)</div>
+                    <div className="text-sm font-black font-mono text-emerald-500 mt-0.5 truncate">
+                      ¥{parsedBill.totalIncome.toFixed(0)}
                     </div>
                   </div>
-                  <div className="p-2.5 rounded-2xl bg-white/80 dark:bg-slate-900/80 border border-slate-200/60 dark:border-slate-800 text-center">
-                    <div className="text-[10px] text-slate-400 font-medium">查重防护已过滤</div>
-                    <div className="text-base font-black font-mono text-amber-500 mt-0.5">
-                      {duplicateCount} <span className="text-[10px] font-normal">笔重复</span>
+                  <div className="p-2.5 rounded-2xl bg-white/80 dark:bg-slate-900/80 border border-slate-200/60 dark:border-slate-800 text-center overflow-hidden">
+                    <div className="text-[10px] text-slate-400 font-medium truncate">⚡ 去重拦截</div>
+                    <div className="text-base font-black font-mono text-amber-500 mt-0.5 truncate">
+                      {duplicateCount}<span className="text-[10px] font-normal ml-0.5">笔</span>
                     </div>
                   </div>
                 </div>
               </div>
 
               {/* Filter & Toolbar */}
-              <div className="p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-                {/* Tabs */}
+              <div className="p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-2.5 text-xs">
+                {/* Row 1: Filter tabs */}
                 <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
                   {[
                     { id: 'all', label: `全部 (${parsedBill.totalCount})` },
@@ -721,9 +721,37 @@ export const SmartParserPage: React.FC<SmartParserPageProps> = ({ accounts, cate
                   ))}
                 </div>
 
-                {/* Search & Quick Select */}
+                {/* Row 2: Quick Select + Search */}
                 <div className="flex items-center gap-2">
-                  <div className="relative flex-1 sm:w-48">
+                  <div className="flex-shrink-0 flex items-center gap-1">
+                    <span className="text-[10px] text-slate-400 font-medium mr-0.5">勾选：</span>
+                    <button
+                      type="button"
+                      onClick={() => handleSelectAll(true)}
+                      className="px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-[11px] font-bold text-slate-700 dark:text-slate-300 active:scale-95 transition"
+                      title="全部勾选（含已重复条目）"
+                    >
+                      全部
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSelectOnlyType('expense')}
+                      className="px-2 py-1 rounded-lg bg-rose-50 dark:bg-rose-950/50 border border-rose-200/80 dark:border-rose-800/50 hover:bg-rose-100 text-[11px] font-bold text-rose-600 dark:text-rose-400 active:scale-95 transition"
+                      title="仅勾选支出类（不计收入、不计已重复）"
+                    >
+                      仅支出
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSelectAll(false)}
+                      className="px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-[11px] font-bold text-slate-400 active:scale-95 transition"
+                      title="取消全部勾选"
+                    >
+                      取消
+                    </button>
+                  </div>
+
+                  <div className="relative flex-1">
                     <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
                     <input
                       type="text"
@@ -732,30 +760,6 @@ export const SmartParserPage: React.FC<SmartParserPageProps> = ({ accounts, cate
                       placeholder="搜索商户/单号..."
                       className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs focus:outline-none"
                     />
-                  </div>
-
-                  <div className="flex items-center gap-1">
-                    <button
-                      type="button"
-                      onClick={() => handleSelectAll(true)}
-                      className="px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-[11px] font-bold text-slate-700 dark:text-slate-300"
-                    >
-                      全选
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleSelectOnlyType('expense')}
-                      className="px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-[11px] font-bold text-rose-600 dark:text-rose-400"
-                    >
-                      只选支出
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleSelectAll(false)}
-                      className="px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-[11px] font-bold text-slate-400"
-                    >
-                      清空
-                    </button>
                   </div>
                 </div>
               </div>

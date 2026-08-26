@@ -109,13 +109,23 @@ export async function parseBillExcelOrCsv(file: File): Promise<ParsedBillResult>
   }
 
   // 4. Retrieve existing transactions for duplicate avoidance
+  // Use ORDER ID as the primary dedupe key (most reliable)
+  // Fall back to date+amount+merchant fingerprint only if no order ID
   const existingTransactions = localStore.getTransactions();
-  const existingSet = new Set<string>();
+  const existingOrderIds = new Set<string>();
+  const existingFingerprints = new Set<string>();
   for (const t of existingTransactions) {
-    // Fingerprint: date_substring + amount + merchant
-    const datePrefix = t.date.slice(0, 16);
-    existingSet.add(`${datePrefix}_${t.amount.toFixed(2)}_${t.merchant}`);
-    if (t.raw_text) existingSet.add(t.raw_text.trim());
+    // Only index transactions that were imported from bill excel (not all existing)
+    if (t.source === 'excel_import' && t.note) {
+      // Extract order ID from note (format: "... | 单号:XXXXXXXX")
+      const orderMatch = t.note.match(/单号:([A-Za-z0-9]+)/);
+      if (orderMatch) existingOrderIds.add(orderMatch[1]);
+    }
+    // Also track by fingerprint for SMS-imported transactions
+    if (t.source === 'sms_parser' || t.source === 'excel_import') {
+      const datePrefix = t.date.slice(0, 16);
+      existingFingerprints.add(`${datePrefix}_${t.amount.toFixed(2)}_${t.merchant}`);
+    }
   }
 
   const items: ParsedBillItem[] = [];
@@ -157,35 +167,49 @@ export async function parseBillExcelOrCsv(file: File): Promise<ParsedBillResult>
       type = 'income';
     } else if (rawDirection.includes('支出') || rawDirection === '支出') {
       type = 'expense';
-    } else {
-      // Neutral or unspecified (e.g. '/' or '不计收支')
+    } else if (rawDirection === '/' || rawDirection === '') {
+      // Neutral transaction (e.g. 不计收支)
       if (rawStatus.includes('已收钱') || rawStatus.includes('收钱成功')) {
         type = 'income';
-      } else if (rawTransType.includes('红包') || rawProduct.includes('红包')) {
-        type = rawDirection.includes('收入') ? 'income' : 'expense';
-      } else if (rawProduct.includes('充值') || rawProduct.includes('提现')) {
-        type = 'other';
+      } else if (rawProduct.includes('充值') || rawProduct.includes('提现') || rawTransType.includes('零钱提现') || rawTransType.includes('理财')) {
+        type = 'other'; // Skip充值/提现 as not real spending
       } else {
         type = 'expense';
       }
+    }
+
+    // Skip "not counted" neutral transactions
+    if (rawDirection === '不计收支' || rawTransType === '零钱提现' || rawTransType.includes('理财')) {
+      continue;
     }
 
     // Determine merchant and product display
     const merchant = rawCounterparty || rawProduct || rawTransType || '消费支出';
     const product = rawProduct && rawProduct !== merchant ? rawProduct : '';
 
-    // Smart Category Inference
-    const category = suggestCategory(merchant, `${product} ${rawTransType}`);
+    // Smart Category Inference - pass transType for personal transfer detection
+    const category = suggestCategory(merchant, `${product} ${rawTransType}`, rawTransType);
 
     // Standardize date
     let dateStr = rawTime;
     if (rawTime.includes('T')) {
       dateStr = rawTime.replace('T', ' ').slice(0, 19);
     }
+    // Handle Excel date number format
+    if (/^\d{5}$/.test(rawTime)) {
+      const excelDate = XLSX.SSF.parse_date_code(parseInt(rawTime));
+      dateStr = `${excelDate.y}-${String(excelDate.m).padStart(2, '0')}-${String(excelDate.d).padStart(2, '0')} ${String(excelDate.H).padStart(2, '0')}:${String(excelDate.M).padStart(2, '0')}`;
+    }
 
-    // Check duplicate
-    const fp = `${dateStr.slice(0, 16)}_${amount.toFixed(2)}_${merchant}`;
-    const isDuplicate = existingSet.has(fp);
+    // Smarter duplicate detection: use order ID if present, else fingerprint
+    let isDuplicate = false;
+    if (rawOrderId && rawOrderId.length > 6) {
+      const orderSuffix = rawOrderId.slice(-12);
+      isDuplicate = existingOrderIds.has(orderSuffix);
+    } else {
+      const fp = `${dateStr.slice(0, 16)}_${amount.toFixed(2)}_${merchant}`;
+      isDuplicate = existingFingerprints.has(fp);
+    }
 
     const itemId = `bill-${r}-${Date.now().toString(36)}`;
     const parsedItem: ParsedBillItem = {

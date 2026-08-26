@@ -1,17 +1,19 @@
 import { ParsedTransactionResult } from '../types';
 
 export const CATEGORY_KEYWORDS: Record<string, string[]> = {
-  "餐饮美食": ["美团", "饿了么", "外卖", "饭", "咖啡", "麦当劳", "肯德基", "星巴克", "瑞幸", "火锅", "奶茶", "海底捞", "喜茶", "烤肉", "面馆", "早点", "午餐", "晚餐", "餐厅", "小吃", "烘焙", "面包", "茶百道", "霸王茶姬", "吃", "喝", "酒", "聚餐"],
-  "交通出行": ["滴滴", "打车", "地铁", "公交", "高铁", "加油", "停车", "12306", "交通", "机票", "航空", "车费", "高速", "ETC", "顺风车", "神州", "T3出行", "曹操", "充电桩", "汽油"],
+  "餐饮美食": ["美团外卖", "饿了么", "外卖", "麦当劳", "肯德基", "星巴克", "瑞幸", "火锅", "奶茶", "海底捞", "喜茶", "烤肉", "面馆", "早点", "午餐", "晚餐", "餐厅", "小吃", "烘焙", "面包", "茶百道", "霸王茶姬", "酒楼", "快餐", "咖啡厅", "蜜雪冰城", "古茗", "兰州拉面"],
+  "交通出行": ["滴滴", "打车", "地铁", "公交", "高铁", "加油", "停车", "12306", "交通", "机票", "航空", "车费", "高速", "ETC", "顺风车", "神州", "T3出行", "曹操", "充电桩", "汽油", "嘀嗒"],
   "日用百货": ["超市", "便利店", "日用", "百货", "纸巾", "洗护", "永辉", "大润发", "屈臣氏", "盒马", "山姆", "全家", "7-Eleven", "罗森", "名创优品", "农贸市场", "菜市场", "生鲜"],
-  "购物消费": ["淘宝", "京东", "天猫", "拼多多", "唯品会", "网购", "商城", "服装", "鞋", "数码", "手机", "电脑", "专柜", "优衣库", "Apple", "小米", "得物"],
+  "购物消费": ["淘宝", "京东", "天猫", "拼多多", "唯品会", "网购", "商城", "服装", "鞋", "数码", "手机", "电脑", "专柜", "优衣库", "Apple", "小米", "得物", "抖音商城", "快手小店"],
   "住房物业": ["房租", "水电", "燃气", "物业", "宽带", "电费", "水费", "自来水", "国家电网", "租金", "暖气", "家政", "保洁"],
   "休闲娱乐": ["电影", "游戏", "Steam", "腾讯视频", "爱奇艺", "Bilibili", "网易云", "Spotify", "旅游", "门票", "剧本杀", "密室", "KTV", "酒吧", "影城", "Switch", "PlayStation", "演唱会"],
   "医疗健康": ["医院", "药店", "门诊", "挂号", "体检", "药房", "诊所", "同仁堂", "医保", "牙科", "眼科", "药品"],
   "数码科技": ["App Store", "Google", "云服务", "阿里云", "腾讯云", "软件", "订阅", "OpenAI", "ChatGPT", "iCloud"],
   "金融还款": ["信用卡还款", "还款", "房贷", "车贷", "微粒贷", "借呗", "花呗还款", "白条还款", "分期"],
   "工资收入": ["工资", "薪水", "薪资", "奖金", "代发工资", "劳务报酬", "年终奖", "分红", "津贴"],
-  "理财投资": ["基金", "理财", "股票", "分红", "利息", "证券", "余额宝收益", "理财通", "结息"]
+  "理财投资": ["基金", "理财", "股票", "分红", "利息", "证券", "余额宝收益", "理财通", "结息"],
+  "个人转账": ["转账", "还钱", "借款", "红包", "微信红包", "发红包", "收红包", "aa", "AA制", "报销", "转给", "还我", "转你"],
+  "其他消费": ["充值", "话费", "会员", "开通", "续费", "保险", "扣款"]
 };
 
 export function getLocalDateTimeString(date: Date = new Date()): string {
@@ -41,8 +43,21 @@ export function parseRelativeDate(text: string): string {
   return getLocalDateTimeString(now);
 }
 
-export function suggestCategory(merchant: string, text: string): string {
-  const combined = `${merchant || ''} ${text}`.toLowerCase();
+export function suggestCategory(merchant: string, text: string, transType?: string): string {
+  const combined = `${merchant || ''} ${text || ''} ${transType || ''}`.toLowerCase();
+
+  // Priority 1: Personal transfer detection
+  // If transaction type is "转账" and counterparty looks like a person name (not a known brand), classify as personal transfer
+  if (transType && (transType.includes('转账') || transType.includes('收付款'))) {
+    // Check if it's NOT a known merchant brand
+    const knownBrandSignals = ['平台', '商户', '商城', '店', '超市', 'store', 'shop', '有限公司', '科技', '服务'];
+    const isKnownBrand = knownBrandSignals.some(s => combined.includes(s));
+    if (!isKnownBrand) {
+      return '个人转账';
+    }
+  }
+
+  // Priority 2: keyword matching
   for (const [cat, keywords] of Object.entries(CATEGORY_KEYWORDS)) {
     for (const kw of keywords) {
       if (combined.includes(kw.toLowerCase())) {
@@ -50,7 +65,9 @@ export function suggestCategory(merchant: string, text: string): string {
       }
     }
   }
-  return "餐饮美食";
+
+  // Priority 3: Fallback - DON'T default to 餐饮美食, use 其他消费
+  return '其他消费';
 }
 
 export function parseSmsOrTextInBrowser(text: string, accountsLookup: any[] = []): ParsedTransactionResult {
