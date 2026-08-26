@@ -179,7 +179,7 @@ export const webdavSync = {
         });
       } catch {}
 
-      return { ingestedCount: validItems.length, items: validItems };
+      return { ingestedCount: ingestedList.length, items: ingestedList };
     } catch (e) {
       console.warn('WebDAV Inbox check skipped/failed:', e);
       return { ingestedCount: 0, items: [] };
