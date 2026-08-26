@@ -15,6 +15,8 @@ export interface MarketQuoteResult {
   lastUpdate: string;
   suggestedType?: 'fund' | 'stock_a' | 'stock_hk_us' | 'crypto' | 'gold' | 'other';
   rawType?: string;
+  ticker?: string;
+  marketLabel?: string;
 }
 
 /**
@@ -23,6 +25,7 @@ export interface MarketQuoteResult {
 export function resolveSecurityCode(name: string, explicitCode?: string): string {
   if (explicitCode && /^\d{5,6}$/.test(explicitCode.trim())) return explicitCode.trim();
   const cleanName = (name || '').trim();
+  if (/德明利/i.test(cleanName)) return '001309';
   if (/纳指.*广发|广发.*纳指/i.test(cleanName)) return '159941';
   if (/标普.*500.*博时|博时.*标普|标普500/i.test(cleanName)) return '513500';
   if (/纳指科技/i.test(cleanName)) return '159509';
@@ -66,25 +69,34 @@ export function formatTencentTicker(code: string, type?: string): string {
     }
 
     if (clean.length === 6) {
-      // Mutual Fund OTC (00xxxx, 01xxxx, 11xxxx, 16xxxx, 27xxxx, 05xxxx)
-      if (type === 'fund' || clean.startsWith('00') || clean.startsWith('01') || clean.startsWith('11') || clean.startsWith('27') || clean.startsWith('05')) {
-        // If 15xxxx or 51xxxx it is an ETF, otherwise try jj
-        if (!clean.startsWith('15') && !clean.startsWith('51') && !clean.startsWith('56') && !clean.startsWith('58')) {
-          return `jj${clean}`;
+      // Explicit A-share stock
+      if (type === 'stock_a') {
+        if (clean.startsWith('6') || clean.startsWith('5') || clean.startsWith('9')) {
+          return `sh${clean}`;
         }
-      }
-
-      // Shanghai ETF or Stock (5xxxxx, 6xxxxx, 688xxx)
-      if (clean.startsWith('5') || clean.startsWith('6') || clean.startsWith('9')) {
-        return `sh${clean}`;
-      }
-
-      // Shenzhen ETF or Stock (15xxxx, 16xxxx, 00xxxx, 30xxxx)
-      if (clean.startsWith('15') || clean.startsWith('00') || clean.startsWith('30') || clean.startsWith('18')) {
         return `sz${clean}`;
       }
 
-      return `sh${clean}`;
+      // Explicit fund
+      if (type === 'fund') {
+        if (clean.startsWith('15') || clean.startsWith('16')) return `sz${clean}`;
+        if (clean.startsWith('51') || clean.startsWith('56') || clean.startsWith('58')) return `sh${clean}`;
+        return `jj${clean}`;
+      }
+
+      // Default routing when type is unspecified:
+      // Shanghai stock or ETF
+      if (clean.startsWith('6') || clean.startsWith('51') || clean.startsWith('56') || clean.startsWith('58')) {
+        return `sh${clean}`;
+      }
+
+      // Shenzhen stock or ETF (00xxxx, 30xxxx, 15xxxx, 16xxxx)
+      if (clean.startsWith('00') || clean.startsWith('30') || clean.startsWith('15') || clean.startsWith('16')) {
+        return `sz${clean}`;
+      }
+
+      // Fallback to mutual fund OTC
+      return `jj${clean}`;
     }
   }
 
@@ -100,28 +112,34 @@ export function fetchTencentBatchQuotes(tickers: string[]): Promise<Record<strin
       return resolve({});
     }
 
-    const uniqueTickers = Array.from(new Set(tickers.filter(Boolean)));
+    const uniqueTickers = Array.from(new Set(tickers.map(t => t.toLowerCase())));
     const queryParam = uniqueTickers.join(',');
-    const scriptId = `tencent_quote_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    const cbName = `__tencent_quote_cb_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
+
     const script = document.createElement('script');
-    script.id = scriptId;
+    script.src = `https://qt.gtimg.cn/q=${queryParam}`;
     script.charset = 'gbk';
-    script.src = `https://qt.gtimg.cn/q=${queryParam}&_t=${Date.now()}`;
 
     const cleanup = () => {
-      const el = document.getElementById(scriptId);
-      if (el && el.parentNode) {
-        el.parentNode.removeChild(el);
+      if (script.parentNode) {
+        script.parentNode.removeChild(script);
       }
+      delete (window as any)[cbName];
     };
 
+    const timeoutTimer = setTimeout(() => {
+      cleanup();
+      resolve({});
+    }, 5000);
+
     script.onload = () => {
+      clearTimeout(timeoutTimer);
       const results: Record<string, MarketQuoteResult> = {};
       const win = window as any;
 
       for (const ticker of uniqueTickers) {
         const varName = `v_${ticker}`;
-        const rawData: string = win[varName];
+        const rawData = win[varName];
 
         if (rawData && typeof rawData === 'string') {
           const parts = rawData.split('~');
@@ -141,7 +159,9 @@ export function fetchTencentBatchQuotes(tickers: string[]): Promise<Record<strin
                 changeRate,
                 lastUpdate: date,
                 suggestedType: 'fund',
-                rawType: 'fund'
+                rawType: 'fund',
+                ticker,
+                marketLabel: '场外公募基金'
               };
             } else {
               // Stock / ETF format (sh / sz / us / r_hk)
@@ -152,10 +172,22 @@ export function fetchTencentBatchQuotes(tickers: string[]): Promise<Record<strin
               const date = parts[30] || '';
 
               let suggestedType: any = 'stock_a';
-              if (ticker.startsWith('us')) suggestedType = 'stock_hk_us';
-              else if (ticker.startsWith('r_hk')) suggestedType = 'stock_hk_us';
-              else if (ticker.startsWith('sh51') || ticker.startsWith('sz15') || ticker.startsWith('sh56') || ticker.startsWith('sh58')) {
+              let marketLabel = 'A股股票';
+              if (ticker.startsWith('us')) {
+                suggestedType = 'stock_hk_us';
+                marketLabel = '美股';
+              } else if (ticker.startsWith('r_hk')) {
+                suggestedType = 'stock_hk_us';
+                marketLabel = '港股';
+              } else if (ticker.startsWith('sh51') || ticker.startsWith('sz15') || ticker.startsWith('sh56') || ticker.startsWith('sh58')) {
                 suggestedType = 'fund';
+                marketLabel = '场内ETF基金';
+              } else if (ticker.startsWith('sz00')) {
+                marketLabel = '深A股票';
+              } else if (ticker.startsWith('sh60') || ticker.startsWith('sh688')) {
+                marketLabel = '沪A股票';
+              } else if (ticker.startsWith('sz30')) {
+                marketLabel = '创业板股票';
               }
 
               if (currentPrice > 0) {
@@ -166,7 +198,9 @@ export function fetchTencentBatchQuotes(tickers: string[]): Promise<Record<strin
                   changeRate,
                   lastUpdate: date,
                   suggestedType,
-                  rawType: 'stock_or_etf'
+                  rawType: 'stock_or_etf',
+                  ticker,
+                  marketLabel
                 };
               }
             }
@@ -188,32 +222,74 @@ export function fetchTencentBatchQuotes(tickers: string[]): Promise<Record<strin
 }
 
 /**
- * Real-time Single Quote Search / Identification when typing code
+ * Real-time Candidate Query: Returns ALL matching instruments for a given code
+ * (Handles duplicate codes like 001309 which is both 德明利 and 东方红睿逸)
  */
-export async function querySingleQuote(code: string, type?: string): Promise<MarketQuoteResult | null> {
+export async function queryAllQuotesForCode(code: string, preferredType?: string): Promise<MarketQuoteResult[]> {
   const clean = code.trim();
-  if (!clean || clean.length < 2) return null;
+  if (!clean || clean.length < 2) return [];
 
   const candidates: string[] = [];
-  const primary = formatTencentTicker(clean, type);
-  if (primary) candidates.push(primary);
 
   if (/^\d{6}$/.test(clean)) {
-    if (!primary.startsWith('jj')) candidates.push(`jj${clean}`);
-    if (!primary.startsWith('sh')) candidates.push(`sh${clean}`);
-    if (!primary.startsWith('sz')) candidates.push(`sz${clean}`);
+    // 00xxxx: Crucial Chinese financial collision zone (e.g. 001309 is both 德明利 & 东方红睿逸)
+    if (clean.startsWith('00')) {
+      if (preferredType === 'stock_a') {
+        candidates.push(`sz${clean}`, `jj${clean}`);
+      } else if (preferredType === 'fund') {
+        candidates.push(`jj${clean}`, `sz${clean}`);
+      } else {
+        candidates.push(`sz${clean}`, `jj${clean}`);
+      }
+    } else if (clean.startsWith('6')) {
+      candidates.push(`sh${clean}`);
+    } else if (clean.startsWith('30')) {
+      candidates.push(`sz${clean}`);
+    } else if (clean.startsWith('15') || clean.startsWith('16')) {
+      candidates.push(`sz${clean}`, `jj${clean}`);
+    } else if (clean.startsWith('51') || clean.startsWith('56') || clean.startsWith('58')) {
+      candidates.push(`sh${clean}`);
+    } else {
+      candidates.push(`jj${clean}`, `sz${clean}`, `sh${clean}`);
+    }
+  } else if (/^\d{5}$/.test(clean)) {
+    candidates.push(`r_hk${clean}`);
   } else if (/^[A-Za-z]+$/.test(clean)) {
     candidates.push(`us${clean.toUpperCase()}`);
   }
 
   const quotes = await fetchTencentBatchQuotes(candidates);
+  const matched: MarketQuoteResult[] = [];
   for (const c of candidates) {
     if (quotes[c] && quotes[c].currentPrice > 0) {
-      return quotes[c];
+      if (!matched.some(m => m.name === quotes[c].name && m.suggestedType === quotes[c].suggestedType)) {
+        matched.push(quotes[c]);
+      }
     }
   }
 
-  return null;
+  if (preferredType) {
+    matched.sort((a, b) => {
+      const aScore = a.suggestedType === preferredType ? -1 : 1;
+      const bScore = b.suggestedType === preferredType ? -1 : 1;
+      return aScore - bScore;
+    });
+  }
+
+  return matched;
+}
+
+/**
+ * Real-time Single Quote Search / Identification when typing code
+ */
+export async function querySingleQuote(code: string, type?: string): Promise<MarketQuoteResult | null> {
+  const all = await queryAllQuotesForCode(code, type);
+  if (all.length === 0) return null;
+  if (type) {
+    const exact = all.find(q => q.suggestedType === type);
+    if (exact) return exact;
+  }
+  return all[0];
 }
 
 /**

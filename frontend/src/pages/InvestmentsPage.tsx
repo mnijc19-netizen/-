@@ -14,6 +14,8 @@ import {
   Sparkles,
   Bot,
   CheckCircle2,
+  Check,
+  AlertTriangle,
   ExternalLink,
   Search,
   Layers,
@@ -23,7 +25,7 @@ import confetti from 'canvas-confetti';
 import { Investment, Account } from '../types';
 import { api } from '../api/client';
 import { localStore } from '../services/localStore';
-import { refreshInvestmentQuotes, querySingleQuote, MarketQuoteResult } from '../services/marketData';
+import { refreshInvestmentQuotes, querySingleQuote, queryAllQuotesForCode, MarketQuoteResult } from '../services/marketData';
 
 interface InvestmentsPageProps {
   investments: Investment[];
@@ -53,7 +55,30 @@ export const InvestmentsPage: React.FC<InvestmentsPageProps> = ({
 
   // Live Auto-recognition states
   const [searchingQuote, setSearchingQuote] = useState(false);
+  const [matchedQuotes, setMatchedQuotes] = useState<MarketQuoteResult[]>([]);
   const [matchedQuote, setMatchedQuote] = useState<MarketQuoteResult | null>(null);
+
+  const handleSelectCandidate = (q: MarketQuoteResult) => {
+    setMatchedQuote(q);
+    setName(q.name);
+    if (q.suggestedType) {
+      setType(q.suggestedType);
+    }
+    setCurrentPrice(q.currentPrice.toString());
+    if (!costPrice || costPrice === '0') {
+      setCostPrice(q.currentPrice.toString());
+    }
+  };
+
+  const handleTypeSelect = (newType: string) => {
+    setType(newType);
+    if (matchedQuotes.length > 1) {
+      const candidate = matchedQuotes.find(q => q.suggestedType === newType);
+      if (candidate) {
+        handleSelectCandidate(candidate);
+      }
+    }
+  };
 
   const investmentAccounts = accounts.filter(a => ['investment', 'crypto', 'bank', 'wallet'].includes(a.type));
 
@@ -95,34 +120,39 @@ export const InvestmentsPage: React.FC<InvestmentsPageProps> = ({
     const cleanCode = code.trim();
     if (!cleanCode || cleanCode.length < 2) {
       setMatchedQuote(null);
+      setMatchedQuotes([]);
       return;
     }
 
     const timer = setTimeout(async () => {
       setSearchingQuote(true);
       try {
-        const quote = await querySingleQuote(cleanCode, type);
-        if (quote && quote.currentPrice > 0) {
-          setMatchedQuote(quote);
+        const quotes = await queryAllQuotesForCode(cleanCode, type);
+        setMatchedQuotes(quotes);
+
+        if (quotes.length > 0) {
+          const bestMatch = quotes.find(q => q.suggestedType === type) || quotes[0];
+          setMatchedQuote(bestMatch);
           if (!name || name === '投资标的' || name === '新增标的' || name === '300' || !editingInv) {
-            setName(quote.name);
+            setName(bestMatch.name);
           }
-          if (quote.suggestedType && !editingInv) {
-            setType(quote.suggestedType);
+          if (bestMatch.suggestedType && !editingInv) {
+            setType(bestMatch.suggestedType);
           }
-          setCurrentPrice(quote.currentPrice.toString());
+          setCurrentPrice(bestMatch.currentPrice.toString());
           if (!costPrice && !editingInv) {
-            setCostPrice(quote.currentPrice.toString());
+            setCostPrice(bestMatch.currentPrice.toString());
           }
         } else {
           setMatchedQuote(null);
         }
       } catch (e) {
         setMatchedQuote(null);
+        setMatchedQuotes([]);
       } finally {
         setSearchingQuote(false);
       }
-    }, 350);
+    }, 300);
 
     return () => clearTimeout(timer);
   }, [code, modalOpen]);
@@ -132,12 +162,13 @@ export const InvestmentsPage: React.FC<InvestmentsPageProps> = ({
     setAccountId(investmentAccounts[0]?.id || accounts[0]?.id || '');
     setCode('');
     setName('');
-    setType('fund');
+    setType('stock_a');
     setShares('');
     setCostPrice('');
     setCurrentPrice('');
     setCurrency('CNY');
     setMatchedQuote(null);
+    setMatchedQuotes([]);
     setModalOpen(true);
   };
 
@@ -152,6 +183,7 @@ export const InvestmentsPage: React.FC<InvestmentsPageProps> = ({
     setCurrentPrice(inv.current_price.toString());
     setCurrency(inv.currency);
     setMatchedQuote(null);
+    setMatchedQuotes([]);
     setModalOpen(true);
   };
 
@@ -454,12 +486,73 @@ export const InvestmentsPage: React.FC<InvestmentsPageProps> = ({
                 </div>
               </div>
 
-              {/* Matched Quote Indicator Pill */}
-              {matchedQuote && (
+              {/* Duplicate Code Multi-Candidate Resolver (e.g. 001309 德明利 vs 东方红睿逸) */}
+              {matchedQuotes.length > 1 && (
+                <div className="p-3 rounded-2xl bg-amber-50/90 dark:bg-amber-950/40 border border-amber-300/80 dark:border-amber-700/80 space-y-2 animate-in fade-in">
+                  <div className="flex items-center justify-between text-[11px]">
+                    <div className="flex items-center gap-1.5 font-bold text-amber-900 dark:text-amber-200">
+                      <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                      <span>检测到该代码对应 {matchedQuotes.length} 个不同市场标的</span>
+                    </div>
+                    <span className="text-[10px] text-amber-700 dark:text-amber-400 font-medium">请点击选择真实持有资产：</span>
+                  </div>
+                  <div className="grid grid-cols-1 gap-1.5">
+                    {matchedQuotes.map((q, idx) => {
+                      const isSelected = matchedQuote?.name === q.name && matchedQuote?.suggestedType === q.suggestedType;
+                      return (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => handleSelectCandidate(q)}
+                          className={`p-2.5 rounded-xl border text-left transition flex items-center justify-between group ${
+                            isSelected
+                              ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white border-purple-600 shadow-md ring-2 ring-purple-400/30'
+                              : 'bg-white dark:bg-slate-800 border-amber-200/80 dark:border-amber-800/60 hover:border-purple-300 dark:hover:border-purple-700 text-slate-800 dark:text-slate-200'
+                          }`}
+                        >
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold ${
+                                isSelected 
+                                  ? 'bg-white/20 text-white' 
+                                  : q.suggestedType === 'stock_a'
+                                    ? 'bg-rose-100 dark:bg-rose-900/60 text-rose-700 dark:text-rose-300'
+                                    : 'bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300'
+                              }`}>
+                                {q.marketLabel || (q.suggestedType === 'stock_a' ? 'A股股票' : '公募基金')}
+                              </span>
+                              <span className="font-bold text-xs truncate">{q.name}</span>
+                              <span className={`font-mono text-[10px] ${isSelected ? 'text-purple-200' : 'text-slate-400'}`}>
+                                ({q.code})
+                              </span>
+                            </div>
+                            <div className={`text-[10px] font-mono mt-1 flex items-center gap-3 ${isSelected ? 'text-purple-100' : 'text-slate-500 dark:text-slate-400'}`}>
+                              <span>最新{q.suggestedType === 'fund' ? '净值' : '现价'}: <strong className="font-bold">¥{q.currentPrice.toFixed(3)}</strong></span>
+                              <span>涨跌幅: <strong>{q.changeRate >= 0 ? '+' : ''}{q.changeRate}%</strong></span>
+                            </div>
+                          </div>
+                          {isSelected ? (
+                            <div className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center text-white flex-shrink-0 ml-2">
+                              <Check className="w-3 h-3 stroke-[3]" />
+                            </div>
+                          ) : (
+                            <div className="text-[10px] font-bold text-purple-600 dark:text-purple-400 flex-shrink-0 ml-2 group-hover:underline">
+                              选择此标的
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Matched Quote Indicator Pill (when 1 candidate or single candidate active) */}
+              {matchedQuote && matchedQuotes.length <= 1 && (
                 <div className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-300 dark:border-emerald-700 text-emerald-900 dark:text-emerald-200 space-y-0.5 animate-in fade-in">
                   <div className="font-bold text-[11px] flex items-center gap-1">
                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
-                    <span>✨ 已成功识别：{matchedQuote.name}</span>
+                    <span>✨ 已成功识别：{matchedQuote.name} ({matchedQuote.marketLabel || '标的'})</span>
                   </div>
                   <div className="text-[10px] text-emerald-700 dark:text-emerald-300 flex items-center justify-between">
                     <span>最新现价/净值：<strong className="font-mono font-bold">¥{matchedQuote.currentPrice.toFixed(3)}</strong></span>
@@ -485,7 +578,7 @@ export const InvestmentsPage: React.FC<InvestmentsPageProps> = ({
                   <label className="block text-[10px] text-slate-400 mb-1">资产类型</label>
                   <select
                     value={type}
-                    onChange={(e) => setType(e.target.value)}
+                    onChange={(e) => handleTypeSelect(e.target.value)}
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none"
                   >
                     <option value="fund">公募基金 / ETF</option>
