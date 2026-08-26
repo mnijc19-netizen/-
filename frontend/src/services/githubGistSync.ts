@@ -153,7 +153,7 @@ export const githubGistSync = {
           const aiConfig = localStore.getAiConfig();
           if (aiConfig.enabled && aiConfig.apiKey && aiConfig.apiKey.trim()) {
             try {
-              const aiRes = await parseWithAi(rawText, categories, accounts);
+              const aiRes = await parseWithAi(rawText, accounts);
               if (aiRes && aiRes.amount && aiRes.amount > 0) {
                 numAmt = aiRes.amount;
                 merchant = aiRes.merchant || merchant;
