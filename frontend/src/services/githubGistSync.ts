@@ -85,27 +85,35 @@ export const githubGistSync = {
   /**
    * 从 GitHub Gist 拉取并自动落库所有待入账流水（100% 官方 CORS 通行证，永不拦截）
    */
-  async pullAndIngestGist(): Promise<{ count: number; items: any[] }> {
-    const cfg = this.getConfig();
-    if (!cfg.token || !cfg.gistId || !cfg.autoSync) {
-      return { count: 0, items: [] };
+  async pullAndIngestGist(customConfig?: Partial<GithubGistConfig>): Promise<{ count: number; items: any[]; message?: string }> {
+    const cfg = { ...this.getConfig(), ...customConfig };
+    if (!cfg.gistId || !cfg.gistId.trim()) {
+      return { count: 0, items: [], message: '未配置 Gist ID' };
     }
 
     try {
-      const res = await fetch(`https://api.github.com/gists/${cfg.gistId}`, {
+      const headers: Record<string, string> = {
+        'Accept': 'application/vnd.github.v3+json',
+        'Cache-Control': 'no-cache'
+      };
+      if (cfg.token && cfg.token.trim()) {
+        headers['Authorization'] = `token ${cfg.token.trim()}`;
+      }
+
+      const res = await fetch(`https://api.github.com/gists/${cfg.gistId.trim()}`, {
         method: 'GET',
-        headers: {
-          'Authorization': `token ${cfg.token}`,
-          'Accept': 'application/vnd.github.v3+json',
-          'Cache-Control': 'no-cache'
-        }
+        headers
       });
 
-      if (!res.ok) return { count: 0, items: [] };
+      if (!res.ok) {
+        return { count: 0, items: [], message: `GitHub 响应异常 (${res.status})` };
+      }
 
       const data = await res.json();
       const file = data.files && data.files['smartwealth_inbox.json'];
-      if (!file || !file.content) return { count: 0, items: [] };
+      if (!file || !file.content || file.content.trim() === '[]' || file.content.trim() === '') {
+        return { count: 0, items: [], message: 'GitHub 信箱当前为空（无待入账流水）' };
+      }
 
       let parsed: any;
       try {

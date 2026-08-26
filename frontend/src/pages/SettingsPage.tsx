@@ -1186,13 +1186,13 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                   <button
                     type="button"
                     onClick={async () => {
-                      const res = await githubGistSync.pullAndIngestGist();
+                      const res = await githubGistSync.pullAndIngestGist(gistConfig);
                       if (res.count > 0) {
                         setGistStatusMsg({ success: true, message: `✅ 成功从 GitHub 同步 ${res.count} 笔新账单！` });
                         confetti({ particleCount: 50, spread: 50, origin: { y: 0.7 } });
                         onRefresh();
                       } else {
-                        setGistStatusMsg({ success: true, message: `☁️ GitHub 信箱当前为空（无待入账流水）` });
+                        setGistStatusMsg({ success: true, message: res.message || '☁️ GitHub 信箱当前为空（无待入账流水）' });
                       }
                     }}
                     className="px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold transition flex items-center gap-1 active:scale-95 text-xs shadow-sm"

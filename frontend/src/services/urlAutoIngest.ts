@@ -162,11 +162,37 @@ export function extractFromRawText(text: string, accounts: any[] = []): { amount
     targetAccId = bankAcc?.id || 'acc-3';
   }
 
+  // 2.5. Absolute Priority: Payment Card / Auto-Debit / Single Transaction (Bottom-Up)
+  if (!amount) {
+    for (let i = allLines.length - 1; i >= 0; i--) {
+      const line = allLines[i];
+      if (line.includes('使用零钱支付') || line.includes('零钱支付') || line.includes('零钱扣款') || line.includes('扣款') || line.includes('付款成功') || line.includes('支付成功') || line.includes('自动支付') || line.includes('订单已完成')) {
+        // Find amount (adjacent lines)
+        for (let j = i; j < Math.min(allLines.length, i + 4); j++) {
+          const m = allLines[j].match(/(?:[·•・¥￥$]\s*|[-－]\s*)?(\d+\.\d{1,2})/);
+          if (m && !allLines[j].includes('共') && !allLines[j].includes('已支出') && !allLines[j].includes('已入账') && !allLines[j].includes(':') && !allLines[j].includes('月')) {
+            amount = parseFloat(m[1]);
+            break;
+          }
+        }
+        // Find merchant (previous lines)
+        for (let k = i - 1; k >= Math.max(0, i - 5); k--) {
+          const p = allLines[k];
+          if (!p.includes('星期') && !p.includes(':') && !p.includes('>') && !p.includes('日报') && !p.includes('微信') && !p.includes('支出') && !p.includes('入账') && !p.includes('统计') && !p.includes('管理') && !p.includes('扣费') && p.length > 1) {
+            merchant = cleanMerchantName(p);
+            break;
+          }
+        }
+        if (amount > 0) break;
+      }
+    }
+  }
+
   // 3. WeChat Daily Report (Bottom Up)
-  if (!amount && rawClean.includes('微信记账本') && (rawClean.includes('记账日报') || rawClean.includes('昨日总支出'))) {
+  if (!amount && (rawClean.includes('微信记账本') || rawClean.includes('记账日报') || rawClean.includes('昨日支出'))) {
     for (let i = allLines.length - 1; i >= 0; i--) {
       const l = allLines[i];
-      if (l.includes('总支出') || l.includes('日报')) continue;
+      if (l.includes('总支出') || l.includes('日报') || l.includes('共') || l.includes('已支出')) continue;
       const m = l.match(/(.+?)\s*[-－¥￥$]\s*(\d+\.\d{1,2})/);
       if (m) {
         merchant = cleanMerchantName(m[1]);
