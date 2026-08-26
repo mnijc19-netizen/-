@@ -489,8 +489,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
 
       {/* AI Settings Modal - Provider API Key Vault */}
       {aiModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[90vh] my-auto">
+        <div className="fixed inset-0 z-[90] flex items-center justify-center p-2.5 sm:p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[82vh] sm:max-h-[88vh] my-auto">
             {/* Header */}
             <div className="relative px-5 py-4 border-b border-slate-100 dark:border-slate-800 overflow-hidden">
               <div className="absolute inset-0 bg-gradient-to-r from-violet-600/8 via-indigo-500/6 to-purple-500/4 dark:from-violet-600/15 dark:via-indigo-500/10 dark:to-purple-500/5" />
@@ -854,7 +854,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
 
       {/* Add Recurring Rule Modal */}
       {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
+        <div className="fixed inset-0 z-[90] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl w-full max-w-md shadow-2xl p-6 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-bold text-slate-900 dark:text-white">
@@ -962,7 +962,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
 
       {/* WebDAV Cloud Sync Modal */}
       {webDavModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3.5 sm:p-4 bg-slate-950/75 backdrop-blur-sm animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-[90] flex items-center justify-center p-3.5 sm:p-4 bg-slate-950/75 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[85vh] my-auto">
             {/* Modal Header */}
             <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-gradient-to-r from-blue-500/10 via-indigo-500/10 to-transparent">
@@ -1111,7 +1111,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
 
       {/* 🧪 Liquid Glass Unlock Modal (内测密码解锁弹窗) */}
       {unlockModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-md animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-[90] flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-md animate-in fade-in duration-200">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
             {/* Header */}
             <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-gradient-to-r from-cyan-500/10 via-blue-500/10 to-transparent">
