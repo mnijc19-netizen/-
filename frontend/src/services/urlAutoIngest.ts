@@ -106,26 +106,32 @@ export function detectPaymentChannel(clean: string): 'wechat' | 'alipay' {
 }
 
 export function suggestCategory(merchant: string, fullText: string = ''): string {
-  // 1. Check extracted merchant first
   const m = (merchant || '').toLowerCase();
-  if (/滴滴|打车|出租车|地铁|公交|高铁|火车|机票|加油|中石化|中石油|停车|高速|出行|交通/.test(m)) return '交通出行';
-  if (/电信|移动|联通|话费|充值|宽带|水费|电费|燃气|物业|房租|生活缴费/.test(m)) return '生活服务';
-  if (/餐饮|美食|清汤面|面|饭|餐|吃|外卖|美团|饿了么|麦当劳|肯德基|汉堡|火锅|烧烤|牛肉|海鲜|咖啡|奶茶|茶|霸王茶姬|星巴克|瑞幸|喜茶|早餐|午餐|晚餐|夜宵|甜品|小吃|炸鸡/.test(m)) return '餐饮美食';
-  if (/生鲜|超市|便利店|百货|水果|良田|菜市|日用|屈臣氏|全家|罗森|7-eleven|便利蜂|永辉|盒马|山姆/.test(m)) return '日用百货';
-  if (/淘宝|天猫|京东|拼多多|唯品会|服装|衣服|鞋|包|数码|手机|电脑|电器|饰品|闪购|购物/.test(m)) return '购物消费';
-  if (/电影|影城|ktv|酒吧|网吧|游戏|充值|门票|旅游|休闲|娱乐/.test(m)) return '休闲娱乐';
-  if (/医|药|诊所|医院|体检|健康|牙科/.test(m)) return '医疗健康';
-
-  // 2. Check full combined text
   const combined = (merchant + ' ' + fullText).toLowerCase();
-  if (/电信|移动|联通|话费|充值|宽带|水费|电费|燃气|物业|房租|生活缴费/.test(combined)) return '生活服务';
-  if (/餐饮|美食|清汤面|面|饭|餐|吃|外卖|美团|饿了么|麦当劳|肯德基|汉堡|火锅|烧烤|牛肉|海鲜|咖啡|奶茶|茶|霸王茶姬|星巴克|瑞幸|喜茶|早餐|午餐|晚餐|夜宵|甜品|小吃|炸鸡/.test(combined)) return '餐饮美食';
-  if (/生鲜|超市|便利店|百货|水果|良田|菜市|日用|屈臣氏|全家|罗森|7-eleven|便利蜂|永辉|盒马|山姆/.test(combined)) return '日用百货';
-  if (/滴滴|打车|出租车|地铁|公交|高铁|火车|机票|加油|中石化|中石油|停车|高速|出行|交通/.test(combined)) return '交通出行';
-  if (/淘宝|天猫|京东|拼多多|唯品会|服装|衣服|鞋|包|数码|手机|电脑|电器|饰品|闪购|购物/.test(combined)) return '购物消费';
-  if (/电影|影城|ktv|酒吧|网吧|游戏|充值|门票|旅游|休闲|娱乐/.test(combined)) return '休闲娱乐';
-  if (/医|药|诊所|医院|体检|健康|牙科/.test(combined)) return '医疗健康';
-  return '日常消费';
+
+  // 1. Medical & Healthcare (Highest priority - catches pharmacy, medicine, hospital)
+  if (/医|药|诊所|医院|体检|健康|牙科|口腔|同仁堂|老百姓|大参林|益丰|国大|海王星辰|叮当|博爱|卫生院|门诊|药房|药业|药堂/.test(combined)) return '医疗健康';
+
+  // 2. Transport & Travel
+  if (/滴滴|打车|出租车|地铁|公交|高铁|火车|机票|加油|中石化|中石油|停车|高速|出行|交通|12306|etc/.test(combined)) return '交通出行';
+
+  // 3. Living Utilities & Telecommunications
+  if (/电信|移动|联通|话费|充值|宽带|水费|电费|燃气|物业|房租|生活缴费|国家电网/.test(combined)) return '住房物业';
+
+  // 4. Food & Dining
+  if (/餐饮|美食|清汤面|面|饭|餐|吃|外卖|美团|饿了么|麦当劳|肯德基|汉堡|火锅|烧烤|牛肉|海鲜|咖啡|奶茶|茶|霸王茶姬|星巴克|瑞幸|喜茶|早餐|午餐|晚餐|夜宵|甜品|小吃|炸鸡|酒楼|快餐|蜜雪冰城|古茗/.test(combined)) return '餐饮美食';
+
+  // 5. Groceries & Daily Needs
+  if (/生鲜|超市|便利店|百货|水果|良田|菜市|日用|屈臣氏|全家|罗森|7-eleven|便利蜂|永辉|盒马|山姆|大润发|名创优品/.test(combined)) return '日用百货';
+
+  // 6. Shopping & Ecommerce
+  if (/淘宝|天猫|京东|拼多多|唯品会|服装|衣服|鞋|包|数码|手机|电脑|电器|饰品|闪购|购物|商场|专柜|优衣库|apple|小米|得物|闲鱼/.test(combined)) return '购物消费';
+
+  // 7. Entertainment & Leisure
+  if (/电影|影城|ktv|酒吧|网吧|游戏|steam|充值|门票|旅游|休闲|娱乐|剧本杀|密室|演唱会/.test(combined)) return '休闲娱乐';
+
+  // 8. Safe default to known category in database
+  return '日用百货';
 }
 
 export function parseTransactionDateTime(text: string): string | null {

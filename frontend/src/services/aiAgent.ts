@@ -117,6 +117,40 @@ export const FINANCIAL_AGENT_TOOLS: any[] = [
   {
     type: 'function',
     function: {
+      name: 'update_transaction',
+      description: '修改已有交易流水的分类、商户名、金额、账户、日期或备注（例如用户指出“这是药店啊”、“把分类改成医疗健康”时修改已有流水，绝不新建重复账单）',
+      parameters: {
+        type: 'object',
+        properties: {
+          transaction_id: { type: 'string', description: '要修改的交易流水 ID（如已知），或留空由系统根据商户名/金额自动匹配' },
+          merchant: { type: 'string', description: '匹配或修改后的商户名' },
+          category: { type: 'string', description: '修改后的消费分类，如 医疗健康、餐饮美食、日用百货、交通出行、生活服务等' },
+          amount: { type: 'number', description: '修改后的金额（可选）' },
+          account_id: { type: 'string', description: '修改后的关联账户 ID（可选）' },
+          note: { type: 'string', description: '修改后的备注说明（可选）' }
+        },
+        required: ['category']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'delete_transaction',
+      description: '删除某笔重复、错误或不再需要的交易流水',
+      parameters: {
+        type: 'object',
+        properties: {
+          transaction_id: { type: 'string', description: '要删除的交易 ID' },
+          merchant: { type: 'string', description: '商户名（辅助匹配）' },
+          amount: { type: 'number', description: '金额（辅助匹配）' }
+        }
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
       name: 'create_account',
       description: '开立单项资产账户或负债账户（如 微信零钱、支付宝总资产、招商银行储蓄卡、京东白条、美团月付、蚂蚁花呗等）',
       parameters: {
@@ -484,8 +518,12 @@ export async function sendAgentMessage(
 
 【工具调用选择铁律】：
 1. 当且仅当用户输入中包含 2 笔或 2 笔以上的收支流水时，【必须且只能调用 batch_create_transactions 工具】一次性记录所有交易，严禁调用单笔 create_transaction！
-2. 只有明确仅有 1 笔消费时才调用单笔 create_transaction。
-3. 当用户涉及月度资金规划与分期还款时：
+2. 只有明确仅有 1 笔新消费且并非修改已有流水时才调用单笔 create_transaction。
+3. 当用户要求修改已有交易分类、指出分类错误（如“这是药店啊”、“把博爱医药改成医疗健康”）、修改金额或备注时：
+   - 【必须调用 update_transaction 工具】直接修改该笔流水，绝对严禁调用 create_transaction 去重新创建一笔重复账单！
+   - 分类标准：药店、医药、药房、医院、诊所、门诊必须归入「医疗健康」；超市、便利店、菜场归入「日用百货」；餐厅、外卖、茶饮归入「餐饮美食」；打车、地铁、机票归入「交通出行」；话费、宽带、水电归入「住房物业」或「生活服务」。
+4. 当用户要求删除某笔流水时调用 delete_transaction 工具。
+5. 当用户涉及月度资金规划与分期还款时：
    - 用户提到花呗/白条/还款（如“花呗我这个月的还完了”、“白条还了500”）：【必须调用 mark_debt_repaid 工具】！系统将智能冲减剩余负债总本金、递减剩余期数、释放当月流动性，并可自动记录还款支出流水！
    - 用户要求进行本月金额规划/预算方案（如“帮我做本月资金规划”、“月薪8500怎么分配预算”、“制定月存2000计划”）：【必须调用 generate_monthly_budget_plan 工具】生成结构化财务规划方案卡片！
    - 用户进行多轮微调修改（如“餐饮预算调少300匀给存钱”、“加一个数码预算500”）：【直接再次调用 generate_monthly_budget_plan 并传入修改后的最新全套规划数据】，实现丝滑的多轮无缝修改！
@@ -493,19 +531,11 @@ export async function sendAgentMessage(
    - 诊断/查询当月现金流与还能花多少（如“我这个月还能花多少钱？还要还多少花呗？”）：调用 get_monthly_cashflow_plan。
    - 页面跳转（如“带我去资金大厅/看看规划”）：调用 navigate_to(page='planner')。
 
-【顶级真实场景视觉识别铁律】：
-1. 🦘【美团月付 (meituan_pay)】：
-   - 视觉特征：薄荷绿渐变顶部背景，标题为“X月账单”，“X月X日前待还(元)”，“分期还款/提前还款”，“0元下单 待收货/使用的订单未计入账单”，下方有生活服务/外卖订单消费记录。
-   - 提取规则：平台名称填「美团月付」，金额提取待还总额（如 278.22），类别代码填【meituan_pay】（信贷负债）。
-2. 🐕【京东白条 (baitiao)】：
-   - 视觉特征：顶部标题“全部待还账单”，有“待还账单/历史账单”选项卡，“全部待还 (元)”，“含未来账单待还金额”，下方列出各月待还（如8月、9月、10月待还），底部有“提前结清”。
-   - 提取规则：平台名称填「京东白条」，金额提取“全部待还 (元)”大字金额（如 2691.41），类别代码填【baitiao】（信贷负债）。
-3. 🔵【支付宝 (wallet)】：
-   - 视觉特征：顶部“总资产”，有“理财就问蚂小财”，蓝色大卡片“资产概览/我的资产 (元)”，下方包含“余额、余额宝、基金、进阶理财”。
-   - 提取规则：平台名称填「支付宝-总资产」（或分别提取「余额宝」与「支付宝基金」），类别填【wallet】或【investment】。
-4. 🟢【微信钱包 (wallet)】：
-   - 视觉特征：黑色深色界面或经典界面，顶部标题“钱包”，列出“零钱 ¥XXX.XX”、“零钱通 ¥X.XX”、“银行卡”。
-   - 提取规则：提取「微信零钱」（类别 wallet）和「微信零钱通」（类别 wallet）。
+【真实场景视觉识别铁律（严禁生造不相关平台）】：
+1. 🦘【美团月付 (meituan_pay)】：提取平台名「美团月付」，金额提取图片上显示的实际待还总额，类别代码填【meituan_pay】（信贷负债）。
+2. 🐕【京东白条 (baitiao)】：提取平台名「京东白条」，金额提取图片上显示的实际全部待还总额，类别代码填【baitiao】（信贷负债）。
+3. 🔵【支付宝 (wallet)】：提取「支付宝-总资产」或「余额宝」，类别填【wallet】或【investment】。
+4. 🟢【微信钱包 (wallet)】：提取「微信零钱」和「微信零钱通」（类别 wallet）。
 5. 🏦【银行卡列表 / 云闪付 / 手机银行多卡聚合 (bank)】：
    - 视觉特征：顶部标题“储蓄卡 (N)”，显示多张实体银行卡卡面，每行包含银行名称（如工商银行、中国银行、福建农信、建设银行、民生银行）、[尾号4位]以及对应余额。
    - 提取规则：【必须将每张储蓄卡独立拆分为一个账户】！例如：

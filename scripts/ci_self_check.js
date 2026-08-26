@@ -429,6 +429,16 @@ runTest(8, '离线规则兜底', '微信/云闪付/美团/银行短信等 5 大�
   const r3 = extractReceiptRule(`【招商银行】您账户9527于08月26日在海底捞火锅刷卡消费人民币298.00元`);
   assert.strictEqual(r3.amount, 298.00);
   assert.strictEqual(r3.merchant, '海底捞火锅刷卡');
+
+  // 药店/医药消费分类
+  function suggestCategory(merchant, fullText = '') {
+    const combined = (merchant + ' ' + fullText).toLowerCase();
+    if (/医|药|诊所|医院|体检|健康|牙科|口腔|同仁堂|老百姓|大参林|益丰|国大|海王星辰|叮当|博爱|卫生院|门诊|药房|药业|药堂/.test(combined)) return '医疗健康';
+    if (/餐饮|美食|麦当劳|肯德基|喜茶/.test(combined)) return '餐饮美食';
+    return '日用百货';
+  }
+  const medCat = suggestCategory('博爱医药(省立南院店)');
+  assert.strictEqual(medCat, '医疗健康');
 });
 
 // =========================================================================

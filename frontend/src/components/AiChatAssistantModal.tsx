@@ -186,10 +186,19 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
   const [modelSwitchToast, setModelSwitchToast] = useState<string>('');
   const [collapsedReasonings, setCollapsedReasonings] = useState<Record<string, boolean>>({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const userScrolledUpRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const toggleReasoningCollapse = (msgId: string) => {
     setCollapsedReasonings(prev => ({ ...prev, [msgId]: !prev[msgId] }));
+  };
+
+  const handleScrollContainer = () => {
+    if (!scrollContainerRef.current) return;
+    const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
+    const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
+    userScrolledUpRef.current = !isNearBottom;
   };
 
   useEffect(() => {
@@ -222,13 +231,14 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
     setTimeout(() => setModelSwitchToast(''), 2500);
   };
 
-  const scrollToBottom = () => {
+  const scrollToBottom = (force = false) => {
+    if (!force && userScrolledUpRef.current) return;
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
   useEffect(() => {
     if (isOpen) {
-      setTimeout(scrollToBottom, 100);
+      setTimeout(() => scrollToBottom(false), 100);
     }
   }, [isOpen, messages]);
 
@@ -1087,7 +1097,66 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
             data: res
           };
           confetti({ particleCount: 70, spread: 50, origin: { y: 0.7 } });
-          onRefresh();
+        } else if (act.type === 'update_transaction') {
+          const p = act.payload || {};
+          let targetTx: Transaction | undefined = undefined;
+          if (p.transaction_id) {
+            targetTx = transactions.find(t => t.id === p.transaction_id);
+          }
+          if (!targetTx && p.merchant) {
+            targetTx = transactions.find(t => t.merchant && t.merchant.includes(p.merchant));
+          }
+          if (!targetTx && p.amount) {
+            targetTx = transactions.find(t => Math.abs(t.amount - Math.abs(p.amount)) < 0.01);
+          }
+          if (!targetTx && transactions.length > 0) {
+            targetTx = transactions[0];
+          }
+
+          if (targetTx) {
+            const catObj = categories.find(c => c.name === p.category);
+            const oldCat = targetTx.category_name;
+            const newCat = p.category || (catObj ? catObj.name : '医疗健康');
+            const updated = await api.updateTransaction(targetTx.id, {
+              ...targetTx,
+              category_name: newCat,
+              category_id: catObj?.id || targetTx.category_id,
+              merchant: p.merchant || targetTx.merchant,
+              amount: p.amount ? Math.abs(p.amount) : targetTx.amount,
+              note: p.note || targetTx.note
+            });
+            actionResult = {
+              type: 'transaction_updated',
+              data: {
+                id: targetTx.id,
+                merchant: updated.merchant,
+                oldCategory: oldCat,
+                newCategory: newCat,
+                amount: updated.amount
+              }
+            };
+            confetti({ particleCount: 60, spread: 45, origin: { y: 0.6 } });
+            onRefresh();
+          }
+        } else if (act.type === 'delete_transaction') {
+          let targetTx: Transaction | undefined = undefined;
+          if (act.payload?.transaction_id) {
+            targetTx = transactions.find(t => t.id === act.payload.transaction_id);
+          }
+          if (!targetTx && act.payload?.merchant) {
+            targetTx = transactions.find(t => t.merchant && t.merchant.includes(act.payload.merchant));
+          }
+          if (!targetTx && transactions.length > 0) {
+            targetTx = transactions[0];
+          }
+          if (targetTx) {
+            await api.deleteTransaction(targetTx.id);
+            actionResult = {
+              type: 'transaction_deleted',
+              data: { id: targetTx.id, merchant: targetTx.merchant, amount: targetTx.amount }
+            };
+            onRefresh();
+          }
         } else {
           // All data creation / modifications are STAGED for user editable confirmation!
           const stagedPayload = { ...(act.payload || {}) };
@@ -1408,7 +1477,11 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
         </div>
 
         {/* Chat Messages List */}
-        <div className="flex-1 overflow-y-auto p-3.5 sm:p-4 space-y-3.5 text-xs">
+        <div 
+          ref={scrollContainerRef}
+          onScroll={handleScrollContainer}
+          className="flex-1 overflow-y-auto p-3.5 sm:p-4 space-y-3.5 text-xs"
+        >
           {messages.map((m) => (
             <div
               key={m.id}
@@ -2275,6 +2348,55 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
                     <div className="font-bold text-xs flex items-center gap-1.5">
                       <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                       <span>🎉 多平台批量开账完成 (共 {m.actionResult.data.count} 个)</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Transaction Updated Result Card */}
+                {m.actionResult && m.actionResult.type === 'transaction_updated' && (
+                  <div className="mt-2.5 p-3 rounded-2xl bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/50 dark:to-teal-950/50 border border-emerald-300 dark:border-emerald-700 text-emerald-950 dark:text-emerald-200 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 font-bold text-xs">
+                        <ReceiptText className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                        <span>✅ 交易流水分类已精准更新！</span>
+                      </div>
+                      <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-emerald-200/60 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300">
+                        {m.actionResult.data.merchant}
+                      </span>
+                    </div>
+                    <div className="p-2 bg-white/80 dark:bg-slate-900/80 rounded-xl border border-emerald-100 dark:border-emerald-800/50 text-xs flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <div className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                          <span className="text-slate-400 line-through text-[11px]">{m.actionResult.data.oldCategory || '未分类'}</span>
+                          <span className="text-emerald-500 font-bold">➔</span>
+                          <span className="px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300 font-bold text-[11px]">
+                            {m.actionResult.data.newCategory}
+                          </span>
+                        </div>
+                        <div className="text-[10px] text-slate-400 font-mono">
+                          金额: ¥{Number(m.actionResult.data.amount || 0).toFixed(2)}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onClose();
+                          onNavigate?.('transactions');
+                        }}
+                        className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[10px] transition"
+                      >
+                        前往明细查看
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Transaction Deleted Result Card */}
+                {m.actionResult && m.actionResult.type === 'transaction_deleted' && (
+                  <div className="mt-2.5 p-3 rounded-2xl bg-rose-50 dark:bg-rose-950/50 border border-rose-300 dark:border-rose-700 text-rose-950 dark:text-rose-200 flex items-center justify-between text-xs font-bold">
+                    <div className="flex items-center gap-1.5">
+                      <Trash2 className="w-4 h-4 text-rose-600 flex-shrink-0" />
+                      <span>🗑️ 已删除交易：{m.actionResult.data.merchant} (¥{Number(m.actionResult.data.amount || 0).toFixed(2)})</span>
                     </div>
                   </div>
                 )}

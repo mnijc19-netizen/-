@@ -1,0 +1,102 @@
+{
+  "url": "https://mnijc19-netizen.github.io/-/",
+  "startTime": "2026-08-26T19:01:13.303Z",
+  "item1_initialLoad": {
+    "httpStatus": 200,
+    "loadDurationMs": 2834,
+    "hasBlockingSpinner": false,
+    "renderedSuccessfully": true,
+    "title": "斌斌钱包"
+  },
+  "item2_privacyMode": {
+    "foundEyeButton": true,
+    "initialMaskedByDefault": true,
+    "toggleRevealsFiguresCleanly": true,
+    "toggleReMasksCleanly": true
+  },
+  "item3_inboxSyncBar": {
+    "hasInboxBar": true,
+    "foundSyncButton": true,
+    "buttonTextBefore": "⚡ 立即同步",
+    "buttonTextAfter": "⚡ 立即同步",
+    "isResponsive": true
+  },
+  "item4_navigationTabs": {
+    "dashboard": {
+      "hasHero": true,
+      "hasRecent": true
+    },
+    "accounts": {
+      "hasTitle": true,
+      "hasBatchOcrButton": true,
+      "batchModalOpened": true,
+      "adjustButtonsCount": 4,
+      "editButtonsCount": 4,
+      "deleteButtonsCount": 4,
+      "has3ActionButtons": true
+    },
+    "quickAddSheet": {
+      "foundPlusButton": true,
+      "modalOpened": true,
+      "hasAmountInput": false
+    },
+    "transactions": {
+      "hasFilterTabs": true,
+      "hasSearchInput": true,
+      "hasCategoryAggregationOrStats": true
+    },
+    "settings": {
+      "hasSettingsTitle": true,
+      "hasAiSection": true,
+      "hasWebDAV": true,
+      "hasGist": false,
+      "hasGLMRefs": false
+    }
+  },
+  "item5_aiCopilotModal": {
+    "foundAiButton": true,
+    "hasWelcomePrompt": true,
+    "quickChipsCount": 4,
+    "quickChips": [
+      "📅 测算我这个月还剩多少钱能花？",
+      "💳 记花呗分期1200元分3期每月9号还400",
+      "💼 把我每月预计工资设为8500元",
+      "带我去月度资金规划大厅"
+    ],
+    "hasModelSelector": true,
+    "availableModels": [
+      "斌斌钱包\n净资产: ••••\nAI 管家\n系统设置与数据中心\n\n管理全量数据存储、备份还原、固定周期收支及实验室 AI 智能引擎\n\n🧪 实验室特性：AI 智能大模型\nAI\n\n已启用 • 智谱\n\n已开启\n🧪 实验室：iOS 液态毛玻璃 UI\n内测功能\n\n内测功能：输入专属密码后解锁并开启\n\n📱 财务系统功能快捷入口\n点击直达对应模块\n📅 月度资金规划\n工资/分期应还/自由资金\n📊 月度预算\n餐饮/日常限额预警\n🎯 存钱目标\n心愿单与备用金计划\n📈 财务图表\n桑基流向与收支透视\n💳 负债与还款\n雪球/雪崩还债规划\n💰 投资持仓\n股票基金浮动盈亏\n🤖 智能识别\n文本与短信自动解析\n演示数据与快速重置\n\n可以一键载入高拟真财务数据体验系统全部图表，或重置账本为干净的初始状态。\n\n载入全场景演示数据\n清空所有数据\n数据全量备份与还原\n导出全量 JSON 备份\n\n将所有账户、流水、分类、预算与持仓导出为单文件备份\n\n立即导出备份\n从备份文件恢复\n\n选择之前导出的 JSON 备份文件还原系统\n\n选择备份并恢复\n☁️ 私有云同步 (WebDAV / 坚果云)\n配置云盘\n\n支持坚果云、NextCloud 等任意 WebDAV 云盘，数据本地打包上传，实现跨设备安全漫游。\n\n周期性与固定收支自动记账规则\n\n每月自动记录工资、房贷月供、固定订阅（iCloud/网易云/视频会员等），彻底减负\n\n立即检查并触发\n新建规则\n首页\n资产\n明细\n我的\n记一笔 / 智能入账\n\n选择记账方式或通过 AI 极速入库\n\n📋 读取剪贴板一键极速记账\nAI\n截屏或复制账单后，点此秒级入库\n⚡ 极速手动记账\n支出 / 收入 / 转账\n📸 拍照 / 扫小票\nAI\n识别账单凭证与发票\n✨ 智能文本 / 短信\nAI\n自然语言与银行短信\n📸 批量余额对账\nAI\n微信/支付宝多图开账\n斌斌 AI 全能管家\n⚡\nGLM-4.5-Air\n📝文本\n\n支持发图预识别 • 人工确认修改 • 自动录入账本\n\n快速切换模型与厂商\n收起 ✕\n⚡\n智谱 AI\n🐳\nDeepSeek\n🧠\nOpenAI\n☁️\n通义千问\n🌙\n月之暗面 (Kimi)\n🔧\n自定义接口\n全部\n👁️ 可看图\n📝 纯文本\nGLM-4.6V\n👁️ 可看图\n推荐看图\n\n旗舰视觉多模态 · 600万资源包 · 截图开账首选\n\nGLM-4.5-Air\n📝 纯文本\n极速文字\n\n极速旗舰纯文本 · 1200万资源包 · 1秒秒回\n\nGLM-4-Plus\n📝 纯文本\n深度推理\n\n顶配深度推理旗舰 · 200万通用资源包\n\nGLM-4V-Flash\n👁️ 可看图\n免费看图\n\n永久免费视觉大模型 · 基础看图识别\n\nGLM-4-Flash\n📝 纯文本\n免费文本\n\n永久免费纯文本 · 基础记账对话\n\n您好！我是您的 **斌斌 AI 财务智能全能管家**。我已接入您的实时账本系统，具备高精度的看图开账、美团/抖音月付/白条/花呗负债识别、证券持仓联动与预算管控能力！\n\n💡 **新特性已上线：AI 识别后支持人工确认与修改**：\n• 📸 **发多平台余额或月付截图**：发图后先为您呈现**可编辑的确认卡片**，核对金额与平台无误后，点击【确认录入】再入库；\n• 🐕 **精准支持现代消费信贷**：京东白条、美团月付、抖音月付、花呗、借呗、微信分付自动归入负债并在净资产中精确扣减；\n• ⚡ **端侧毫秒级压缩**：图片传输提速 10~20 倍，极速秒级响应！\n2026-08-27 03:01\n📅 测算我这个月还剩多少钱能花？\n💳 记花呗分期1200元分3期每月9号还400\n💼 把我每月预计工资设为8500元\n带我去月度资金规划大厅",
+      "斌斌 AI 全能管家\n⚡\nGLM-4.5-Air\n📝文本\n\n支持发图预识别 • 人工确认修改 • 自动录入账本\n\n快速切换模型与厂商\n收起 ✕\n⚡\n智谱 AI\n🐳\nDeepSeek\n🧠\nOpenAI\n☁️\n通义千问\n🌙\n月之暗面 (Kimi)\n🔧\n自定义接口\n全部\n👁️ 可看图\n📝 纯文本\nGLM-4.6V\n👁️ 可看图\n推荐看图\n\n旗舰视觉多模态 · 600万资源包 · 截图开账首选\n\nGLM-4.5-Air\n📝 纯文本\n极速文字\n\n极速旗舰纯文本 · 1200万资源包 · 1秒秒回\n\nGLM-4-Plus\n📝 纯文本\n深度推理\n\n顶配深度推理旗舰 · 200万通用资源包\n\nGLM-4V-Flash\n👁️ 可看图\n免费看图\n\n永久免费视觉大模型 · 基础看图识别\n\nGLM-4-Flash\n📝 纯文本\n免费文本\n\n永久免费纯文本 · 基础记账对话\n\n您好！我是您的 **斌斌 AI 财务智能全能管家**。我已接入您的实时账本系统，具备高精度的看图开账、美团/抖音月付/白条/花呗负债识别、证券持仓联动与预算管控能力！\n\n💡 **新特性已上线：AI 识别后支持人工确认与修改**：\n• 📸 **发多平台余额或月付截图**：发图后先为您呈现**可编辑的确认卡片**，核对金额与平台无误后，点击【确认录入】再入库；\n• 🐕 **精准支持现代消费信贷**：京东白条、美团月付、抖音月付、花呗、借呗、微信分付自动归入负债并在净资产中精确扣减；\n• ⚡ **端侧毫秒级压缩**：图片传输提速 10~20 倍，极速秒级响应！\n2026-08-27 03:01\n📅 测算我这个月还剩多少钱能花？\n💳 记花呗分期1200元分3期每月9号还400\n💼 把我每月预计工资设为8500元\n带我去月度资金规划大厅",
+      "斌斌 AI 全能管家\n⚡\nGLM-4.5-Air\n📝文本\n\n支持发图预识别 • 人工确认修改 • 自动录入账本\n\n快速切换模型与厂商\n收起 ✕\n⚡\n智谱 AI\n🐳\nDeepSeek\n🧠\nOpenAI\n☁️\n通义千问\n🌙\n月之暗面 (Kimi)\n🔧\n自定义接口\n全部\n👁️ 可看图\n📝 纯文本\nGLM-4.6V\n👁️ 可看图\n推荐看图\n\n旗舰视觉多模态 · 600万资源包 · 截图开账首选\n\nGLM-4.5-Air\n📝 纯文本\n极速文字\n\n极速旗舰纯文本 · 1200万资源包 · 1秒秒回\n\nGLM-4-Plus\n📝 纯文本\n深度推理\n\n顶配深度推理旗舰 · 200万通用资源包\n\nGLM-4V-Flash\n👁️ 可看图\n免费看图\n\n永久免费视觉大模型 · 基础看图识别\n\nGLM-4-Flash\n📝 纯文本\n免费文本\n\n永久免费纯文本 · 基础记账对话",
+      "斌斌 AI 全能管家\n⚡\nGLM-4.5-Air\n📝文本\n\n支持发图预识别 • 人工确认修改 • 自动录入账本",
+      "斌斌 AI 全能管家\n⚡\nGLM-4.5-Air\n📝文本",
+      "⚡\nGLM-4.5-Air\n📝文本",
+      "快速切换模型与厂商\n收起 ✕\n⚡\n智谱 AI\n🐳\nDeepSeek\n🧠\nOpenAI\n☁️\n通义千问\n🌙\n月之暗面 (Kimi)\n🔧\n自定义接口\n全部\n👁️ 可看图\n📝 纯文本\nGLM-4.6V\n👁️ 可看图\n推荐看图\n\n旗舰视觉多模态 · 600万资源包 · 截图开账首选\n\nGLM-4.5-Air\n📝 纯文本\n极速文字\n\n极速旗舰纯文本 · 1200万资源包 · 1秒秒回\n\nGLM-4-Plus\n📝 纯文本\n深度推理\n\n顶配深度推理旗舰 · 200万通用资源包\n\nGLM-4V-Flash\n👁️ 可看图\n免费看图\n\n永久免费视觉大模型 · 基础看图识别\n\nGLM-4-Flash\n📝 纯文本\n免费文本\n\n永久免费纯文本 · 基础记账对话",
+      "⚡\n智谱 AI\n🐳\nDeepSeek\n🧠\nOpenAI\n☁️\n通义千问\n🌙\n月之暗面 (Kimi)\n🔧\n自定义接口",
+      "🐳\nDeepSeek",
+      "GLM-4.6V\n👁️ 可看图\n推荐看图\n\n旗舰视觉多模态 · 600万资源包 · 截图开账首选\n\nGLM-4.5-Air\n📝 纯文本\n极速文字\n\n极速旗舰纯文本 · 1200万资源包 · 1秒秒回\n\nGLM-4-Plus\n📝 纯文本\n深度推理\n\n顶配深度推理旗舰 · 200万通用资源包\n\nGLM-4V-Flash\n👁️ 可看图\n免费看图\n\n永久免费视觉大模型 · 基础看图识别\n\nGLM-4-Flash\n📝 纯文本\n免费文本\n\n永久免费纯文本 · 基础记账对话",
+      "GLM-4.6V\n👁️ 可看图\n推荐看图\n\n旗舰视觉多模态 · 600万资源包 · 截图开账首选",
+      "GLM-4.6V\n👁️ 可看图\n推荐看图",
+      "GLM-4.5-Air\n📝 纯文本\n极速文字\n\n极速旗舰纯文本 · 1200万资源包 · 1秒秒回",
+      "GLM-4.5-Air\n📝 纯文本\n极速文字",
+      "GLM-4V-Flash\n👁️ 可看图\n免费看图\n\n永久免费视觉大模型 · 基础看图识别",
+      "GLM-4V-Flash\n👁️ 可看图\n免费看图"
+    ],
+    "hasCameraUploadInput": true
+  },
+  "item6_consoleAndErrors": {
+    "consoleErrors": [],
+    "pageErrors": [],
+    "warningCount": 2
+  },
+  "desktopVisual": {
+    "darkModeToggle": {
+      "foundToggle": true,
+      "wasDarkBefore": false,
+      "isDarkAfter": true,
+      "toggledSuccessfully": true
+    }
+  },
+  "mobileVisual": {},
+  "endTime": "2026-08-26T19:01:25.561Z"
+}
