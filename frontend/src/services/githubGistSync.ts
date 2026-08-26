@@ -110,8 +110,24 @@ export const githubGistSync = {
       try {
         parsed = JSON.parse(file.content);
       } catch {
-        return { count: 0, items: [] };
+        // Handle unescaped newlines or control characters from iOS Shortcut raw text
+        try {
+          const m = file.content.match(/"raw_text"\s*:\s*"([\s\S]*?)"\s*\}\s*\]/);
+          if (m) {
+            parsed = [{ raw_text: m[1] }];
+          } else {
+            const rawMatch = file.content.match(/\[\s*\{([\s\S]*)\}\s*\]/);
+            if (rawMatch) {
+              const textContent = file.content.replace(/^\[\s*\{\s*"raw_text"\s*:\s*"/, '').replace(/"\s*\}\s*\]$/, '');
+              parsed = [{ raw_text: textContent }];
+            }
+          }
+        } catch {
+          return { count: 0, items: [] };
+        }
       }
+
+      if (!parsed) return { count: 0, items: [] };
 
       const rawList: any[] = Array.isArray(parsed) ? parsed : (parsed.items || [parsed]);
       if (!rawList || rawList.length === 0) return { count: 0, items: [] };

@@ -288,7 +288,7 @@ export function extractFromRawText(text: string, accounts: any[] = []): { amount
     for (let i = 0; i < allLines.length; i++) {
       const l = allLines[i];
       if (l.includes('积分') || l.includes('订单号') || l.includes('预计') || l.includes(':') || l.length > 15) continue;
-      const m = l.match(/(?:[¥￥$]\s*|[-－]\s*)?(\d+\.\d{1,2})/);
+      const m = l.match(/(?:[·•・¥￥$]\s*|[-－]\s*)?(\d+\.\d{1,2})/);
       if (m) {
         const val = parseFloat(m[1]);
         if (val > 0 && val < 1000000) {
