@@ -53,6 +53,9 @@ export function formatTencentTicker(code: string, type?: string): string {
 
   // If already formatted (e.g. sh510300, sz159941, jj005827, usAAPL)
   if (/^(sh|sz|jj|us|r_hk|hk)/i.test(clean)) {
+    if (clean.toLowerCase().startsWith('us')) {
+      return `us${clean.slice(2).toUpperCase()}`;
+    }
     return clean.toLowerCase();
   }
 
@@ -112,7 +115,13 @@ export function fetchTencentBatchQuotes(tickers: string[]): Promise<Record<strin
       return resolve({});
     }
 
-    const uniqueTickers = Array.from(new Set(tickers.map(t => t.toLowerCase())));
+    const uniqueTickers = Array.from(new Set(tickers.map(t => {
+      const tr = t.trim();
+      if (tr.toLowerCase().startsWith('us')) {
+        return `us${tr.slice(2).toUpperCase()}`;
+      }
+      return tr.toLowerCase();
+    })));
     const queryParam = uniqueTickers.join(',');
     const cbName = `__tencent_quote_cb_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
 
@@ -138,8 +147,10 @@ export function fetchTencentBatchQuotes(tickers: string[]): Promise<Record<strin
       const win = window as any;
 
       for (const ticker of uniqueTickers) {
-        const varName = `v_${ticker}`;
-        const rawData = win[varName];
+        const rawData = win[`v_${ticker}`] || 
+                        win[`v_${ticker.toLowerCase()}`] || 
+                        win[`v_${ticker.toUpperCase()}`] || 
+                        (ticker.toLowerCase().startsWith('us') ? win[`v_us${ticker.slice(2).toUpperCase()}`] : undefined);
 
         if (rawData && typeof rawData === 'string') {
           const parts = rawData.split('~');
@@ -152,7 +163,7 @@ export function fetchTencentBatchQuotes(tickers: string[]): Promise<Record<strin
               const changeRate = parseFloat(parts[7]) || 0;
               const date = parts[8] || '';
 
-              results[ticker] = {
+              const item: MarketQuoteResult = {
                 code,
                 name,
                 currentPrice: nav,
@@ -163,20 +174,23 @@ export function fetchTencentBatchQuotes(tickers: string[]): Promise<Record<strin
                 ticker,
                 marketLabel: '场外公募基金'
               };
+              results[ticker] = item;
+              results[ticker.toLowerCase()] = item;
+              results[ticker.toUpperCase()] = item;
             } else {
               // Stock / ETF format (sh / sz / us / r_hk)
               const name = parts[1] || '';
-              const code = parts[2] || ticker;
+              const code = ticker.toLowerCase().startsWith('us') ? ticker.slice(2).toUpperCase() : (parts[2] || ticker);
               const currentPrice = parseFloat(parts[3]) || parseFloat(parts[4]) || 0;
               const changeRate = parseFloat(parts[32]) || 0;
               const date = parts[30] || '';
 
               let suggestedType: any = 'stock_a';
               let marketLabel = 'A股股票';
-              if (ticker.startsWith('us')) {
+              if (ticker.toLowerCase().startsWith('us')) {
                 suggestedType = 'stock_hk_us';
                 marketLabel = '美股';
-              } else if (ticker.startsWith('r_hk')) {
+              } else if (ticker.toLowerCase().startsWith('r_hk')) {
                 suggestedType = 'stock_hk_us';
                 marketLabel = '港股';
               } else if (ticker.startsWith('sh51') || ticker.startsWith('sz15') || ticker.startsWith('sh56') || ticker.startsWith('sh58')) {
@@ -191,7 +205,7 @@ export function fetchTencentBatchQuotes(tickers: string[]): Promise<Record<strin
               }
 
               if (currentPrice > 0) {
-                results[ticker] = {
+                const item: MarketQuoteResult = {
                   code,
                   name,
                   currentPrice,
@@ -202,6 +216,9 @@ export function fetchTencentBatchQuotes(tickers: string[]): Promise<Record<strin
                   ticker,
                   marketLabel
                 };
+                results[ticker] = item;
+                results[ticker.toLowerCase()] = item;
+                results[ticker.toUpperCase()] = item;
               }
             }
           }
@@ -223,7 +240,7 @@ export function fetchTencentBatchQuotes(tickers: string[]): Promise<Record<strin
 
 /**
  * Real-time Candidate Query: Returns ALL matching instruments for a given code
- * (Handles duplicate codes like 001309 which is both 德明利 and 东方红睿逸)
+ * (Handles duplicate codes like 001309 which is both 德明利 and 东方红睿逸, and US stocks like AAPL)
  */
 export async function queryAllQuotesForCode(code: string, preferredType?: string): Promise<MarketQuoteResult[]> {
   const clean = code.trim();
@@ -255,15 +272,19 @@ export async function queryAllQuotesForCode(code: string, preferredType?: string
   } else if (/^\d{5}$/.test(clean)) {
     candidates.push(`r_hk${clean}`);
   } else if (/^[A-Za-z]+$/.test(clean)) {
+    // Pure English letters: US Stock (e.g. AAPL, TSLA, NVDA)
     candidates.push(`us${clean.toUpperCase()}`);
+  } else if (/^(us|hk|sh|sz|jj)/i.test(clean)) {
+    candidates.push(formatTencentTicker(clean, preferredType));
   }
 
   const quotes = await fetchTencentBatchQuotes(candidates);
   const matched: MarketQuoteResult[] = [];
   for (const c of candidates) {
-    if (quotes[c] && quotes[c].currentPrice > 0) {
-      if (!matched.some(m => m.name === quotes[c].name && m.suggestedType === quotes[c].suggestedType)) {
-        matched.push(quotes[c]);
+    const q = quotes[c] || quotes[c.toLowerCase()] || quotes[c.toUpperCase()];
+    if (q && q.currentPrice > 0) {
+      if (!matched.some(m => m.name === q.name && m.suggestedType === q.suggestedType)) {
+        matched.push(q);
       }
     }
   }

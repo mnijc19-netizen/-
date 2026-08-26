@@ -257,7 +257,10 @@ export const InvestmentsPage: React.FC<InvestmentsPageProps> = ({
         setMatchedQuotes(quotes);
 
         if (quotes.length > 0) {
-          const bestMatch = quotes.find(q => q.suggestedType === type) || quotes[0];
+          const isAlpha = /^[A-Za-z]+$/.test(cleanCode);
+          const bestMatch = isAlpha 
+            ? (quotes.find(q => q.suggestedType === 'stock_hk_us') || quotes[0])
+            : (quotes.find(q => q.suggestedType === type) || quotes[0]);
           setMatchedQuote(bestMatch);
           if (!name || name === '投资标的' || name === '新增标的' || name === '300' || !editingInv) {
             setName(bestMatch.name);
