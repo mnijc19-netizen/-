@@ -1,5 +1,5 @@
 import * as XLSX from 'xlsx';
-import { suggestCategory } from './smsParser';
+import { localMatchMerchant } from './merchantKnowledge';
 import { localStore } from './localStore';
 import { Transaction } from '../types';
 
@@ -11,12 +11,16 @@ export interface ParsedBillItem {
   merchant: string;
   product: string;
   category: string;
+  categoryConfidence: number;   // 0-1 分类置信度，< 0.5 时建议 AI 修正
+  categoryReason: string;       // 分类理由
+  isPersonTransfer: boolean;    // 是否为个人转账
   channel: string;
   status: string;
   orderId: string;
   rawText: string;
   selected: boolean;
   isDuplicate?: boolean;
+  aiCorrected?: boolean;        // 是否经过 AI 修正
 }
 
 export interface ParsedBillResult {
@@ -187,8 +191,9 @@ export async function parseBillExcelOrCsv(file: File): Promise<ParsedBillResult>
     const merchant = rawCounterparty || rawProduct || rawTransType || '消费支出';
     const product = rawProduct && rawProduct !== merchant ? rawProduct : '';
 
-    // Smart Category Inference - pass transType for personal transfer detection
-    const category = suggestCategory(merchant, `${product} ${rawTransType}`, rawTransType);
+    // Smart Category Inference - use full knowledge base with transType context
+    const matchResult = localMatchMerchant(merchant, rawTransType || rawDirection);
+    const category = matchResult.category;
 
     // Standardize date
     let dateStr = rawTime;
@@ -220,11 +225,14 @@ export async function parseBillExcelOrCsv(file: File): Promise<ParsedBillResult>
       merchant,
       product,
       category,
+      categoryConfidence: matchResult.confidence,
+      categoryReason: matchResult.reason,
+      isPersonTransfer: !!matchResult.isPersonTransfer,
       channel: rawChannel || (channel === 'wechat' ? '微信支付' : '支付宝'),
       status: rawStatus || '支付成功',
       orderId: rawOrderId,
       rawText: `${dateStr} ${merchant} ${amount}`,
-      selected: !isDuplicate && type !== 'other', // Auto-select valid non-duplicates
+      selected: !isDuplicate && type !== 'other',
       isDuplicate
     };
 

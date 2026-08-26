@@ -21,13 +21,17 @@ import {
   RotateCcw,
   FileText,
   Check,
-  Download
+  Download,
+  Wand2,
+  UserCheck,
+  AlertTriangle
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { api } from '../api/client';
 import { Account, Category, ParsedTransactionResult } from '../types';
 import { getBeijingDateTimeString } from '../utils/dateUtils';
 import { parseBillExcelOrCsv, executeImportBillTransactions, ParsedBillResult, ParsedBillItem } from '../services/billExcelParser';
+import { batchCorrectCategories } from '../services/aiCategoryService';
 
 interface SmartParserPageProps {
   accounts: Account[];
@@ -69,6 +73,12 @@ export const SmartParserPage: React.FC<SmartParserPageProps> = ({ accounts, cate
   const [importing, setImporting] = useState(false);
   const [importSuccessData, setImportSuccessData] = useState<{ count: number; totalExpense: number; totalIncome: number; accountName: string } | null>(null);
   const [parseError, setParseError] = useState('');
+
+  // AI correction states
+  const [aiCorrecting, setAiCorrecting] = useState(false);
+  const [aiCorrectProgress, setAiCorrectProgress] = useState(0);
+  const [aiCorrectTotal, setAiCorrectTotal] = useState(0);
+  const [aiCorrectedCount, setAiCorrectedCount] = useState(0);
 
   // Rules Tab States
   const [builtinRules, setBuiltinRules] = useState<any[]>([]);
@@ -199,6 +209,56 @@ export const SmartParserPage: React.FC<SmartParserPageProps> = ({ accounts, cate
       ...parsedBill,
       items: parsedBill.items.map(item => item.id === itemId ? { ...item, category: newCat } : item)
     });
+  };
+
+  // AI 批量修正低置信度条目的分类
+  const handleAiBatchCorrect = async () => {
+    if (!parsedBill) return;
+    // Only correct low-confidence items (< 0.5)
+    const lowConfItems = parsedBill.items.filter(i => i.categoryConfidence < 0.5 && !i.aiCorrected);
+    if (lowConfItems.length === 0) {
+      alert('✅ 所有条目分类置信度已足够高，无需 AI 修正');
+      return;
+    }
+
+    setAiCorrecting(true);
+    setAiCorrectProgress(0);
+    setAiCorrectTotal(lowConfItems.length);
+    setAiCorrectedCount(0);
+
+    try {
+      const correctionMap = await batchCorrectCategories(
+        lowConfItems.map(i => ({ id: i.id, merchant: i.merchant, category: i.category, type: i.type })),
+        (processed, total) => {
+          setAiCorrectProgress(processed);
+        }
+      );
+
+      let corrected = 0;
+      setParsedBill({
+        ...parsedBill,
+        items: parsedBill.items.map(item => {
+          const correction = correctionMap.get(item.id);
+          if (correction && correction.category !== item.category) {
+            corrected++;
+            return {
+              ...item,
+              category: correction.category,
+              categoryConfidence: correction.confidence,
+              categoryReason: correction.reason,
+              isPersonTransfer: correction.isPersonTransfer,
+              aiCorrected: true
+            };
+          }
+          return item;
+        })
+      });
+      setAiCorrectedCount(corrected);
+    } catch (e) {
+      console.error('AI batch correction failed:', e);
+    } finally {
+      setAiCorrecting(false);
+    }
   };
 
   const handleExecuteImport = async () => {
@@ -761,7 +821,46 @@ export const SmartParserPage: React.FC<SmartParserPageProps> = ({ accounts, cate
                       className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs focus:outline-none"
                     />
                   </div>
+
+                  {/* AI 一键修正按钮 */}
+                  {(() => {
+                    const lowConfCount = parsedBill?.items.filter(i => i.categoryConfidence < 0.5 && !i.aiCorrected).length || 0;
+                    return lowConfCount > 0 ? (
+                      <button
+                        type="button"
+                        onClick={handleAiBatchCorrect}
+                        disabled={aiCorrecting}
+                        className="flex-shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-violet-500 hover:bg-violet-600 disabled:opacity-60 text-white text-[11px] font-bold transition active:scale-95"
+                        title={`${lowConfCount} 笔分类置信度低，AI 帮你修正`}
+                      >
+                        <Wand2 className="w-3 h-3" />
+                        AI修正 <span className="bg-white/25 rounded px-1">{lowConfCount}</span>
+                      </button>
+                    ) : aiCorrectedCount > 0 ? (
+                      <span className="flex-shrink-0 text-[10px] text-violet-500 font-medium flex items-center gap-0.5">
+                        <Sparkles className="w-3 h-3" /> 已修正 {aiCorrectedCount} 笔
+                      </span>
+                    ) : null;
+                  })()}
                 </div>
+
+                {/* AI 修正进度条 */}
+                {aiCorrecting && (
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between text-[10px] text-violet-500">
+                      <span className="flex items-center gap-1">
+                        <Bot className="w-3 h-3 animate-pulse" /> AI 正在识别分类…
+                      </span>
+                      <span>{aiCorrectProgress}/{aiCorrectTotal}</span>
+                    </div>
+                    <div className="h-1 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-violet-500 rounded-full transition-all duration-300"
+                        style={{ width: `${aiCorrectTotal > 0 ? (aiCorrectProgress / aiCorrectTotal) * 100 : 0}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Transactions List */}
@@ -817,19 +916,43 @@ export const SmartParserPage: React.FC<SmartParserPageProps> = ({ accounts, cate
                         </div>
 
                         {/* Category & Amount */}
-                        <div className="flex items-center gap-2 flex-shrink-0 text-right">
-                          <select
-                            value={item.category}
-                            onClick={(e) => e.stopPropagation()}
-                            onChange={(e) => handleChangeItemCategory(item.id, e.target.value)}
-                            className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 focus:outline-none"
-                          >
-                            {categories.map(c => (
-                              <option key={c.id} value={c.name}>{c.name}</option>
-                            ))}
-                          </select>
+                        <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                          <div className="flex items-center gap-1">
+                            {/* Low confidence warning */}
+                            {item.categoryConfidence < 0.5 && !item.aiCorrected && (
+                              <span title={`分类置信度低 (${Math.round(item.categoryConfidence * 100)}%)，建议用 AI 修正`}>
+                                <AlertTriangle className="w-3 h-3 text-amber-400" />
+                              </span>
+                            )}
+                            {/* AI corrected badge */}
+                            {item.aiCorrected && (
+                              <span className="text-[9px] text-violet-500 flex items-center gap-0.5 font-bold">
+                                <Sparkles className="w-2.5 h-2.5" /> AI
+                              </span>
+                            )}
+                            {/* Personal transfer badge */}
+                            {item.isPersonTransfer && (
+                              <span title="识别为个人转账" className="text-[9px] text-blue-400">👤</span>
+                            )}
+                            <select
+                              value={item.category}
+                              onClick={(e) => e.stopPropagation()}
+                              onChange={(e) => handleChangeItemCategory(item.id, e.target.value)}
+                              className={`text-[10px] font-bold px-2 py-0.5 rounded-lg border focus:outline-none ${
+                                item.categoryConfidence >= 0.8
+                                  ? 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                                  : item.categoryConfidence >= 0.5
+                                  ? 'bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800/50'
+                                  : 'bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 border-red-200 dark:border-red-800/50'
+                              }`}
+                            >
+                              {categories.map(c => (
+                                <option key={c.id} value={c.name}>{c.name}</option>
+                              ))}
+                            </select>
+                          </div>
 
-                          <div className="font-mono font-black text-xs sm:text-sm min-w-[70px]">
+                          <div className="font-mono font-black text-xs sm:text-sm min-w-[70px] text-right">
                             {item.type === 'expense' ? (
                               <span className="text-slate-900 dark:text-white">-¥{item.amount.toFixed(2)}</span>
                             ) : (

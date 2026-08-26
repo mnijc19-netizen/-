@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
-import { PlusCircle, ArrowRightLeft, TrendingDown, TrendingUp, X, Check, Tag, Calendar, Wallet } from 'lucide-react';
+import React, { useState, useCallback, useRef } from 'react';
+import { PlusCircle, ArrowRightLeft, TrendingDown, TrendingUp, X, Check, Tag, Calendar, Wallet, Sparkles, Bot, ChevronRight } from 'lucide-react';
 import { api } from '../api/client';
 import { Transaction, Account, Category, TransactionType } from '../types';
 import { getBeijingDateTimeString } from '../utils/dateUtils';
+import { debouncedSuggestCategory, AiCategoryResult } from '../services/aiCategoryService';
 
 interface QuickTransactionModalProps {
   isOpen: boolean;
@@ -30,6 +31,44 @@ export const QuickTransactionModal: React.FC<QuickTransactionModalProps> = ({
   const [tagsInput, setTagsInput] = useState('');
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+
+  // AI category suggestion state
+  const [aiSuggestion, setAiSuggestion] = useState<AiCategoryResult | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiDismissed, setAiDismissed] = useState(false);
+
+  const handleMerchantChange = useCallback((value: string) => {
+    setMerchant(value);
+    setAiDismissed(false);
+    if (value.length < 2) {
+      setAiSuggestion(null);
+      return;
+    }
+    setAiLoading(true);
+    debouncedSuggestCategory(
+      value,
+      transType === 'transfer' ? '转账' : undefined,
+      parseFloat(amount) || undefined,
+      (result) => {
+        setAiLoading(false);
+        if (result && result.confidence > 0.4) {
+          setAiSuggestion(result);
+        } else {
+          setAiSuggestion(null);
+        }
+      },
+      500
+    );
+  }, [transType, amount]);
+
+  const applyAiSuggestion = useCallback(() => {
+    if (!aiSuggestion) return;
+    const matchCat = categories.find(c => c.name === aiSuggestion.category);
+    if (matchCat) {
+      setCategoryId(matchCat.id);
+    }
+    setAiDismissed(true);
+  }, [aiSuggestion, categories]);
 
   // Auto-sync accountId when accounts load
   React.useEffect(() => {
@@ -257,16 +296,51 @@ export const QuickTransactionModal: React.FC<QuickTransactionModalProps> = ({
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1 block">
+              <label className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1 flex items-center gap-1">
                 商户 / 交易对手
+                {aiLoading && (
+                  <span className="ml-auto text-[10px] text-violet-400 animate-pulse flex items-center gap-0.5">
+                    <Bot className="w-3 h-3" /> AI识别中…
+                  </span>
+                )}
               </label>
               <input
                 type="text"
                 value={merchant}
-                onChange={(e) => setMerchant(e.target.value)}
-                placeholder="例如：瑞幸咖啡、美团外卖"
+                onChange={(e) => handleMerchantChange(e.target.value)}
+                placeholder="例如：赵一鸣零食、阿飞、瑞幸…"
                 className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none"
               />
+
+              {/* AI 分类建议气泡 */}
+              {aiSuggestion && !aiDismissed && transType !== 'transfer' && transType !== 'repayment' && (
+                <div className="mt-1.5 flex items-center gap-1.5 p-2 rounded-xl bg-violet-50 dark:bg-violet-950/40 border border-violet-200/80 dark:border-violet-800/50 animate-in fade-in slide-in-from-top-1 duration-200">
+                  <div className="w-5 h-5 rounded-lg bg-violet-500/20 flex items-center justify-center flex-shrink-0">
+                    <Sparkles className="w-3 h-3 text-violet-600 dark:text-violet-400" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[10px] text-violet-500 dark:text-violet-400 font-medium truncate">
+                      AI 建议：<span className="font-bold">{aiSuggestion.category}</span>
+                      {aiSuggestion.isPersonTransfer && ' 👤'}
+                    </div>
+                    <div className="text-[9px] text-violet-400/80 dark:text-violet-500/70 truncate">{aiSuggestion.reason}</div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={applyAiSuggestion}
+                    className="flex-shrink-0 px-2 py-0.5 text-[10px] font-bold bg-violet-500 hover:bg-violet-600 text-white rounded-lg transition active:scale-95"
+                  >
+                    采纳
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAiDismissed(true)}
+                    className="flex-shrink-0 text-violet-300 hover:text-violet-500 dark:text-violet-600 dark:hover:text-violet-400 transition p-0.5"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
