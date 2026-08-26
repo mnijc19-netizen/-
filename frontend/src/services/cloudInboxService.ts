@@ -1,4 +1,4 @@
-﻿import { localStore } from './localStore';
+import { localStore } from './localStore';
 import { api } from '../api/client';
 import { getBeijingDateTimeString } from '../utils/dateUtils';
 import { extractFromRawText } from './urlAutoIngest';
@@ -22,14 +22,15 @@ export interface CloudInboxConfig {
 
 export interface CloudTransactionItem {
   id?: string;
-  merchant: string;
-  amount: number;
+  merchant?: string;
+  amount?: number;
   category?: string;
   type?: 'expense' | 'income' | 'transfer';
   date?: string;
   note?: string;
   raw_text?: string;
   source?: string;
+  [key: string]: any;
 }
 
 export const cloudInboxService = {
