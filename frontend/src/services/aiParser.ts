@@ -117,10 +117,11 @@ export const AI_PROVIDERS: AiProviderDef[] = [
     baseUrl: 'https://api.moonshot.cn/v1',
     docUrl: 'https://platform.moonshot.cn/console/api-keys',
     keyPlaceholder: 'sk-...',
-    hint: '超长上下文理解能力',
+    hint: '超长 100 万上下文与原生深度推理，全面支持 K3 旗舰',
     models: [
-      { id: 'moonshot-v1-8k', name: 'Moonshot-V1-8K', desc: '标准版对话记账', vision: false, tag: '标准', tagColor: 'blue' },
-      { id: 'moonshot-v1-32k', name: 'Moonshot-V1-32K', desc: '长账单分析', vision: false, tag: '长文本', tagColor: 'purple' }
+      { id: 'kimi-k3', name: 'Kimi-K3', desc: '2.8万亿多模态旗舰 · 原生支持看图与深度思考 · 100万长上下文', vision: true, tag: 'K3 旗舰看图', tagColor: 'purple' },
+      { id: 'moonshot-v1-32k', name: 'Moonshot-V1-32K', desc: '经典长文本纯文本大模型 · 长账单流水分析', vision: false, tag: '长文本', tagColor: 'blue' },
+      { id: 'moonshot-v1-8k', name: 'Moonshot-V1-8K', desc: '标准版对话记账 · 快速纯文本', vision: false, tag: '标准纯文本', tagColor: 'emerald' }
     ]
   },
   {

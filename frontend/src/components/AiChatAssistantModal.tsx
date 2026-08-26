@@ -94,6 +94,7 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
   const [aiConfig, setAiConfig] = useState<AiConfig>(() => localStore.getAiConfig());
   const [modelSelectorOpen, setModelSelectorOpen] = useState(false);
   const [selectedProviderId, setSelectedProviderId] = useState<string>(() => localStore.getAiConfig().provider || 'zhipu');
+  const [capabilityFilter, setCapabilityFilter] = useState<'all' | 'vision' | 'text'>('all');
   const [modelSwitchToast, setModelSwitchToast] = useState<string>('');
   const [collapsedReasonings, setCollapsedReasonings] = useState<Record<string, boolean>>({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -957,7 +958,11 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
                       >
                         <span>{currentProv.icon}</span>
                         <span className="truncate max-w-[85px]">{currentModel?.name || aiConfig.model || 'GLM-4.6V'}</span>
-                        {currentModel?.vision && <span className="text-[7px] px-1 py-0.2 rounded bg-purple-200 dark:bg-purple-900 text-purple-800 dark:text-purple-200">看图</span>}
+                        {currentModel?.vision ? (
+                          <span className="text-[7px] px-1 py-0.2 rounded bg-emerald-200 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 font-bold">👁️看图</span>
+                        ) : (
+                          <span className="text-[7px] px-1 py-0.2 rounded bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-bold">📝文本</span>
+                        )}
                         <ChevronDown className={`w-2.5 h-2.5 transition-transform ${modelSelectorOpen ? 'rotate-180' : ''}`} />
                       </button>
                     );
@@ -1035,11 +1040,54 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
                 })}
               </div>
 
+              {/* Capability Filter Tabs: 全部 | 👁️ 支持看图 | 📝 纯文本 */}
+              <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800/80 p-0.5 rounded-xl text-[10px] font-bold">
+                <button
+                  type="button"
+                  onClick={() => setCapabilityFilter('all')}
+                  className={`flex-1 py-1 rounded-lg transition text-center ${
+                    capabilityFilter === 'all'
+                      ? 'bg-white dark:bg-slate-700 text-purple-700 dark:text-purple-300 shadow-xs'
+                      : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                  }`}
+                >
+                  全部
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCapabilityFilter('vision')}
+                  className={`flex-1 py-1 rounded-lg transition text-center flex items-center justify-center gap-1 ${
+                    capabilityFilter === 'vision'
+                      ? 'bg-white dark:bg-slate-700 text-emerald-600 dark:text-emerald-400 shadow-xs font-black'
+                      : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                  }`}
+                >
+                  <span>👁️ 可看图</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCapabilityFilter('text')}
+                  className={`flex-1 py-1 rounded-lg transition text-center flex items-center justify-center gap-1 ${
+                    capabilityFilter === 'text'
+                      ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-xs font-black'
+                      : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                  }`}
+                >
+                  <span>📝 纯文本</span>
+                </button>
+              </div>
+
               {/* Models List under Selected Provider */}
-              <div className="grid grid-cols-1 gap-1.5 max-h-48 overflow-y-auto pr-0.5">
+              <div className="grid grid-cols-1 gap-1.5 max-h-52 overflow-y-auto pr-0.5">
                 {(() => {
                   const prov = AI_PROVIDERS.find(p => p.id === selectedProviderId) || AI_PROVIDERS[0];
                   const hasKey = !!(aiConfig.providerKeys?.[prov.id] || (prov.id === aiConfig.provider ? aiConfig.apiKey : ''));
+
+                  const filteredModels = prov.models.filter(m => {
+                    if (capabilityFilter === 'vision') return m.vision;
+                    if (capabilityFilter === 'text') return !m.vision;
+                    return true;
+                  });
 
                   return (
                     <>
@@ -1058,7 +1106,14 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
                           </button>
                         </div>
                       )}
-                      {prov.models.map(m => {
+
+                      {filteredModels.length === 0 && (
+                        <div className="p-3 text-center text-[10px] text-slate-400">
+                          当前厂商暂无该类型的模型，请切换筛选或选择其他厂商
+                        </div>
+                      )}
+
+                      {filteredModels.map(m => {
                         const isCurrent = aiConfig.provider === prov.id && aiConfig.model === m.id;
                         return (
                           <button
@@ -1072,17 +1127,29 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
                             }`}
                           >
                             <div className="min-w-0 flex-1">
-                              <div className="flex items-center gap-1.5">
+                              <div className="flex items-center gap-1.5 flex-wrap">
                                 <span className={`text-[11px] font-bold ${isCurrent ? 'text-purple-900 dark:text-purple-200' : 'text-slate-800 dark:text-slate-200'}`}>
                                   {m.name}
                                 </span>
+
+                                {/* Distinct, Clean Capability Tag */}
+                                {m.vision ? (
+                                  <span className="text-[8px] px-1.5 py-0.2 rounded-md font-bold bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border border-emerald-300/60 dark:border-emerald-800/60 flex items-center gap-0.5">
+                                    👁️ 可看图
+                                  </span>
+                                ) : (
+                                  <span className="text-[8px] px-1.5 py-0.2 rounded-md font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 flex items-center gap-0.5">
+                                    📝 纯文本
+                                  </span>
+                                )}
+
                                 {m.tag && (
                                   <span className={`text-[8px] px-1.5 py-0.2 rounded-md font-bold ${
-                                    m.tagColor === 'purple' ? 'bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300' :
-                                    m.tagColor === 'blue' ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300' :
-                                    m.tagColor === 'amber' ? 'bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300' :
-                                    m.tagColor === 'emerald' ? 'bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300' :
-                                    m.tagColor === 'cyan' ? 'bg-cyan-100 dark:bg-cyan-900 text-cyan-700 dark:text-cyan-300' :
+                                    m.tagColor === 'purple' ? 'bg-purple-100 dark:bg-purple-900/60 text-purple-700 dark:text-purple-300' :
+                                    m.tagColor === 'blue' ? 'bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300' :
+                                    m.tagColor === 'amber' ? 'bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300' :
+                                    m.tagColor === 'emerald' ? 'bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300' :
+                                    m.tagColor === 'cyan' ? 'bg-cyan-100 dark:bg-cyan-900/60 text-cyan-700 dark:text-cyan-300' :
                                     'bg-slate-100 dark:bg-slate-800 text-slate-500'
                                   }`}>
                                     {m.tag}
@@ -2008,27 +2075,51 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
 
         {/* Thumbnail Preview Strip */}
         {selectedImages.length > 0 && (
-          <div className="p-2.5 px-4 bg-purple-50/70 dark:bg-purple-950/30 border-t border-purple-100 dark:border-purple-900/50 flex items-center gap-2 overflow-x-auto">
-            {selectedImages.map((img, index) => (
-              <div key={index} className="relative group rounded-xl overflow-hidden border border-purple-300/80 dark:border-purple-700 flex-shrink-0 shadow-sm">
-                <img src={img} alt="预览" className="w-14 h-14 object-cover" />
-                <button
-                  type="button"
-                  onClick={() => handleRemoveImage(index)}
-                  className="absolute top-0.5 right-0.5 p-0.5 rounded-full bg-black/60 text-white hover:bg-rose-600 transition"
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              </div>
-            ))}
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className="w-14 h-14 rounded-xl border-2 border-dashed border-purple-300 dark:border-purple-700 flex flex-col items-center justify-center text-purple-600 dark:text-purple-400 hover:bg-purple-100/50 transition flex-shrink-0 text-[10px]"
-            >
-              <Plus className="w-4 h-4" />
-              <span>加图</span>
-            </button>
+          <div className="border-t border-purple-100 dark:border-purple-900/50 bg-purple-50/70 dark:bg-purple-950/30">
+            {(() => {
+              const currentProv = AI_PROVIDERS.find(p => p.id === aiConfig.provider) || AI_PROVIDERS[0];
+              const currentModel = currentProv.models.find(m => m.id === aiConfig.model) || currentProv.models[0];
+              if (!currentModel?.vision) {
+                return (
+                  <div className="px-4 py-1.5 bg-amber-100/90 dark:bg-amber-950/80 border-b border-amber-200 dark:border-amber-800 text-[10px] text-amber-800 dark:text-amber-200 flex items-center justify-between">
+                    <span className="truncate">⚠️ 当前模型【{currentModel?.name || aiConfig.model}】为纯文本，识别图片需切换为支持看图的模型</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCapabilityFilter('vision');
+                        setModelSelectorOpen(true);
+                      }}
+                      className="ml-2 font-bold underline text-purple-700 dark:text-purple-300 flex-shrink-0"
+                    >
+                      切换为看图模型 →
+                    </button>
+                  </div>
+                );
+              }
+              return null;
+            })()}
+            <div className="p-2.5 px-4 flex items-center gap-2 overflow-x-auto">
+              {selectedImages.map((img, index) => (
+                <div key={index} className="relative group rounded-xl overflow-hidden border border-purple-300/80 dark:border-purple-700 flex-shrink-0 shadow-sm">
+                  <img src={img} alt="预览" className="w-14 h-14 object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveImage(index)}
+                    className="absolute top-0.5 right-0.5 p-0.5 rounded-full bg-black/60 text-white hover:bg-rose-600 transition"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="w-14 h-14 rounded-xl border-2 border-dashed border-purple-300 dark:border-purple-700 flex flex-col items-center justify-center text-purple-600 dark:text-purple-400 hover:bg-purple-100/50 transition flex-shrink-0 text-[10px]"
+              >
+                <Plus className="w-4 h-4" />
+                <span>加图</span>
+              </button>
+            </div>
           </div>
         )}
 
