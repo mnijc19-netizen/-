@@ -31,7 +31,8 @@ import {
   CheckCheck,
   ChevronDown,
   CreditCard,
-  Clock
+  Clock,
+  ShieldCheck
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { Account, Transaction, Category, Goal, Budget, RecurringRule, Investment, Debt, AgentChatMessage, AccountType } from '../types';
@@ -605,24 +606,132 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
           data: cfg
         };
       }
-      // 6.2 Mark Debt Repaid
+      // 6.2 Mark Debt Repaid & Deduct Principal & Record Repayment
       else if (act.type === 'mark_debt_repaid') {
         const p = act.payload;
         const dName = (p.debt_name || '').toLowerCase();
         const currentDebts = localStore.getDebts();
-        const target = currentDebts.find(d => d.name.toLowerCase().includes(dName) || dName.includes(d.name.toLowerCase()));
+        const target = currentDebts.find(d => d.name.toLowerCase().includes(dName) || dName.includes(d.name.toLowerCase()))
+          || currentDebts[0];
+
         if (target) {
-          const updated = await api.updateDebt(target.id, { is_repaid_this_month: p.is_repaid !== false });
+          const repayAmt = parseFloat(p.repay_amount) || target.monthly_payment || 0;
+          const oldRemaining = target.remaining_principal || 0;
+          const newRemaining = Math.max(0, oldRemaining - repayAmt);
+          const newRemainingMonths = Math.max(0, (target.remaining_months || 1) - 1);
+          const newCurrentInstallment = (target.current_installment || 1) + 1;
+
+          const updated = await api.updateDebt(target.id, {
+            remaining_principal: newRemaining,
+            remaining_months: newRemainingMonths,
+            current_installment: newCurrentInstallment,
+            is_repaid_this_month: p.is_repaid !== false
+          });
+
+          // Also optionally record repayment transaction and deduct payment account balance
+          let deductedAccountName = '';
+          if (p.record_transaction !== false && repayAmt > 0) {
+            const payAccName = (p.payment_account_name || '').toLowerCase();
+            const accounts = localStore.getAccounts();
+            const payAcc = (payAccName ? accounts.find(a => a.name.toLowerCase().includes(payAccName) || payAccName.includes(a.name.toLowerCase())) : null)
+              || accounts.find(a => ['wallet', 'bank'].includes(a.type))
+              || accounts[0];
+
+            if (payAcc) {
+              deductedAccountName = payAcc.name;
+              await api.createTransaction({
+                type: 'expense',
+                amount: repayAmt,
+                account_id: payAcc.id,
+                category_name: '金融还款',
+                date: getBeijingDateTimeString(),
+                merchant: `${target.name}还款`,
+                note: `AI智能还款销账 | 冲减本金¥${repayAmt.toFixed(2)} | 剩余待还本金¥${newRemaining.toFixed(2)}`,
+                source: 'ai_copilot'
+              });
+              // Update payment account balance
+              await api.updateAccount(payAcc.id, {
+                ...payAcc,
+                balance: payAcc.balance - repayAmt
+              });
+            }
+          }
+
           actionResult = {
             type: 'debt_repaid_marked',
-            data: updated
+            data: {
+              ...updated,
+              repaid_amount: repayAmt,
+              old_remaining: oldRemaining,
+              new_remaining: newRemaining,
+              deducted_account: deductedAccountName
+            }
           };
         } else {
           actionResult = {
             type: 'debt_repaid_marked',
-            data: { name: p.debt_name || '分期账单', is_repaid_this_month: true }
+            data: { name: p.debt_name || '花呗分期', is_repaid_this_month: true, repaid_amount: 0, old_remaining: 0, new_remaining: 0 }
           };
         }
+      }
+      // 6.3 Generate / Multi-turn Financial Budget Plan
+      else if (act.type === 'generate_monthly_budget_plan') {
+        const p = act.payload;
+        const salary = parseFloat(p.expected_salary) || 8000;
+        const addInc = parseFloat(p.additional_income) || 0;
+        const savings = parseFloat(p.savings_target) || 0;
+        
+        // 1. Save monthly plan config
+        saveMonthlyPlanConfig({ 
+          expected_salary: salary, 
+          additional_income: addInc,
+          include_installments_in_budget: true
+        });
+
+        // 2. Batch create / update category budgets
+        const rawBudgets = p.budgets || [];
+        const appliedBudgets: any[] = [];
+        for (const b of rawBudgets) {
+          const cName = b.category_name || '';
+          const targetCat = categories.find(c => c.name.includes(cName) || cName.includes(c.name));
+          if (targetCat) {
+            const saved = await api.setBudget({
+              category_id: targetCat.id,
+              amount: parseFloat(b.amount) || 0,
+              period: 'monthly'
+            });
+            appliedBudgets.push({ ...saved, category_name: targetCat.name });
+          }
+        }
+
+        // 3. Create or update savings goal if savings_target > 0
+        if (savings > 0) {
+          const currentGoals = localStore.getGoals();
+          const targetGoal = currentGoals.find(g => g.name.includes('月存') || g.name.includes('储蓄') || g.name.includes('攒钱'));
+          if (targetGoal) {
+            await api.updateGoal(targetGoal.id, { target_amount: targetGoal.target_amount + savings });
+          } else {
+            await api.addGoal({
+              name: '每月稳健储蓄计划',
+              target_amount: savings * 12,
+              current_amount: 0,
+              target_date: '2026-12-31',
+              color: 'emerald'
+            });
+          }
+        }
+
+        actionResult = {
+          type: 'monthly_budget_plan_applied',
+          data: {
+            plan_title: p.plan_title || '月度全套财务预算方案',
+            expected_salary: salary,
+            additional_income: addInc,
+            savings_target: savings,
+            applied_budgets: appliedBudgets,
+            summary_advice: p.summary_advice
+          }
+        };
       }
       // 7. Budget
       else if (act.type === 'set_budget') {
@@ -1900,15 +2009,104 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
 
                     {/* Mark Debt Repaid Staging Card */}
                     {m.pendingAction.type === 'mark_debt_repaid' && (
-                      <div className="p-3 rounded-2xl bg-white/90 dark:bg-slate-900/90 border border-teal-300 dark:border-teal-700 text-xs flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Check className="w-4 h-4 text-teal-600" />
-                          <div>
-                            <div className="font-bold text-slate-900 dark:text-white">
-                              标记【{m.pendingAction.payload.debt_name}】当月已结清
-                            </div>
-                            <div className="text-[10px] text-slate-400">将本月应还额度释放为自由现金流</div>
+                      <div className="p-3.5 rounded-2xl bg-white/90 dark:bg-slate-900/90 border border-teal-300 dark:border-teal-700 text-xs space-y-2.5 shadow-sm">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2 font-bold text-teal-800 dark:text-teal-200">
+                            <CheckCircle2 className="w-4 h-4 text-teal-600 flex-shrink-0" />
+                            <span>💳 还款销账待确认：【{m.pendingAction.payload.debt_name}】</span>
                           </div>
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-teal-100 dark:bg-teal-900 text-teal-700 dark:text-teal-300 font-bold">
+                            冲减待还本金
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div>
+                            <label className="text-[10px] text-slate-400 block mb-0.5">还款金额 (¥)</label>
+                            <input
+                              type="number"
+                              step="any"
+                              value={m.pendingAction.payload.repay_amount ?? ''}
+                              onChange={(e) => handleUpdatePendingField(m.id, 'repay_amount', parseFloat(e.target.value) || 0)}
+                              placeholder="默认当期月供"
+                              className="w-full px-2 py-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono font-bold text-xs text-teal-600 text-right"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] text-slate-400 block mb-0.5">付款资金账户</label>
+                            <select
+                              value={m.pendingAction.payload.payment_account_name || ''}
+                              onChange={(e) => handleUpdatePendingField(m.id, 'payment_account_name', e.target.value)}
+                              className="w-full px-2 py-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold"
+                            >
+                              <option value="">自动首选账户 (微信/支付宝)</option>
+                              {accounts.map(a => (
+                                <option key={a.id} value={a.name}>{a.name} (余¥{a.balance.toFixed(0)})</option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                        <div className="text-[10px] text-slate-400 flex items-center gap-1">
+                          <ShieldCheck className="w-3.5 h-3.5 text-teal-500 flex-shrink-0" />
+                          <span>确认后将真实扣减负债总金额、递减剩余期数，并在资金大厅释放当月现金流！</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Generate Monthly Budget Plan Staging Card */}
+                    {m.pendingAction.type === 'generate_monthly_budget_plan' && (
+                      <div className="p-3.5 rounded-2xl bg-white/95 dark:bg-slate-900/95 border border-indigo-300 dark:border-indigo-700 text-xs space-y-3 shadow-md">
+                        <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
+                          <div className="flex items-center gap-2 font-bold text-indigo-900 dark:text-indigo-200">
+                            <Sparkles className="w-4 h-4 text-indigo-600 flex-shrink-0" />
+                            <span>📊 {m.pendingAction.payload.plan_title || '月度全套财务预算方案建议'}</span>
+                          </div>
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-900/80 text-indigo-700 dark:text-indigo-300 font-bold">
+                            可直接语音/打字微调
+                          </span>
+                        </div>
+
+                        {/* Top Highlights */}
+                        <div className="grid grid-cols-3 gap-1.5 text-center">
+                          <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60">
+                            <div className="text-[9px] text-slate-400">预期到手月薪</div>
+                            <div className="text-xs font-black font-mono text-emerald-600 dark:text-emerald-400 mt-0.5">
+                              ¥{(m.pendingAction.payload.expected_salary || 0).toLocaleString()}
+                            </div>
+                          </div>
+                          <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60">
+                            <div className="text-[9px] text-slate-400">建议存钱目标</div>
+                            <div className="text-xs font-black font-mono text-amber-600 dark:text-amber-400 mt-0.5">
+                              ¥{(m.pendingAction.payload.savings_target || 0).toLocaleString()}
+                            </div>
+                          </div>
+                          <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60">
+                            <div className="text-[9px] text-slate-400">日常总预算</div>
+                            <div className="text-xs font-black font-mono text-purple-600 dark:text-purple-400 mt-0.5">
+                              ¥{((m.pendingAction.payload.budgets || []).reduce((s: number, b: any) => s + (parseFloat(b.amount) || 0), 0)).toLocaleString()}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Budget list */}
+                        <div className="space-y-1.5 pt-1">
+                          <div className="text-[10px] font-bold text-slate-400">各项分类预算规划明细：</div>
+                          <div className="grid grid-cols-2 gap-1.5">
+                            {(m.pendingAction.payload.budgets || []).map((b: any, idx: number) => (
+                              <div key={idx} className="p-1.5 px-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80 flex items-center justify-between">
+                                <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 truncate max-w-[80px]">
+                                  {b.category_name}
+                                </span>
+                                <span className="font-mono font-bold text-xs text-purple-600 dark:text-purple-400">
+                                  ¥{parseFloat(b.amount || 0).toLocaleString()}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Speech hint */}
+                        <div className="p-2 rounded-xl bg-indigo-50/80 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-800/40 text-[10px] text-indigo-700 dark:text-indigo-300 leading-relaxed">
+                          💡 <b>多轮对话微调提示</b>：您可以直接在下方回复或语音说：<i>“把餐饮调到1500，匀给存钱”</i> 或 <i>“加一个500块的数码预算”</i>，AI 会立刻实时调整！
                         </div>
                       </div>
                     )}
@@ -2187,12 +2385,75 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
 
                 {/* 3. Debt Repaid Marked Result */}
                 {m.actionResult && m.actionResult.type === 'debt_repaid_marked' && (
-                  <div className="mt-2.5 p-2.5 rounded-xl bg-teal-50 dark:bg-teal-950/50 border border-teal-300 dark:border-teal-700 text-teal-900 dark:text-teal-200 flex items-center justify-between text-xs">
-                    <div className="flex items-center gap-1.5 font-bold">
-                      <CheckCircle2 className="w-4 h-4 text-teal-600" />
-                      <span>✅ 【{m.actionResult.data.name}】已成功标记为当月结清！</span>
+                  <div className="mt-2.5 p-3 rounded-2xl bg-gradient-to-r from-teal-50 to-emerald-50 dark:from-teal-950/50 dark:to-emerald-950/50 border border-teal-300 dark:border-teal-700 text-teal-950 dark:text-teal-200 space-y-2 text-xs">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 font-bold">
+                        <CheckCircle2 className="w-4 h-4 text-teal-600" />
+                        <span>✅ 【{m.actionResult.data.name}】已成功销账还款！</span>
+                      </div>
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-teal-200/60 dark:bg-teal-900/60 text-teal-800 dark:text-teal-300 font-bold">
+                        负债已真实冲减
+                      </span>
                     </div>
-                    <span className="text-[10px] text-teal-700 dark:text-teal-300 font-bold">现金流已释放</span>
+                    <div className="p-2 rounded-xl bg-white/80 dark:bg-slate-900/80 border border-teal-100 dark:border-teal-800/40 flex items-center justify-between text-xs">
+                      <div>
+                        <div className="text-slate-700 dark:text-slate-300 font-semibold">
+                          本次还款：<span className="font-mono font-bold text-teal-600 dark:text-teal-400">¥{(m.actionResult.data.repaid_amount || 0).toFixed(2)}</span>
+                          {m.actionResult.data.deducted_account && (
+                            <span className="ml-1.5 text-[10px] text-slate-400">({m.actionResult.data.deducted_account}扣款)</span>
+                          )}
+                        </div>
+                        <div className="text-[10px] text-slate-400 font-mono mt-0.5">
+                          待还总本金：¥{(m.actionResult.data.old_remaining || 0).toFixed(2)} ➔ <span className="text-emerald-600 font-bold">¥{(m.actionResult.data.new_remaining || 0).toFixed(2)}</span>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onClose();
+                          onNavigate?.('planner');
+                        }}
+                        className="px-2.5 py-1 rounded-lg bg-teal-600 hover:bg-teal-500 text-white font-bold text-[10px] transition"
+                      >
+                        看资金大厅 ➔
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* 3.1 Monthly Budget Plan Applied Result */}
+                {m.actionResult && m.actionResult.type === 'monthly_budget_plan_applied' && (
+                  <div className="mt-2.5 p-3 rounded-2xl bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-950/50 dark:to-indigo-950/50 border border-purple-300 dark:border-purple-700 text-purple-950 dark:text-purple-200 space-y-2 text-xs">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 font-bold">
+                        <Sparkles className="w-4 h-4 text-purple-600" />
+                        <span>🎉 {m.actionResult.data.plan_title} 已全量生效！</span>
+                      </div>
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-200/60 dark:bg-purple-900/60 text-purple-800 dark:text-purple-300 font-bold">
+                        官方预算已生效
+                      </span>
+                    </div>
+                    <div className="p-2 rounded-xl bg-white/80 dark:bg-slate-900/80 border border-purple-100 dark:border-purple-800/40 space-y-1.5">
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span>月薪基准: <b className="font-mono text-emerald-600">¥{m.actionResult.data.expected_salary?.toLocaleString()}</b></span>
+                        {m.actionResult.data.savings_target > 0 && (
+                          <span>月存目标: <b className="font-mono text-amber-600">¥{m.actionResult.data.savings_target?.toLocaleString()}</b></span>
+                        )}
+                        <span>已设定 <b className="font-mono text-purple-600">{m.actionResult.data.applied_budgets?.length || 0}</b> 项分类预算</span>
+                      </div>
+                      <div className="flex items-center justify-end pt-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            onClose();
+                            onNavigate?.('planner');
+                          }}
+                          className="px-3 py-1 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-bold text-[10px] transition flex items-center gap-1"
+                        >
+                          前往月度规划大厅查看 ➔
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 )}
 

@@ -276,14 +276,48 @@ export const FINANCIAL_AGENT_TOOLS: any[] = [
     type: 'function',
     function: {
       name: 'mark_debt_repaid',
-      description: '一键标记某笔分期或账单在当月已还清/已结清',
+      description: '标记某笔分期或账单在当月已还清，并真实冲减剩余负债总本金、递减剩余期数，可同时记录还款支出流水并扣减付款账户余额',
       parameters: {
         type: 'object',
         properties: {
-          debt_name: { type: 'string', description: '账单或负债名称，如 花呗、京东白条' },
-          is_repaid: { type: 'boolean', description: '是否已还清，默认 true' }
+          debt_name: { type: 'string', description: '账单或负债名称，如 花呗、京东白条、美团月付' },
+          repay_amount: { type: 'number', description: '本次还款金额（如不填则默认使用当前月供金额 monthly_payment）' },
+          is_repaid: { type: 'boolean', description: '是否标记为本月已还清，默认 true' },
+          payment_account_name: { type: 'string', description: '还款资金来源账户名称（如 微信钱包、支付宝、招商银行），如果用户提及可从对应账户扣除余额' },
+          record_transaction: { type: 'boolean', description: '是否同时在账本中记录一笔还款支出流水，默认 true' }
         },
         required: ['debt_name']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'generate_monthly_budget_plan',
+      description: '生成或调整当月全套财务预算规划方案（包含预期月薪、额外收入、固定分期还款、心愿储蓄、各项分类预算规划），生成交互式规划提案卡片，并支持多轮对话直接说话持续修改微调',
+      parameters: {
+        type: 'object',
+        properties: {
+          plan_title: { type: 'string', description: '规划标题，如 2026年9月稳健存钱财务规划' },
+          expected_salary: { type: 'number', description: '本月预期工资收入 (¥)' },
+          additional_income: { type: 'number', description: '额外收入 (¥)' },
+          savings_target: { type: 'number', description: '本月存钱目标金额 (¥)' },
+          budgets: {
+            type: 'array',
+            description: '各分类预算规划明细列表',
+            items: {
+              type: 'object',
+              properties: {
+                category_name: { type: 'string', description: '分类名称，如 餐饮美食、住房物业、交通出行、休闲娱乐、日用百货' },
+                amount: { type: 'number', description: '建议预算额度 (¥)' },
+                note: { type: 'string', description: '调整建议或备注' }
+              },
+              required: ['category_name', 'amount']
+            }
+          },
+          summary_advice: { type: 'string', description: 'AI 财务规划师给出的核心建议与流动性点评' }
+        },
+        required: ['expected_salary', 'budgets']
       }
     }
   },
@@ -452,10 +486,11 @@ export async function sendAgentMessage(
 1. 当且仅当用户输入中包含 2 笔或 2 笔以上的收支流水时，【必须且只能调用 batch_create_transactions 工具】一次性记录所有交易，严禁调用单笔 create_transaction！
 2. 只有明确仅有 1 笔消费时才调用单笔 create_transaction。
 3. 当用户涉及月度资金规划与分期还款时：
-   - 设定/调整预计月薪或收入（如“把每月工资设为8500”）：【必须调用 set_monthly_income_plan 工具】。
-   - 录入花呗/白条/消费分期（如“记一笔花呗分期1200元分3期每月9号还400”）：【必须调用 create_debt 工具】，并准确填入 total_installments（总期数）、current_installment（当前期数）、repay_day（每月还款日）与 monthly_payment。
-   - 标记当期还款结清（如“把花呗标记为本月已还”）：【必须调用 mark_debt_repaid 工具】。
-   - 诊断/查询当月现金流与还能花多少（如“我这个月还能花多少钱？还要还多少花呗？”）：【必须调用 get_monthly_cashflow_plan 工具】。
+   - 用户提到花呗/白条/还款（如“花呗我这个月的还完了”、“白条还了500”）：【必须调用 mark_debt_repaid 工具】！系统将智能冲减剩余负债总本金、递减剩余期数、释放当月流动性，并可自动记录还款支出流水！
+   - 用户要求进行本月金额规划/预算方案（如“帮我做本月资金规划”、“月薪8500怎么分配预算”、“制定月存2000计划”）：【必须调用 generate_monthly_budget_plan 工具】生成结构化财务规划方案卡片！
+   - 用户进行多轮微调修改（如“餐饮预算调少300匀给存钱”、“加一个数码预算500”）：【直接再次调用 generate_monthly_budget_plan 并传入修改后的最新全套规划数据】，实现丝滑的多轮无缝修改！
+   - 设定/调整预计月薪或收入（如“把每月工资设为8500”）：调用 set_monthly_income_plan。
+   - 诊断/查询当月现金流与还能花多少（如“我这个月还能花多少钱？还要还多少花呗？”）：调用 get_monthly_cashflow_plan。
    - 页面跳转（如“带我去资金大厅/看看规划”）：调用 navigate_to(page='planner')。
 
 【顶级真实场景视觉识别铁律】：
