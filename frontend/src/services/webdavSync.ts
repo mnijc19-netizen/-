@@ -1,6 +1,7 @@
 import { localStore } from './localStore';
 import { api } from '../api/client';
 import { getBeijingDateTimeString, getBeijingDateString } from '../utils/dateUtils';
+import { extractFromRawText } from './urlAutoIngest';
 import { Transaction } from '../types';
 
 export interface WebDavConfig {
@@ -115,24 +116,52 @@ export const webdavSync = {
       const accounts = localStore.getAccounts();
       const defaultAccount = accounts[0] || { id: 'acc-1', name: '默认账户' };
       const categories = localStore.getCategories();
+      const ingestedList: ShortcutInboxItem[] = [];
 
-      for (const item of validItems) {
-        const numAmt = Math.abs(parseFloat(String(item.amount)));
-        const catName = item.category || '日常消费';
+      for (const item of rawList) {
+        if (!item) continue;
+
+        let numAmt = parseFloat(String(item.amount || '0'));
+        let merchant = item.merchant || '';
+        let catName = item.category || '';
+        let dateStr = item.date || getBeijingDateTimeString();
+
+        // If raw_text is provided but no amount, auto-extract using our high-precision OCR parser
+        if ((!numAmt || numAmt <= 0) && item.raw_text) {
+          try {
+            const extracted = await extractFromRawText(item.raw_text, accounts);
+            if (extracted.amount && extracted.amount > 0) {
+              numAmt = extracted.amount;
+              merchant = extracted.merchant || merchant;
+              catName = extracted.category || catName;
+            }
+          } catch {}
+        }
+
+        if (!numAmt || numAmt <= 0) continue;
+
+        catName = catName || '日常消费';
+        merchant = merchant || '快捷指令入账';
         const matchedCat = categories.find(c => c.name === catName);
 
         await api.createTransaction({
           type: item.type === 'income' ? 'income' : 'expense',
-          amount: numAmt,
+          amount: Math.abs(numAmt),
           account_id: defaultAccount.id,
           category_id: matchedCat?.id,
           category_name: catName,
-          date: item.date || getBeijingDateTimeString(),
-          merchant: item.merchant || '快捷指令记账',
+          date: dateStr,
+          merchant: merchant,
           note: item.note || `来自 iOS 快捷指令静默入账`,
           source: 'shortcut',
           raw_text: item.raw_text
         });
+
+        ingestedList.push({ merchant, amount: numAmt, category: catName });
+      }
+
+      if (ingestedList.length === 0) {
+        return { ingestedCount: 0, items: [] };
       }
 
       // Clear remote inbox after successful ingestion
