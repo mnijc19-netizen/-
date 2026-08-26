@@ -79,7 +79,8 @@ body {
    🧪 Experimental Feature: iOS Liquid Glass UI (Apple HIG Standards)
    ============================================================ */
 
-/* Global Body Background in Liquid Glass Mode */
+/* Global HTML & Body Background in Liquid Glass Mode */
+html.liquid-glass-theme,
 html.liquid-glass-theme body {
   background-color: #f1f5f9;
   background-image: 
@@ -91,24 +92,23 @@ html.liquid-glass-theme body {
   background-size: cover;
 }
 
+/* Deep Obsidian Dark Mode Canvas (Apple Spatial Midnight) - Never washed out or milky */
+html.liquid-glass-theme.dark,
 html.liquid-glass-theme.dark body,
 html.liquid-glass-theme body.dark {
-  background-color: #0b0f19;
+  background-color: #070a12 !important;
+  color: #f8fafc !important;
   background-image: 
-    radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.22) 0px, transparent 50%),
-    radial-gradient(at 100% 0%, rgba(192, 132, 252, 0.18) 0px, transparent 50%),
-    radial-gradient(at 50% 100%, rgba(56, 189, 248, 0.18) 0px, transparent 50%),
-    radial-gradient(at 0% 100%, rgba(251, 113, 133, 0.15) 0px, transparent 50%);
+    radial-gradient(at 0% 0%, rgba(30, 27, 75, 0.45) 0px, transparent 55%),
+    radial-gradient(at 100% 0%, rgba(15, 23, 42, 0.7) 0px, transparent 55%),
+    radial-gradient(at 50% 100%, rgba(2, 6, 23, 0.85) 0px, transparent 60%) !important;
   background-attachment: fixed;
   background-size: cover;
 }
 
-/* Make Outer Shell Wrappers Strictly Transparent with ZERO backdrop-filter so fixed children remain anchored to viewport */
-html.liquid-glass-theme .bg-slate-50,
-html.liquid-glass-theme .bg-slate-100,
-html.liquid-glass-theme .bg-slate-100\/90,
-html.liquid-glass-theme.dark .dark\:bg-slate-950,
-html.liquid-glass-theme .dark .dark\:bg-slate-950 {
+/* Make Dedicated Outer Shell Wrappers Transparent so the ambient canvas shines through cleanly */
+html.liquid-glass-theme .app-shell-viewport,
+html.liquid-glass-theme .app-shell-canvas {
   background-color: transparent !important;
   background-image: none !important;
   backdrop-filter: none !important;
@@ -117,26 +117,26 @@ html.liquid-glass-theme .dark .dark\:bg-slate-950 {
   filter: none !important;
 }
 
-/* Liquid Glass Cards Transformation (Apple Regular Material: 84% Opacity + 24px Blur + 150% Saturation) */
-html.liquid-glass-theme .bg-white {
-  background: rgba(255, 255, 255, 0.84) !important;
+/* Liquid Glass Cards Transformation (Light Mode: Apple Regular Material 84% Opacity) */
+html.liquid-glass-theme:not(.dark) .bg-white {
+  background: rgba(255, 255, 255, 0.88) !important;
   backdrop-filter: blur(24px) saturate(150%) !important;
   -webkit-backdrop-filter: blur(24px) saturate(150%) !important;
   border: 1px solid rgba(255, 255, 255, 0.85) !important;
   box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05), 0 1px 3px rgba(0, 0, 0, 0.02), inset 0 1px 0 rgba(255, 255, 255, 0.95) !important;
 }
 
-/* Only actual cards (.dark:bg-slate-900) get the glass card effect in Dark Mode, NEVER the outer background container */
+/* Liquid Glass Cards Transformation (Dark Mode: High Contrast Apple Midnight Material 88% Opacity) */
 html.liquid-glass-theme.dark .dark\:bg-slate-900,
 html.liquid-glass-theme .dark .dark\:bg-slate-900 {
-  background: rgba(22, 33, 56, 0.72) !important;
-  backdrop-filter: blur(24px) saturate(170%) contrast(105%) !important;
-  -webkit-backdrop-filter: blur(24px) saturate(170%) !important;
-  border: 1px solid rgba(255, 255, 255, 0.16) !important;
-  box-shadow: 0 10px 30px -4px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.22), inset 0 -1px 0 rgba(0, 0, 0, 0.2) !important;
+  background: rgba(18, 26, 44, 0.88) !important;
+  backdrop-filter: blur(20px) saturate(140%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(140%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  box-shadow: 0 8px 32px -4px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.16) !important;
 }
 
-/* High Text Contrast Protection inside Liquid Glass */
+/* High Text Contrast & Razor-sharp Legibility Protection inside Liquid Glass */
 html.liquid-glass-theme .text-slate-900 {
   color: #0f172a !important;
 }
@@ -146,17 +146,27 @@ html.liquid-glass-theme .text-slate-800 {
 html.liquid-glass-theme .text-slate-600 {
   color: #475569 !important;
 }
+
 html.liquid-glass-theme.dark .dark\:text-white,
 html.liquid-glass-theme .dark .dark\:text-white {
   color: #ffffff !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5) !important;
 }
 html.liquid-glass-theme.dark .dark\:text-slate-100,
 html.liquid-glass-theme .dark .dark\:text-slate-100 {
   color: #f1f5f9 !important;
 }
+html.liquid-glass-theme.dark .dark\:text-slate-200,
+html.liquid-glass-theme .dark .dark\:text-slate-200 {
+  color: #e2e8f0 !important;
+}
 html.liquid-glass-theme.dark .dark\:text-slate-300,
 html.liquid-glass-theme .dark .dark\:text-slate-300 {
   color: #cbd5e1 !important;
+}
+html.liquid-glass-theme.dark .text-slate-400,
+html.liquid-glass-theme.dark .dark\:text-slate-400 {
+  color: #94a3b8 !important;
 }
 
 /* Liquid Glass Navigation & Dock (Apple Chrome Material) */
@@ -191,17 +201,18 @@ html.liquid-glass-theme .dark header {
   box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.18) !important;
 }
 
-/* Liquid Glass Modals (Apple Thick Material) */
-html.liquid-glass-theme .fixed .bg-white {
+/* Liquid Glass Modals (Light Mode: Apple Thick Material) */
+html.liquid-glass-theme:not(.dark) .fixed .bg-white {
   background: rgba(255, 255, 255, 0.95) !important;
   backdrop-filter: blur(32px) saturate(150%) !important;
   -webkit-backdrop-filter: blur(32px) saturate(150%) !important;
   border: 1px solid rgba(255, 255, 255, 0.9) !important;
 }
 
+/* Liquid Glass Modals (Dark Mode: High Contrast Apple Obsidian Spatial Glass) */
 html.liquid-glass-theme.dark .fixed .dark\:bg-slate-900,
 html.liquid-glass-theme .dark .fixed .dark\:bg-slate-900 {
-  background: rgba(15, 23, 42, 0.94) !important;
+  background: rgba(15, 23, 42, 0.95) !important;
   backdrop-filter: blur(32px) saturate(150%) !important;
   -webkit-backdrop-filter: blur(32px) saturate(150%) !important;
   border: 1px solid rgba(255, 255, 255, 0.16) !important;

@@ -267,31 +267,47 @@ export function App() {
 
   return (
     <>
-      <div className="min-h-screen bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors duration-200">
+      <div className="app-shell-viewport min-h-screen bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors duration-200">
       {/* 🧪 Dynamic Floating Liquid Ambient Glow Orbs for iOS Liquid Glass Mode */}
       {liquidGlass && (
         <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
           <div 
-            className="absolute -top-12 -left-12 w-80 h-80 rounded-full bg-gradient-to-tr from-sky-400/20 via-indigo-400/18 to-blue-500/20 blur-3xl animate-pulse" 
+            className={`absolute -top-12 -left-12 w-80 h-80 rounded-full blur-3xl animate-pulse ${
+              darkMode
+                ? 'bg-gradient-to-tr from-indigo-900/25 via-slate-900/30 to-blue-900/25'
+                : 'bg-gradient-to-tr from-sky-400/20 via-indigo-400/18 to-blue-500/20'
+            }`} 
             style={{ animationDuration: '8s' }} 
           />
           <div 
-            className="absolute top-1/4 -right-16 w-88 h-88 rounded-full bg-gradient-to-bl from-purple-400/20 via-fuchsia-400/18 to-pink-400/18 blur-3xl animate-pulse" 
+            className={`absolute top-1/4 -right-16 w-88 h-88 rounded-full blur-3xl animate-pulse ${
+              darkMode
+                ? 'bg-gradient-to-bl from-purple-950/30 via-slate-900/30 to-indigo-950/25'
+                : 'bg-gradient-to-bl from-purple-400/20 via-fuchsia-400/18 to-pink-400/18'
+            }`} 
             style={{ animationDuration: '10s', animationDelay: '1.5s' }} 
           />
           <div 
-            className="absolute top-2/3 -left-16 w-80 h-80 rounded-full bg-gradient-to-tr from-teal-400/18 via-emerald-400/18 to-sky-400/15 blur-3xl animate-pulse" 
+            className={`absolute top-2/3 -left-16 w-80 h-80 rounded-full blur-3xl animate-pulse ${
+              darkMode
+                ? 'bg-gradient-to-tr from-emerald-950/25 via-slate-900/30 to-teal-950/20'
+                : 'bg-gradient-to-tr from-teal-400/18 via-emerald-400/18 to-sky-400/15'
+            }`} 
             style={{ animationDuration: '9s', animationDelay: '3s' }} 
           />
           <div 
-            className="absolute -bottom-16 right-1/4 w-80 h-80 rounded-full bg-gradient-to-tl from-amber-400/15 via-rose-400/15 to-orange-400/15 blur-3xl animate-pulse" 
+            className={`absolute -bottom-16 right-1/4 w-80 h-80 rounded-full blur-3xl animate-pulse ${
+              darkMode
+                ? 'bg-gradient-to-tl from-slate-900/30 via-indigo-950/20 to-slate-950/40'
+                : 'bg-gradient-to-tl from-amber-400/15 via-rose-400/15 to-orange-400/15'
+            }`} 
             style={{ animationDuration: '11s', animationDelay: '4.5s' }} 
           />
         </div>
       )}
 
       {/* Mobile App Shell Wrapper */}
-      <div className="w-full max-w-md mx-auto min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col shadow-2xl relative z-10">
+      <div className="app-shell-canvas w-full max-w-md mx-auto min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col shadow-2xl relative z-10">
         {/* Top Automation Toast (Safe from Dynamic Island with Undo Button) */}
         {autoToastMsg && (
           <div className="fixed top-[calc(env(safe-area-inset-top,48px)+0.75rem)] left-4 right-4 z-50 max-w-md mx-auto p-3.5 sm:p-4 rounded-2xl bg-emerald-600/95 dark:bg-emerald-600/95 backdrop-blur-md text-white font-bold text-xs shadow-2xl shadow-emerald-500/25 border border-emerald-400/30 flex items-center justify-between gap-2.5 animate-in slide-in-from-top duration-300">

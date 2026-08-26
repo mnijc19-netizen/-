@@ -955,7 +955,7 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
 
           {/* Model Switcher Dropdown Panel */}
           {modelSelectorOpen && (
-            <div className="mt-2.5 p-3 rounded-2xl bg-white dark:bg-slate-850 border border-purple-200/80 dark:border-purple-900/60 shadow-xl space-y-2.5 animate-in slide-in-from-top-2 duration-150">
+            <div className="mt-2.5 p-3 rounded-2xl bg-white dark:bg-slate-900 border border-purple-200/80 dark:border-purple-800/80 shadow-xl space-y-2.5 animate-in slide-in-from-top-2 duration-150">
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                   快速切换模型与厂商
