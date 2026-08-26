@@ -181,7 +181,6 @@ export const AccountBalanceAdjustModal: React.FC<AccountBalanceAdjustModalProps>
                   onChange={(e) => setNewTotalStr(e.target.value)}
                   placeholder="0.00"
                   className="w-full pl-8 pr-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-mono font-bold text-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                  autoFocus
                 />
               </div>
             </div>
@@ -226,7 +225,6 @@ export const AccountBalanceAdjustModal: React.FC<AccountBalanceAdjustModalProps>
                   onChange={(e) => setDeltaStr(e.target.value)}
                   placeholder="0.00"
                   className="w-full pl-9 pr-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-mono font-bold text-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                  autoFocus
                 />
               </div>
 

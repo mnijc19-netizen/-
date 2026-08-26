@@ -320,7 +320,6 @@ export const GoalsPage: React.FC<GoalsPageProps> = ({ goals, onRefresh }) => {
                 <input
                   type="number"
                   step="10"
-                  autoFocus
                   required
                   value={depositAmount}
                   onChange={(e) => setDepositAmount(e.target.value)}

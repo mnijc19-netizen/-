@@ -176,7 +176,6 @@ export const QuickTransactionModal: React.FC<QuickTransactionModalProps> = ({
               <input
                 type="number"
                 step="0.01"
-                autoFocus
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 placeholder="0.00"

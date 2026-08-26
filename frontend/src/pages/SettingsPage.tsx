@@ -170,7 +170,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   const handleVerifyUnlock = (e: React.FormEvent) => {
     e.preventDefault();
     const trimmed = unlockPassword.trim();
-    if (trimmed === '给斌斌一包辣条') {
+    if (trimmed === '给斌斌一包辣条' || trimmed === '辣条') {
       localStore.saveLiquidGlassUnlocked(true);
       setLiquidGlassUnlocked(true);
       setUnlockModalOpen(false);
@@ -179,7 +179,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
       setStatusMsg('🎉 恭喜！已成功解锁【iOS 液态毛玻璃 UI】内测功能！');
       setTimeout(() => setStatusMsg(''), 4000);
     } else {
-      setUnlockError('⚠️ 暗号错误！请输入正确的内测密码（提示：给斌斌一包辣条）');
+      setUnlockError('⚠️ 暗号不正确，请向作者获取专属内测暗号');
     }
   };
 
@@ -1157,8 +1157,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                     setUnlockPassword(e.target.value);
                     if (unlockError) setUnlockError('');
                   }}
-                  placeholder="请输入暗号（例如：给斌斌一包辣条）"
-                  autoFocus
+                  placeholder="请输入专属内测体验暗号"
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-xs focus:ring-2 focus:ring-cyan-500 focus:outline-none placeholder:text-slate-400"
                 />
                 {unlockError && (
