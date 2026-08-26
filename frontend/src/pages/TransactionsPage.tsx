@@ -21,7 +21,8 @@ import {
   Square,
   CheckCircle2,
   X,
-  Wallet
+  Wallet,
+  UploadCloud
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { Transaction, Account, Category, TransactionType } from '../types';
@@ -35,6 +36,7 @@ interface TransactionsPageProps {
   categories: Category[];
   onRefresh: () => void;
   onOpenQuickTx: () => void;
+  onNavigate?: (page: string) => void;
 }
 
 type TimeRangePreset = 'all' | 'this_week' | 'this_month' | 'last_month' | 'custom';
@@ -44,7 +46,8 @@ export const TransactionsPage: React.FC<TransactionsPageProps> = ({
   accounts,
   categories,
   onRefresh,
-  onOpenQuickTx
+  onOpenQuickTx,
+  onNavigate
 }) => {
   const [keyword, setKeyword] = useState('');
   const [selectedType, setSelectedType] = useState<string>('all');
@@ -271,6 +274,18 @@ export const TransactionsPage: React.FC<TransactionsPageProps> = ({
               <CheckSquare className="w-3.5 h-3.5" />
               <span>{isBatchMode ? '退出管理' : '批量管理'}</span>
             </button>
+
+            {onNavigate && (
+              <button
+                type="button"
+                onClick={() => onNavigate('parser')}
+                className="px-2.5 py-1 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 border border-emerald-200/80 dark:border-emerald-800/80 transition text-[11px] font-bold flex items-center gap-1 active:scale-95"
+                title="导入微信/支付宝官方 Excel 或 CSV 账单"
+              >
+                <UploadCloud className="w-3.5 h-3.5" />
+                <span>导入</span>
+              </button>
+            )}
 
             <button
               type="button"

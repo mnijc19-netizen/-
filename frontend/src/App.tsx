@@ -396,6 +396,7 @@ export function App() {
                   categories={categories}
                   onRefresh={loadAllData}
                   onOpenQuickTx={() => setQuickTxOpen(true)}
+                  onNavigate={(p) => setCurrentPage(p as any)}
                 />
               )}
 
@@ -404,6 +405,7 @@ export function App() {
                   accounts={accounts}
                   categories={categories}
                   onRefresh={loadAllData}
+                  onNavigate={(p) => setCurrentPage(p as any)}
                 />
               )}
 

@@ -12,16 +12,28 @@ import {
   ArrowRight,
   Wallet,
   Tag,
-  ShieldCheck
+  ShieldCheck,
+  Search,
+  Filter,
+  CheckSquare,
+  Square,
+  Calendar,
+  RotateCcw,
+  FileText,
+  Check,
+  Download
 } from 'lucide-react';
+import confetti from 'canvas-confetti';
 import { api } from '../api/client';
 import { Account, Category, ParsedTransactionResult } from '../types';
 import { getBeijingDateTimeString } from '../utils/dateUtils';
+import { parseBillExcelOrCsv, executeImportBillTransactions, ParsedBillResult, ParsedBillItem } from '../services/billExcelParser';
 
 interface SmartParserPageProps {
   accounts: Account[];
   categories: Category[];
   onRefresh: () => void;
+  onNavigate?: (page: string) => void;
 }
 
 const PRESET_SMS_LIST = [
@@ -34,7 +46,7 @@ const PRESET_SMS_LIST = [
   { bank: "农业银行", type: "快捷支付", text: "【农业银行】您尾号5678账户于08月25日09:15完成一笔财付通快捷支付，金额28.50元，余额8888.00元" }
 ];
 
-export const SmartParserPage: React.FC<SmartParserPageProps> = ({ accounts, categories, onRefresh }) => {
+export const SmartParserPage: React.FC<SmartParserPageProps> = ({ accounts, categories, onRefresh, onNavigate }) => {
   const [activeTab, setActiveTab] = useState<'text' | 'csv' | 'rules'>('text');
 
   // Text Tab States
@@ -47,12 +59,16 @@ export const SmartParserPage: React.FC<SmartParserPageProps> = ({ accounts, cate
   const [successMsg, setSuccessMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
 
-  // CSV Tab States
-  const [csvChannel, setCsvChannel] = useState<'wechat' | 'alipay'>('wechat');
+  // Excel / CSV Tab States
+  const [billFile, setBillFile] = useState<File | null>(null);
+  const [parsingBill, setParsingBill] = useState(false);
+  const [parsedBill, setParsedBill] = useState<ParsedBillResult | null>(null);
   const [csvAccountId, setCsvAccountId] = useState(accounts[0]?.id || '');
-  const [csvFile, setCsvFile] = useState<File | null>(null);
+  const [billFilter, setBillFilter] = useState<'all' | 'expense' | 'income' | 'duplicate'>('all');
+  const [billKeyword, setBillKeyword] = useState('');
   const [importing, setImporting] = useState(false);
-  const [csvResultMsg, setCsvResultMsg] = useState('');
+  const [importSuccessData, setImportSuccessData] = useState<{ count: number; totalExpense: number; totalIncome: number; accountName: string } | null>(null);
+  const [parseError, setParseError] = useState('');
 
   // Rules Tab States
   const [builtinRules, setBuiltinRules] = useState<any[]>([]);
@@ -128,23 +144,122 @@ export const SmartParserPage: React.FC<SmartParserPageProps> = ({ accounts, cate
     }
   };
 
-  const handleCsvImport = async () => {
-    if (!csvFile) {
-      alert('请先选择账单 CSV 文件');
+  const handleFileSelect = async (file: File) => {
+    setBillFile(file);
+    setParsingBill(true);
+    setParseError('');
+    setImportSuccessData(null);
+    try {
+      const result = await parseBillExcelOrCsv(file);
+      setParsedBill(result);
+
+      // Auto-match account
+      if (result.channel === 'wechat') {
+        const wechatAcc = accounts.find(a => a.name.includes('微信'));
+        if (wechatAcc) setCsvAccountId(wechatAcc.id);
+      } else if (result.channel === 'alipay') {
+        const alipayAcc = accounts.find(a => a.name.includes('支付宝'));
+        if (alipayAcc) setCsvAccountId(alipayAcc.id);
+      }
+    } catch (e: any) {
+      setParseError(e.message || '账单解析失败，请确保为微信或支付宝官方导出的 Excel 或 CSV 文件');
+      setParsedBill(null);
+    } finally {
+      setParsingBill(false);
+    }
+  };
+
+  const handleToggleItem = (itemId: string) => {
+    if (!parsedBill) return;
+    setParsedBill({
+      ...parsedBill,
+      items: parsedBill.items.map(item => item.id === itemId ? { ...item, selected: !item.selected } : item)
+    });
+  };
+
+  const handleSelectAll = (select: boolean) => {
+    if (!parsedBill) return;
+    setParsedBill({
+      ...parsedBill,
+      items: parsedBill.items.map(item => ({ ...item, selected: select }))
+    });
+  };
+
+  const handleSelectOnlyType = (type: 'expense' | 'income') => {
+    if (!parsedBill) return;
+    setParsedBill({
+      ...parsedBill,
+      items: parsedBill.items.map(item => ({ ...item, selected: item.type === type && !item.isDuplicate }))
+    });
+  };
+
+  const handleChangeItemCategory = (itemId: string, newCat: string) => {
+    if (!parsedBill) return;
+    setParsedBill({
+      ...parsedBill,
+      items: parsedBill.items.map(item => item.id === itemId ? { ...item, category: newCat } : item)
+    });
+  };
+
+  const handleExecuteImport = async () => {
+    if (!parsedBill) return;
+    const selectedItems = parsedBill.items.filter(i => i.selected);
+    if (selectedItems.length === 0) {
+      alert('请至少勾选一笔要导入的流水记录');
       return;
     }
+    const targetAcc = accounts.find(a => a.id === csvAccountId) || accounts[0];
+    if (!targetAcc) {
+      alert('请选择目标入账账户');
+      return;
+    }
+
     setImporting(true);
-    setCsvResultMsg('');
     try {
-      const res = await api.importCsv(csvChannel, csvAccountId, csvFile);
-      setCsvResultMsg(res.message);
+      const res = await executeImportBillTransactions(parsedBill.items, targetAcc.id);
+      try {
+        confetti({
+          particleCount: 80,
+          spread: 70,
+          origin: { y: 0.6 }
+        });
+      } catch {}
+
+      setImportSuccessData({
+        count: res.importedCount,
+        totalExpense: res.totalExpense,
+        totalIncome: res.totalIncome,
+        accountName: targetAcc.name
+      });
       onRefresh();
     } catch (e: any) {
-      alert(e.message || '导入失败');
+      alert('导入失败: ' + (e.message || '未知错误'));
     } finally {
       setImporting(false);
     }
   };
+
+  const visibleItems = (parsedBill?.items || []).filter(item => {
+    if (billFilter === 'expense' && item.type !== 'expense') return false;
+    if (billFilter === 'income' && item.type !== 'income') return false;
+    if (billFilter === 'duplicate' && !item.isDuplicate) return false;
+
+    if (billKeyword.trim()) {
+      const q = billKeyword.trim().toLowerCase();
+      const match = item.merchant.toLowerCase().includes(q) ||
+                    item.product.toLowerCase().includes(q) ||
+                    item.category.toLowerCase().includes(q) ||
+                    item.orderId.toLowerCase().includes(q) ||
+                    String(item.amount).includes(q);
+      if (!match) return false;
+    }
+    return true;
+  });
+
+  const selectedCount = (parsedBill?.items || []).filter(i => i.selected).length;
+  const selectedExpense = (parsedBill?.items || []).filter(i => i.selected && i.type === 'expense').reduce((s, i) => s + i.amount, 0);
+  const selectedIncome = (parsedBill?.items || []).filter(i => i.selected && i.type === 'income').reduce((s, i) => s + i.amount, 0);
+  const duplicateCount = (parsedBill?.items || []).filter(i => i.isDuplicate).length;
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
@@ -178,7 +293,7 @@ export const SmartParserPage: React.FC<SmartParserPageProps> = ({ accounts, cate
               activeTab === 'csv' ? 'bg-white dark:bg-slate-700 text-emerald-600 dark:text-emerald-400 shadow-sm' : 'text-slate-600 dark:text-slate-400'
             }`}
           >
-            <FileSpreadsheet className="w-3.5 h-3.5" /> 账单CSV批量导入
+            <FileSpreadsheet className="w-3.5 h-3.5" /> 微信/支付宝Excel·CSV导入
           </button>
           <button
             type="button"
@@ -357,91 +472,418 @@ export const SmartParserPage: React.FC<SmartParserPageProps> = ({ accounts, cate
         </div>
       )}
 
-      {/* Tab 2: Batch CSV Import */}
+      {/* Tab 2: Batch Excel & CSV Official Bill Import Workbench */}
       {activeTab === 'csv' && (
-        <div className="max-w-2xl mx-auto space-y-6">
-          <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-5">
-            <div>
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                微信 / 支付宝官方账单 CSV 批量导入
-              </h3>
-              <p className="text-xs text-slate-400 mt-1">
-                支持直接将手机微信/支付宝导出的「个人对账单明细 CSV」文件拖拽上传，系统自动去重、自动分类！
-              </p>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-6">
+          {/* State 1: Success Banner after Import */}
+          {importSuccessData && (
+            <div className="p-6 rounded-3xl bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-emerald-500/5 border border-emerald-300 dark:border-emerald-700/60 shadow-lg text-center space-y-4 animate-in zoom-in-95 duration-200">
+              <div className="w-14 h-14 mx-auto rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-lg shadow-emerald-500/30">
+                <CheckCircle2 className="w-8 h-8 stroke-[2.5]" />
+              </div>
               <div>
-                <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1 block">
-                  账单文件来源渠道
-                </label>
-                <select
-                  value={csvChannel}
-                  onChange={(e) => setCsvChannel(e.target.value as any)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-xs"
-                >
-                  <option value="wechat">微信支付 (WeChat Pay CSV)</option>
-                  <option value="alipay">支付宝 (Alipay CSV)</option>
-                </select>
+                <h3 className="text-lg font-black text-slate-900 dark:text-white">
+                  🎉 账单批量入账成功！
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-md mx-auto">
+                  已成功将 <b className="text-emerald-600 dark:text-emerald-400">{importSuccessData.count} 笔</b> 官方账单流水写入记账明细，并已同步更新【{importSuccessData.accountName}】的资金余额与全网净资产！
+                </p>
               </div>
 
-              <div>
-                <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1 block">
-                  关联入账账户
-                </label>
-                <select
-                  value={csvAccountId}
-                  onChange={(e) => setCsvAccountId(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-xs"
+              <div className="inline-flex items-center gap-4 p-3 rounded-2xl bg-white/80 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 text-xs font-mono">
+                <div>
+                  <span className="text-slate-400">总支出: </span>
+                  <span className="font-bold text-rose-500">-¥{importSuccessData.totalExpense.toFixed(2)}</span>
+                </div>
+                <div className="w-px h-4 bg-slate-200 dark:bg-slate-700" />
+                <div>
+                  <span className="text-slate-400">总收入: </span>
+                  <span className="font-bold text-emerald-500">+¥{importSuccessData.totalIncome.toFixed(2)}</span>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-center gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setParsedBill(null);
+                    setBillFile(null);
+                    setImportSuccessData(null);
+                  }}
+                  className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold transition flex items-center gap-1.5"
                 >
-                  {accounts.map(a => (
-                    <option key={a.id} value={a.id}>{a.name}</option>
-                  ))}
-                </select>
+                  <RotateCcw className="w-3.5 h-3.5" /> 继续导入其他账单
+                </button>
+                {onNavigate && (
+                  <button
+                    type="button"
+                    onClick={() => onNavigate('transactions')}
+                    className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition shadow-lg shadow-emerald-500/20 flex items-center gap-1.5"
+                  >
+                    <span>查看记账明细</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
             </div>
+          )}
 
-            {/* Drag & Drop File Area */}
-            <div className="p-8 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-2xl text-center space-y-3 bg-slate-50/50 dark:bg-slate-800/30">
-              <UploadCloud className="w-10 h-10 mx-auto text-emerald-500" />
-              <div>
-                <label className="cursor-pointer text-xs font-bold text-emerald-600 hover:text-emerald-500">
-                  <span>点击选择 CSV 账单文件</span>
+          {/* State 2: No parsed bill yet -> Upload Dropzone */}
+          {!parsedBill && !importSuccessData && (
+            <div className="max-w-2xl mx-auto space-y-5">
+              <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-5">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold">
+                      零误差 · 本地秒解
+                    </span>
+                    <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                      微信 / 支付宝官方 Excel & CSV 账单导入
+                    </h3>
+                  </div>
+                  <p className="text-xs text-slate-400 mt-1.5 leading-relaxed">
+                    支持直接上传手机微信（个人对账单）或支付宝导出的 Excel (<b>.xlsx / .xls</b>) 或 <b>.csv</b> 文件。纯浏览器高精度硬核提取金额与时间，结合 AI 语义智能分类与重复记录自动剔除！
+                  </p>
+                </div>
+
+                {/* Drag & Drop File Area */}
+                <label className={`relative block p-10 border-2 border-dashed rounded-3xl text-center cursor-pointer transition ${
+                  parsingBill 
+                    ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20' 
+                    : 'border-slate-300 dark:border-slate-700 hover:border-emerald-500 bg-slate-50/60 dark:bg-slate-800/30'
+                }`}>
                   <input
                     type="file"
-                    accept=".csv,.txt"
+                    accept=".xlsx,.xls,.csv,.txt"
                     className="hidden"
+                    disabled={parsingBill}
                     onChange={(e) => {
                       if (e.target.files && e.target.files[0]) {
-                        setCsvFile(e.target.files[0]);
+                        handleFileSelect(e.target.files[0]);
                       }
                     }}
                   />
+                  <div className="space-y-3">
+                    <div className="w-14 h-14 mx-auto rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-600 flex items-center justify-center shadow-inner">
+                      {parsingBill ? (
+                        <RotateCcw className="w-7 h-7 animate-spin" />
+                      ) : (
+                        <UploadCloud className="w-7 h-7" />
+                      )}
+                    </div>
+                    <div>
+                      <span className="text-sm font-bold text-emerald-600 hover:underline">
+                        {parsingBill ? '正在高精度解析账单数据...' : '点击选择微信/支付宝导出的 Excel 或 CSV 文件'}
+                      </span>
+                      <p className="text-[11px] text-slate-400 mt-1">
+                        支持格式：.xlsx、.xls、.csv · 拖拽文件到这里亦可秒级识别
+                      </p>
+                    </div>
+                  </div>
                 </label>
-                <span className="text-xs text-slate-400"> 或拖拽文件至此处</span>
-              </div>
-              {csvFile && (
-                <div className="text-xs font-mono font-bold text-slate-700 dark:text-slate-300">
-                  已选择: {csvFile.name} ({(csvFile.size / 1024).toFixed(1)} KB)
+
+                {parseError && (
+                  <div className="p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                    <span>{parseError}</span>
+                  </div>
+                )}
+
+                {/* Guide Tips Accordion / Box */}
+                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60 space-y-3 text-xs">
+                  <div className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                    <FileText className="w-4 h-4 text-emerald-500" />
+                    <span>官方账单如何导出？（1分钟教程）</span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[11px] text-slate-600 dark:text-slate-400">
+                    <div className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 space-y-1">
+                      <div className="font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                        <span>🟢 微信支付账单导出</span>
+                      </div>
+                      <p className="leading-relaxed">
+                        微信 ➔ 我 ➔ 服务 ➔ 钱包 ➔ 右上角【账单】➔ 右上角【常见问题】➔【下载账单】➔【用于个人对账】➔ 发送至邮箱解压后上传即可。
+                      </p>
+                    </div>
+                    <div className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 space-y-1">
+                      <div className="font-bold text-blue-600 dark:text-blue-400 flex items-center gap-1">
+                        <span>🔵 支付宝账单导出</span>
+                      </div>
+                      <p className="leading-relaxed">
+                        支付宝 ➔ 我的 ➔【账单】➔ 右上角三个点【...】➔【开具交易流水证明】➔【用于个人对账】➔ 导出为 Excel 或 CSV 后上传即可。
+                      </p>
+                    </div>
+                  </div>
                 </div>
-              )}
-            </div>
-
-            <button
-              type="button"
-              disabled={!csvFile || importing}
-              onClick={handleCsvImport}
-              className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold text-xs shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2"
-            >
-              {importing ? '正在解析并批量导入...' : '开始批量导入与去重入账'}
-            </button>
-
-            {csvResultMsg && (
-              <div className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200 text-xs font-medium">
-                {csvResultMsg}
               </div>
-            )}
-          </div>
+            </div>
+          )}
+
+          {/* State 3: Parsed Bill Preview & Interactive Management Workbench */}
+          {parsedBill && !importSuccessData && (
+            <div className="space-y-4 animate-in fade-in duration-200">
+              {/* Header Overview Card */}
+              <div className={`p-5 rounded-3xl border shadow-sm ${
+                parsedBill.channel === 'wechat'
+                  ? 'bg-gradient-to-r from-emerald-500/10 via-teal-500/8 to-transparent border-emerald-300 dark:border-emerald-800'
+                  : 'bg-gradient-to-r from-blue-500/10 via-indigo-500/8 to-transparent border-blue-300 dark:border-blue-800'
+              }`}>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200/60 dark:border-slate-700/60 pb-3.5">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-2xl text-white flex items-center justify-center font-black text-sm shadow-md ${
+                      parsedBill.channel === 'wechat' ? 'bg-emerald-600 shadow-emerald-500/20' : 'bg-blue-600 shadow-blue-500/20'
+                    }`}>
+                      {parsedBill.channel === 'wechat' ? '微' : '支'}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-base font-black text-slate-900 dark:text-white">
+                          {parsedBill.channelName}
+                        </h3>
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-slate-600 dark:text-slate-300">
+                          {billFile?.name}
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 flex items-center gap-1.5">
+                        <Calendar className="w-3.5 h-3.5" />
+                        <span>账单时间范围：{parsedBill.dateRange.start || '未知'} 至 {parsedBill.dateRange.end || '未知'}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Account Selector */}
+                  <div className="flex items-center gap-2 bg-white/90 dark:bg-slate-900/90 p-1.5 px-3 rounded-2xl border border-slate-200 dark:border-slate-700 text-xs">
+                    <span className="text-slate-400 text-[11px] flex-shrink-0">入账账户:</span>
+                    <select
+                      value={csvAccountId}
+                      onChange={(e) => setCsvAccountId(e.target.value)}
+                      className="bg-transparent font-bold text-slate-800 dark:text-slate-200 focus:outline-none text-xs"
+                    >
+                      {accounts.map(a => (
+                        <option key={a.id} value={a.id} className="dark:bg-slate-900 text-slate-900 dark:text-white">
+                          {a.name} (余额 ¥{a.balance.toFixed(2)})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* 4 Stats Chips */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-3.5">
+                  <div className="p-2.5 rounded-2xl bg-white/80 dark:bg-slate-900/80 border border-slate-200/60 dark:border-slate-800 text-center">
+                    <div className="text-[10px] text-slate-400 font-medium">总识别明细</div>
+                    <div className="text-base font-black font-mono text-slate-900 dark:text-white mt-0.5">
+                      {parsedBill.totalCount} <span className="text-[10px] font-normal">笔</span>
+                    </div>
+                  </div>
+                  <div className="p-2.5 rounded-2xl bg-white/80 dark:bg-slate-900/80 border border-slate-200/60 dark:border-slate-800 text-center">
+                    <div className="text-[10px] text-slate-400 font-medium">支出总额 ({parsedBill.expenseCount}笔)</div>
+                    <div className="text-base font-black font-mono text-rose-500 mt-0.5">
+                      ¥{parsedBill.totalExpense.toFixed(2)}
+                    </div>
+                  </div>
+                  <div className="p-2.5 rounded-2xl bg-white/80 dark:bg-slate-900/80 border border-slate-200/60 dark:border-slate-800 text-center">
+                    <div className="text-[10px] text-slate-400 font-medium">收入总额 ({parsedBill.incomeCount}笔)</div>
+                    <div className="text-base font-black font-mono text-emerald-500 mt-0.5">
+                      ¥{parsedBill.totalIncome.toFixed(2)}
+                    </div>
+                  </div>
+                  <div className="p-2.5 rounded-2xl bg-white/80 dark:bg-slate-900/80 border border-slate-200/60 dark:border-slate-800 text-center">
+                    <div className="text-[10px] text-slate-400 font-medium">查重防护已过滤</div>
+                    <div className="text-base font-black font-mono text-amber-500 mt-0.5">
+                      {duplicateCount} <span className="text-[10px] font-normal">笔重复</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Filter & Toolbar */}
+              <div className="p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                {/* Tabs */}
+                <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
+                  {[
+                    { id: 'all', label: `全部 (${parsedBill.totalCount})` },
+                    { id: 'expense', label: `支出 (${parsedBill.expenseCount})` },
+                    { id: 'income', label: `收入 (${parsedBill.incomeCount})` },
+                    { id: 'duplicate', label: `已重复 (${duplicateCount})` }
+                  ].map(tab => (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => setBillFilter(tab.id as any)}
+                      className={`px-3 py-1.5 rounded-xl font-bold transition flex-shrink-0 ${
+                        billFilter === tab.id
+                          ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900'
+                          : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                      }`}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Search & Quick Select */}
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1 sm:w-48">
+                    <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="text"
+                      value={billKeyword}
+                      onChange={(e) => setBillKeyword(e.target.value)}
+                      placeholder="搜索商户/单号..."
+                      className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => handleSelectAll(true)}
+                      className="px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-[11px] font-bold text-slate-700 dark:text-slate-300"
+                    >
+                      全选
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSelectOnlyType('expense')}
+                      className="px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-[11px] font-bold text-rose-600 dark:text-rose-400"
+                    >
+                      只选支出
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSelectAll(false)}
+                      className="px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-[11px] font-bold text-slate-400"
+                    >
+                      清空
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Transactions List */}
+              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-sm overflow-hidden">
+                <div className="max-h-[500px] overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/80">
+                  {visibleItems.length === 0 ? (
+                    <div className="p-12 text-center text-slate-400 text-xs">
+                      没有符合筛选条件的明细流水
+                    </div>
+                  ) : (
+                    visibleItems.map(item => (
+                      <div
+                        key={item.id}
+                        onClick={() => handleToggleItem(item.id)}
+                        className={`p-3 sm:px-4 flex items-center justify-between gap-3 cursor-pointer transition hover:bg-slate-50/80 dark:hover:bg-slate-800/50 ${
+                          item.selected ? 'bg-emerald-50/30 dark:bg-emerald-950/15' : 'opacity-60'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          {/* Checkbox */}
+                          <div className="flex-shrink-0 text-emerald-600">
+                            {item.selected ? (
+                              <CheckSquare className="w-4 h-4" />
+                            ) : (
+                              <Square className="w-4 h-4 text-slate-300 dark:text-slate-600" />
+                            )}
+                          </div>
+
+                          {/* Info */}
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-bold text-slate-900 dark:text-white text-xs truncate max-w-[140px] sm:max-w-[240px]">
+                                {item.merchant}
+                              </span>
+                              {item.isDuplicate && (
+                                <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300 font-bold flex-shrink-0">
+                                  已存在
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-[10px] text-slate-400 flex items-center gap-1.5 mt-0.5">
+                              <span className="font-mono">{item.date.slice(5, 16)}</span>
+                              {item.product && (
+                                <>
+                                  <span>•</span>
+                                  <span className="truncate max-w-[120px]">{item.product}</span>
+                                </>
+                              )}
+                              <span>•</span>
+                              <span>{item.channel}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Category & Amount */}
+                        <div className="flex items-center gap-2 flex-shrink-0 text-right">
+                          <select
+                            value={item.category}
+                            onClick={(e) => e.stopPropagation()}
+                            onChange={(e) => handleChangeItemCategory(item.id, e.target.value)}
+                            className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 focus:outline-none"
+                          >
+                            {categories.map(c => (
+                              <option key={c.id} value={c.name}>{c.name}</option>
+                            ))}
+                          </select>
+
+                          <div className="font-mono font-black text-xs sm:text-sm min-w-[70px]">
+                            {item.type === 'expense' ? (
+                              <span className="text-slate-900 dark:text-white">-¥{item.amount.toFixed(2)}</span>
+                            ) : (
+                              <span className="text-emerald-500">+¥{item.amount.toFixed(2)}</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                {/* Sticky Action Footer */}
+                <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/90 dark:bg-slate-850/90 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="text-xs">
+                    <span className="text-slate-500 dark:text-slate-400">已勾选：</span>
+                    <b className="text-emerald-600 dark:text-emerald-400 font-mono text-sm">{selectedCount}</b>
+                    <span className="text-slate-400 text-[11px] ml-1">笔</span>
+                    <span className="mx-2 text-slate-300 dark:text-slate-700">|</span>
+                    <span className="text-slate-400 text-[11px]">
+                      支出: <b className="text-rose-500 font-mono">¥{selectedExpense.toFixed(2)}</b> • 收入: <b className="text-emerald-500 font-mono">¥{selectedIncome.toFixed(2)}</b>
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setParsedBill(null);
+                        setBillFile(null);
+                      }}
+                      className="px-3.5 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold text-xs hover:bg-slate-100 transition"
+                    >
+                      重新选文件
+                    </button>
+                    <button
+                      type="button"
+                      disabled={importing || selectedCount === 0}
+                      onClick={handleExecuteImport}
+                      className="flex-1 sm:flex-none px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 disabled:opacity-50 text-white font-bold text-xs shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-1.5 transition active:scale-95"
+                    >
+                      {importing ? (
+                        <>
+                          <RotateCcw className="w-3.5 h-3.5 animate-spin" />
+                          <span>正在批量入账...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Check className="w-4 h-4 stroke-[2.5]" />
+                          <span>确认批量导入选中的 {selectedCount} 笔流水</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
