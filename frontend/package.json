@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "test": "node ../scripts/ci_self_check.js",
+    "build": "node ../scripts/ci_self_check.js && tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview"
   },
