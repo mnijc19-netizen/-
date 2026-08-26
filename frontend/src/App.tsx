@@ -266,7 +266,8 @@ export function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors duration-200">
+    <>
+      <div className="min-h-screen bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors duration-200">
       {/* 🧪 Dynamic Floating Liquid Ambient Glow Orbs for iOS Liquid Glass Mode */}
       {liquidGlass && (
         <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
@@ -442,6 +443,7 @@ export function App() {
           )}
         </main>
       </div>
+    </div>
 
       {/* Mobile Bottom Navigation Bar (Directly viewport-fixed with z-50) */}
       <MobileBottomNav
@@ -552,7 +554,7 @@ export function App() {
           setCurrentPage('settings');
         }}
       />
-    </div>
+    </>
   );
 }
 
