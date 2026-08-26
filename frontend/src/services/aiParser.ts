@@ -67,8 +67,8 @@ export const AI_PROVIDERS: AiProviderDef[] = [
     keyPlaceholder: 'sk-...',
     hint: '超强中文语义理解与高性价比',
     models: [
-      { id: 'deepseek-chat', name: 'DeepSeek-V3', desc: '通用旗舰对话与记账 · 极速高智商', vision: false, tag: '推荐', tagColor: 'cyan' },
-      { id: 'deepseek-reasoner', name: 'DeepSeek-R1', desc: '深度思考推理大模型 · 复杂财务推导', vision: false, tag: 'R1 思考', tagColor: 'indigo' }
+      { id: 'deepseek-chat', name: 'DeepSeek-V3', desc: '官方接口统一名称 · 通用旗舰对话与记账', vision: false, tag: 'V3 旗舰', tagColor: 'cyan' },
+      { id: 'deepseek-reasoner', name: 'DeepSeek-R1', desc: '官方接口统一名称 · 深度思考推理与财务推导', vision: false, tag: 'R1 思考', tagColor: 'indigo' }
     ]
   },
   {
@@ -81,7 +81,10 @@ export const AI_PROVIDERS: AiProviderDef[] = [
     keyPlaceholder: 'sk-...',
     hint: '全球顶级大模型，支持多模态视觉',
     models: [
-      { id: 'gpt-4o', name: 'GPT-4o', desc: '旗舰全能多模态 · 超强看图与逻辑', vision: true, tag: '旗舰', tagColor: 'emerald' },
+      { id: 'gpt-4o', name: 'GPT-4o', desc: '旗舰全能多模态 · 超强看图与逻辑', vision: true, tag: '旗舰多模态', tagColor: 'emerald' },
+      { id: 'o3-mini', name: 'o3-mini', desc: '最新前沿推理旗舰 · 极速深度推导', vision: false, tag: '前沿推理', tagColor: 'purple' },
+      { id: 'o1', name: 'o1', desc: '顶配深度思考大模型 · 复杂财务规划', vision: true, tag: '顶配思考', tagColor: 'indigo' },
+      { id: 'gpt-4.5-preview', name: 'GPT-4.5-Preview', desc: 'OpenAI 史上最大参量旗舰前瞻版', vision: true, tag: '超大旗舰', tagColor: 'amber' },
       { id: 'gpt-4o-mini', name: 'GPT-4o-mini', desc: '轻量极速多模态 · 快速省流', vision: true, tag: '极速', tagColor: 'blue' }
     ]
   },
@@ -95,9 +98,10 @@ export const AI_PROVIDERS: AiProviderDef[] = [
     keyPlaceholder: 'sk-...',
     hint: '阿里云全场景大模型',
     models: [
-      { id: 'qwen-plus', name: 'Qwen-Plus', desc: '通用高能力旗舰', vision: false, tag: '旗舰', tagColor: 'blue' },
-      { id: 'qwen-vl-plus', name: 'Qwen-VL-Plus', desc: '多模态视觉看图', vision: true, tag: '看图', tagColor: 'purple' },
-      { id: 'qwen-turbo', name: 'Qwen-Turbo', desc: '极速纯文本响应', vision: false, tag: '极速', tagColor: 'emerald' }
+      { id: 'qwen-max', name: 'Qwen-Max', desc: '通义百炼最高能力通用旗舰', vision: false, tag: '顶配通用', tagColor: 'amber' },
+      { id: 'qwen-vl-max', name: 'Qwen-VL-Max', desc: '通义百炼最强视觉多模态大模型', vision: true, tag: '顶配视觉', tagColor: 'purple' },
+      { id: 'qwen-plus', name: 'Qwen-Plus', desc: '通用高能力旗舰 · 高性价比', vision: false, tag: '旗舰', tagColor: 'blue' },
+      { id: 'qwen-turbo', name: 'Qwen-Turbo', desc: '极速纯文本响应 · 秒级记账', vision: false, tag: '极速', tagColor: 'emerald' }
     ]
   },
   {
