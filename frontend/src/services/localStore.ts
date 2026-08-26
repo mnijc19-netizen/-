@@ -107,15 +107,18 @@ export const localStore = {
     const txs = dbStore.getSync<Transaction[]>(STORAGE_KEYS.TRANSACTIONS, []);
     if (!txs || txs.length === 0) return 0;
 
-    const seen = new Set<string>();
+    const seenRaw = new Set<string>();
+    const seenFuzzy = new Set<string>();
     const cleaned: Transaction[] = [];
     let removed = 0;
 
     for (const tx of txs) {
+      const rawKey = tx.raw_text ? tx.raw_text.trim() : '';
       const dateKey = (tx.date || '').substring(0, 10);
-      const key = `${(tx.merchant || '').trim()}_${Number(tx.amount || 0).toFixed(2)}_${tx.type}_${dateKey}`;
+      const fuzzyKey = `${(tx.merchant || '').trim()}_${Number(tx.amount || 0).toFixed(2)}_${tx.type}_${dateKey}`;
       
-      if (seen.has(key)) {
+      const isDup = (rawKey && seenRaw.has(rawKey)) || seenFuzzy.has(fuzzyKey);
+      if (isDup) {
         removed++;
         // Revert balance impact
         const accs = dbStore.getSync<Account[]>(STORAGE_KEYS.ACCOUNTS, CLEAN_INITIAL_ACCOUNTS);
@@ -127,7 +130,8 @@ export const localStore = {
         }
         continue;
       }
-      seen.add(key);
+      if (rawKey) seenRaw.add(rawKey);
+      seenFuzzy.add(fuzzyKey);
       cleaned.push(tx);
     }
 
