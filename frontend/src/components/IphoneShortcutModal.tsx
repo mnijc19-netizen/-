@@ -160,13 +160,13 @@ export const IphoneShortcutModal: React.FC<IphoneShortcutModalProps> = ({ isOpen
                   <span className="text-[10px] px-2 py-0.5 rounded bg-blue-100 dark:bg-blue-950 text-blue-600 dark:text-blue-300 font-mono">OCR 提取</span>
                 </div>
 
-                {/* Step 3: Get Contents of URL */}
+                {/* Step 3: Get Contents of URL (Write to GitHub Gist) */}
                 <div className="p-3.5 rounded-2xl bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 space-y-2.5">
                   <div className="flex items-center gap-2.5">
                     <span className="w-5 h-5 rounded-full bg-indigo-600 text-white text-center leading-5 font-mono text-[10px] font-bold">3</span>
                     <div>
-                      <div className="font-bold text-indigo-900 dark:text-indigo-200">获取 URL 的内容 (写入云端)</div>
-                      <div className="text-[10px] text-slate-400">方法选 <strong>PUT</strong></div>
+                      <div className="font-bold text-indigo-900 dark:text-indigo-200">获取 URL 的内容 (写入 GitHub Gist)</div>
+                      <div className="text-[10px] text-slate-400">方法选 <strong>PATCH</strong>（100% 官方 CORS 通行）</div>
                     </div>
                   </div>
 
@@ -176,33 +176,25 @@ export const IphoneShortcutModal: React.FC<IphoneShortcutModalProps> = ({ isOpen
                       <span>URL 地址：</span>
                       <button
                         type="button"
-                        onClick={() => handleCopy('https://dav.jianguoyun.com/dav/%E6%88%91%E7%9A%84%E5%9D%9A%E6%9E%9C%E4%BA%91/smartwealth_inbox.json', 'url')}
+                        onClick={() => handleCopy('https://api.github.com/gists/19112eef901e903254dedab4765f135b', 'url')}
                         className="text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-0.5"
                       >
                         {copiedUrl ? <Check className="w-2.5 h-2.5" /> : <Copy className="w-2.5 h-2.5" />}
-                        {copiedUrl ? '已复制' : '复制干净URL'}
+                        {copiedUrl ? '已复制' : '复制专属 Gist URL'}
                       </button>
                     </div>
                     <div className="p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono text-[9px] text-purple-600 dark:text-purple-400 break-all">
-                      https://dav.jianguoyun.com/dav/%E6%88%91%E7%9A%84%E5%9D%9A%E6%9E%9C%E4%BA%91/smartwealth_inbox.json
+                      https://api.github.com/gists/19112eef901e903254dedab4765f135b
                     </div>
                   </div>
 
                   {/* Headers */}
                   <div className="space-y-1">
-                    <div className="text-[10px] text-slate-500 font-bold">头部 (Headers) 添加 2 行：</div>
+                    <div className="text-[10px] text-slate-500 font-bold">头部 (Headers) 添加 3 行：</div>
                     <div className="p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono text-[9px] text-slate-700 dark:text-slate-300 space-y-1">
-                      <div>① <code>Content-Type</code> : <code>application/json</code></div>
-                      <div className="flex items-center justify-between">
-                        <div>② <code>Authorization</code> : <code className="text-emerald-600">Basic MTc0N...</code></div>
-                        <button
-                          type="button"
-                          onClick={() => handleCopy('Basic MTc0NzkzNTMxMEBxcS5jb206YXUydnlocWplcDZqNG5nZA==', 'json')}
-                          className="px-1.5 py-0.5 rounded bg-indigo-600 text-white text-[9px] font-bold active:scale-95"
-                        >
-                          {copiedJson ? '已复制' : '复制授权码'}
-                        </button>
-                      </div>
+                      <div>① <code>Authorization</code> : <code>token ghp_你的Token</code></div>
+                      <div>② <code>User-Agent</code> : <code>iOS-Shortcut</code></div>
+                      <div>③ <code>Content-Type</code> : <code>application/json</code></div>
                     </div>
                   </div>
 
@@ -210,7 +202,7 @@ export const IphoneShortcutModal: React.FC<IphoneShortcutModalProps> = ({ isOpen
                   <div className="space-y-1">
                     <div className="text-[10px] text-slate-500 font-bold">请求体 (Request Body)：</div>
                     <div className="p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono text-[9px] text-slate-600 dark:text-slate-300">
-                      类型选 <strong>JSON</strong> ➔ 键填 <code>raw_text</code>，值选蓝色的 <code>[图像中的文本]</code>
+                      类型选 <strong>JSON</strong> ➔ 键填 <code>files</code> ➔ 字典 <code>smartwealth_inbox.json</code> ➔ <code>content</code> ➔ <code>[{"raw_text":"[图像中的文本]"}]</code>
                     </div>
                   </div>
                 </div>
