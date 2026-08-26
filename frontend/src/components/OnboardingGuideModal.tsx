@@ -100,7 +100,7 @@ export const OnboardingGuideModal: React.FC<OnboardingGuideModalProps> = ({
           </div>
 
           <h3 className="text-base sm:text-lg font-black tracking-tight flex items-center gap-2">
-            ✨ 欢迎使用 斌斌账本
+            ✨ 欢迎使用 斌斌钱包
           </h3>
           <p className="text-xs text-purple-100/90 mt-1">
             零摩擦记账 · 全资产对账 · 私密安全

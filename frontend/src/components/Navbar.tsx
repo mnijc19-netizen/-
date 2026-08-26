@@ -31,14 +31,14 @@ export const Navbar: React.FC<NavbarProps> = ({
         <div className="w-9 h-9 rounded-2xl overflow-hidden shadow-sm border border-slate-800/40 flex-shrink-0 bg-slate-950 flex items-center justify-center p-1">
           <img 
             src="./logo-transparent.png" 
-            alt="斌斌账本" 
+            alt="斌斌钱包" 
             className="w-full h-full object-contain" 
           />
         </div>
         <div>
           <div className="flex items-center gap-1.5">
             <span className="font-extrabold text-sm tracking-tight text-slate-900 dark:text-white">
-              斌斌账本
+              斌斌钱包
             </span>
           </div>
           <div className="text-[10px] text-slate-400 font-mono">

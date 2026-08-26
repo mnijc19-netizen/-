@@ -222,7 +222,7 @@ export const IphoneShortcutModal: React.FC<IphoneShortcutModalProps> = ({ isOpen
               <div className="p-3 rounded-2xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 text-blue-900 dark:text-blue-200 space-y-1">
                 <div className="font-bold flex items-center gap-1.5 text-xs">
                   <Smartphone className="w-4 h-4 text-blue-500" />
-                  唤起桌面「斌斌账本」独立 App（不跳 Safari）
+                  唤起桌面「斌斌钱包」独立 App（不跳 Safari）
                 </div>
                 <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
                   将网页添加到主屏幕后，可在快捷指令中<strong>直接打开桌面 App</strong>，无需弹出 Safari 浏览器！
@@ -276,8 +276,8 @@ export const IphoneShortcutModal: React.FC<IphoneShortcutModalProps> = ({ isOpen
                   <div className="flex items-center gap-2.5">
                     <span className="w-5 h-5 rounded-full bg-emerald-600 text-white text-center leading-5 font-mono text-[10px] font-bold">4</span>
                     <div>
-                      <div className="font-bold text-emerald-900 dark:text-emerald-200">打开 App ➔「斌斌账本」</div>
-                      <div className="text-[10px] text-slate-500 dark:text-slate-400">搜索添加「打开 App」，在列表中搜索选择<strong>「斌斌账本」</strong></div>
+                      <div className="font-bold text-emerald-900 dark:text-emerald-200">打开 App ➔「斌斌钱包」</div>
+                      <div className="text-[10px] text-slate-500 dark:text-slate-400">搜索添加「打开 App」，在列表中搜索选择<strong>「斌斌钱包」</strong></div>
                     </div>
                   </div>
                   <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 font-mono font-bold">秒开桌面 App</span>

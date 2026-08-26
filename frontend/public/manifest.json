@@ -1,6 +1,6 @@
 {
-  "name": "斌斌账本",
-  "short_name": "斌斌账本",
+  "name": "斌斌钱包",
+  "short_name": "斌斌钱包",
   "description": "极速智能财务管理与记账系统",
   "start_url": "./",
   "scope": "./",

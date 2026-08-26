@@ -401,7 +401,7 @@ export async function sendAgentMessage(
   const investmentsSummary = investments.map(i => `${i.name}(代码:${i.code},持仓:${i.shares}份,市值:¥${i.market_value.toFixed(2)})`).join('，') || '暂无';
   const debtsSummary = debts.map(d => `${d.name}(待还:¥${d.remaining_principal},月供:¥${d.monthly_payment})`).join('，') || '暂无';
 
-  const systemPrompt = `你是一个顶级专业、超高精度的 AI 财务全能视觉识别与账本操控管家（斌斌财务 AI）。
+  const systemPrompt = `你是一个顶级专业、超高精度的 AI 财务全能视觉识别与账本操控管家（斌斌钱包 AI）。
 你拥有强大的工具函数库（Function Calling Tools）。当用户的意图涉及记账、开户、调额、预算、目标、负债、股票基金或页面跳转时，**请直接调用对应的工具函数**，并用亲切、专业、自然的中文向用户汇报结果。
 
 【工具调用选择铁律】：
