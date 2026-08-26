@@ -106,9 +106,8 @@ export const webdavSync = {
 
       // Support array or single item format
       const rawList: any[] = Array.isArray(parsed) ? parsed : (parsed.items || [parsed]);
-      const validItems: ShortcutInboxItem[] = rawList.filter(item => item && item.amount && !isNaN(parseFloat(item.amount)));
 
-      if (validItems.length === 0) {
+      if (!rawList || rawList.length === 0) {
         return { ingestedCount: 0, items: [] };
       }
 
@@ -126,10 +125,14 @@ export const webdavSync = {
         let catName = item.category || '';
         let dateStr = item.date || getBeijingDateTimeString();
 
+        // Find raw text from any possible key (raw_text, 键, text, content, etc.)
+        const possibleRawText = item.raw_text || item['键'] || item.text || item.content || 
+          (typeof item === 'string' ? item : (typeof item === 'object' && Object.values(item)[0] ? String(Object.values(item)[0]) : ''));
+
         // If raw_text is provided but no amount, auto-extract using our high-precision OCR parser
-        if ((!numAmt || numAmt <= 0) && item.raw_text) {
+        if ((!numAmt || numAmt <= 0) && possibleRawText) {
           try {
-            const extracted = await extractFromRawText(item.raw_text, accounts);
+            const extracted = await extractFromRawText(possibleRawText, accounts);
             if (extracted.amount && extracted.amount > 0) {
               numAmt = extracted.amount;
               merchant = extracted.merchant || merchant;
