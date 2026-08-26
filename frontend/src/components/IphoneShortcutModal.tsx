@@ -202,7 +202,7 @@ export const IphoneShortcutModal: React.FC<IphoneShortcutModalProps> = ({ isOpen
                   <div className="space-y-1">
                     <div className="text-[10px] text-slate-500 font-bold">请求体 (Request Body)：</div>
                     <div className="p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono text-[9px] text-slate-600 dark:text-slate-300">
-                      类型选 <strong>JSON</strong> ➔ 键填 <code>files</code> ➔ 字典 <code>smartwealth_inbox.json</code> ➔ <code>content</code> ➔ <code>[{"raw_text":"[图像中的文本]"}]</code>
+                      类型选 <strong>JSON</strong> ➔ 键填 <code>files</code> ➔ 字典 <code>smartwealth_inbox.json</code> ➔ <code>content</code> ➔ <code>{'[{"raw_text":"[图像中的文本]"}]'}</code>
                     </div>
                   </div>
                 </div>
