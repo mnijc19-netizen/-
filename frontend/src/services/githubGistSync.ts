@@ -2,6 +2,7 @@ import { localStore } from './localStore';
 import { api } from '../api/client';
 import { getBeijingDateTimeString } from '../utils/dateUtils';
 import { extractFromRawText } from './urlAutoIngest';
+import { parseWithAi } from './aiParser';
 import { Transaction } from '../types';
 
 export interface GithubGistConfig {
@@ -148,14 +149,30 @@ export const githubGistSync = {
         const rawText = item.raw_text || item['键'] || item.text || (typeof item === 'string' ? item : '');
 
         if ((!numAmt || numAmt <= 0) && rawText) {
-          try {
-            const extracted = await extractFromRawText(rawText, accounts);
-            if (extracted.amount && extracted.amount > 0) {
-              numAmt = extracted.amount;
-              merchant = extracted.merchant || merchant;
-              catName = extracted.category || catName;
-            }
-          } catch {}
+          // 1. High precision AI parsing if enabled
+          const aiConfig = localStore.getAiConfig();
+          if (aiConfig.enabled && aiConfig.apiKey && aiConfig.apiKey.trim()) {
+            try {
+              const aiRes = await parseWithAi(rawText, categories, accounts);
+              if (aiRes && aiRes.amount && aiRes.amount > 0) {
+                numAmt = aiRes.amount;
+                merchant = aiRes.merchant || merchant;
+                catName = aiRes.suggested_category || catName;
+              }
+            } catch {}
+          }
+
+          // 2. Specialized OCR payment card rule fallback
+          if (!numAmt || numAmt <= 0) {
+            try {
+              const extracted = await extractFromRawText(rawText, accounts);
+              if (extracted.amount && extracted.amount > 0) {
+                numAmt = extracted.amount;
+                merchant = extracted.merchant || merchant;
+                catName = extracted.category || catName;
+              }
+            } catch {}
+          }
         }
 
         if (!numAmt || numAmt <= 0) continue;
