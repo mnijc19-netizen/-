@@ -307,13 +307,6 @@ export function extractFromRawText(text: string, accounts: any[] = []): { amount
   return {
     amount,
     merchant: merchant || (isAlipay ? '支付宝消费' : '微信商户消费'),
-  if (!category) {
-    category = suggestCategory(merchant, rawClean);
-  }
-
-  return {
-    amount,
-    merchant: merchant || (isAlipay ? '支付宝消费' : '微信商户消费'),
     category,
     date,
     accountId: targetAccId
