@@ -29,6 +29,7 @@ import { SettingsPage } from './pages/SettingsPage';
 import { api } from './api/client';
 import { localStore } from './services/localStore';
 import { webdavSync } from './services/webdavSync';
+import { githubGistSync } from './services/githubGistSync';
 import { checkAndHandleUrlAutoIngest, extractFromRawText } from './services/urlAutoIngest';
 import { getBeijingDateTimeString } from './utils/dateUtils';
 import { 
@@ -183,7 +184,17 @@ export function App() {
           }
         }
 
-        // 2. Check WebDAV Cloud Inbox (iOS Shortcuts silent background writes)
+        // 2. Check GitHub Gist Cloud Inbox (100% CORS-safe, silent background writes)
+        try {
+          const gistRes = await githubGistSync.pullAndIngestGist();
+          if (gistRes.count > 0) {
+            setAutoToastMsg(`🐙 已自动从 GitHub 云信箱同步 ${gistRes.count} 笔新账单！`);
+            confetti({ particleCount: 80, spread: 60, origin: { y: 0.2 } });
+            setTimeout(() => setAutoToastMsg(null), 5000);
+          }
+        } catch {}
+
+        // 3. Check WebDAV Cloud Inbox (Fallback)
         const webDavCfg = localStore.getWebDavConfig();
         if (webDavCfg.url && webDavCfg.user && webDavCfg.pass) {
           const syncRes = await webdavSync.checkAndIngestInbox(webDavCfg);
@@ -201,9 +212,18 @@ export function App() {
     };
     init();
 
-    // Re-check WebDAV and data when switching back to app
+    // Re-check GitHub Gist / WebDAV and data when switching back to app
     const handleVisibility = async () => {
       if (document.visibilityState === 'visible') {
+        try {
+          const gistRes = await githubGistSync.pullAndIngestGist();
+          if (gistRes.count > 0) {
+            setAutoToastMsg(`🐙 已自动从 GitHub 云信箱同步 ${gistRes.count} 笔新账单！`);
+            confetti({ particleCount: 80, spread: 60, origin: { y: 0.2 } });
+            setTimeout(() => setAutoToastMsg(null), 5000);
+          }
+        } catch {}
+
         const webDavCfg = localStore.getWebDavConfig();
         if (webDavCfg.url && webDavCfg.user && webDavCfg.pass) {
           try {

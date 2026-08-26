@@ -42,6 +42,7 @@ import { getBeijingDateString } from '../utils/dateUtils';
 import { localStore, AiConfig, DEFAULT_AI_CONFIG } from '../services/localStore';
 import { AI_PROVIDERS, testAiConnection, AiTestResult } from '../services/aiParser';
 import { webdavSync, WebDavConfig } from '../services/webdavSync';
+import { githubGistSync, GithubGistConfig } from '../services/githubGistSync';
 
 interface SettingsPageProps {
   accounts: Account[];
@@ -89,7 +90,13 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   const [testingAi, setTestingAi] = useState(false);
   const [aiSaved, setAiSaved] = useState(false);
 
-  // ☁️ WebDAV Cloud Sync State
+  // ☁️ WebDAV / GitHub Gist Cloud Sync State
+  const [cloudSyncTab, setCloudSyncTab] = useState<'gist' | 'webdav'>('gist');
+  const [gistConfig, setGistConfig] = useState<GithubGistConfig>(() => githubGistSync.getConfig());
+  const [gistCreating, setGistCreating] = useState(false);
+  const [gistStatusMsg, setGistStatusMsg] = useState<{ success: boolean; message: string } | null>(null);
+  const [gistSaved, setGistSaved] = useState(false);
+
   const [webDavConfig, setWebDavConfig] = useState<WebDavConfig>(() => localStore.getWebDavConfig());
   const [webDavModalOpen, setWebDavModalOpen] = useState(false);
   const [webDavTesting, setWebDavTesting] = useState(false);
@@ -970,12 +977,18 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                 <div className="w-9 h-9 rounded-xl bg-blue-500/20 text-blue-600 dark:text-blue-400 flex items-center justify-center">
                   <Cloud className="w-5 h-5" />
                 </div>
+            {/* Modal Header */}
+            <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-indigo-50 dark:bg-indigo-950/50 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+                  <Cloud className="w-5 h-5" />
+                </div>
                 <div>
                   <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                    WebDAV 私有云同步设置
+                    极智私有云同步信箱
                   </h3>
                   <p className="text-[11px] text-slate-400">
-                    支持坚果云 / NextCloud / 自建云盘
+                    支持 GitHub Gist (官方CORS) 与 WebDAV (坚果云)
                   </p>
                 </div>
               </div>
@@ -988,85 +1001,186 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
               </button>
             </div>
 
+            {/* Tab Selector */}
+            <div className="px-5 pt-3 pb-0 flex gap-2 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30">
+              <button
+                type="button"
+                onClick={() => setCloudSyncTab('gist')}
+                className={`pb-2.5 px-3 text-xs font-bold transition border-b-2 flex items-center gap-1.5 ${
+                  cloudSyncTab === 'gist'
+                    ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400'
+                    : 'border-transparent text-slate-400 hover:text-slate-600'
+                }`}
+              >
+                🐙 GitHub Gist (推荐 · 100% 官方CORS)
+              </button>
+              <button
+                type="button"
+                onClick={() => setCloudSyncTab('webdav')}
+                className={`pb-2.5 px-3 text-xs font-bold transition border-b-2 flex items-center gap-1.5 ${
+                  cloudSyncTab === 'webdav'
+                    ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400'
+                    : 'border-transparent text-slate-400 hover:text-slate-600'
+                }`}
+              >
+                ☁️ 坚果云 WebDAV (传统)
+              </button>
+            </div>
+
             {/* Modal Body */}
             <div className="p-5 overflow-y-auto space-y-3.5 flex-1 text-xs">
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-slate-500 dark:text-slate-400 font-bold">
-                    WebDAV 服务器地址 (URL)
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => setWebDavConfig(prev => ({ ...prev, url: 'https://dav.jianguoyun.com/dav/' }))}
-                    className="text-[10px] text-blue-600 dark:text-blue-400 hover:underline font-bold"
-                  >
-                    ⚡ 一键填入坚果云地址
-                  </button>
-                </div>
-                <input
-                  type="text"
-                  value={webDavConfig.url}
-                  onChange={(e) => setWebDavConfig(prev => ({ ...prev, url: e.target.value }))}
-                  placeholder="例如: https://dav.jianguoyun.com/dav/"
-                  className="w-full px-3 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-mono text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="text-slate-500 dark:text-slate-400 block mb-1 font-bold">
-                  坚果云账号 / 注册邮箱
-                </label>
-                <input
-                  type="text"
-                  value={webDavConfig.user}
-                  onChange={(e) => setWebDavConfig(prev => ({ ...prev, user: e.target.value }))}
-                  placeholder="例如: your_name@163.com"
-                  className="w-full px-3 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="text-slate-500 dark:text-slate-400 block mb-1 font-bold">
-                  应用授权密码 (App Password)
-                </label>
-                <input
-                  type="password"
-                  value={webDavConfig.pass}
-                  onChange={(e) => setWebDavConfig(prev => ({ ...prev, pass: e.target.value }))}
-                  placeholder="坚果云网页版【账户信息】➔【安全选项】中生成的应用密码"
-                  className="w-full px-3 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                />
-                <p className="text-[10px] text-slate-400 mt-1">
-                  💡 注意：是坚果云「第三方应用密码」，不是你的登录主密码哦。
-                </p>
-              </div>
-
-              {/* Auto Sync Toggle */}
-              <div className="p-3 rounded-2xl bg-slate-100/80 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex items-center justify-between">
-                <div>
-                  <div className="font-bold text-slate-800 dark:text-slate-200 text-xs flex items-center gap-1.5">
-                    <Sparkles className="w-3.5 h-3.5 text-blue-500" />
-                    桌面 PWA 启动时自动静默拉取云端新账单
+              {cloudSyncTab === 'gist' ? (
+                /* GitHub Gist Tab */
+                <div className="space-y-3.5">
+                  <div className="p-3 rounded-2xl bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 space-y-1.5">
+                    <div className="font-bold text-indigo-900 dark:text-indigo-200 flex items-center gap-1.5">
+                      <Sparkles className="w-4 h-4 text-indigo-500" />
+                      官方 CORS 原生支持 · 0 报错 · 永久免费
+                    </div>
+                    <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
+                      GitHub Gist 是全球公认最稳的私有云存储。快捷指令静默写入你的私有 Gist，桌面 App 瞬间无缝拉取！
+                    </p>
                   </div>
-                  <div className="text-[10px] text-slate-400">快捷指令在后台截图记账后，打开桌面 App 瞬间自动入账</div>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={webDavConfig.autoSync ?? true}
-                  onChange={(e) => setWebDavConfig(prev => ({ ...prev, autoSync: e.target.checked }))}
-                  className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500"
-                />
-              </div>
 
-              {/* Test Connection Results Badge */}
-              {webDavTestResult && (
-                <div className={`p-3 rounded-xl text-xs font-bold flex items-center gap-2 ${
-                  webDavTestResult.success 
-                    ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-300 border border-emerald-500/30'
-                    : 'bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-300 border border-rose-500/30'
-                }`}>
-                  <Activity className="w-4 h-4 flex-shrink-0" />
-                  <span>{webDavTestResult.message}</span>
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-slate-500 dark:text-slate-400 font-bold">
+                        GitHub Personal Access Token (PAT)
+                      </label>
+                      <a 
+                        href="https://github.com/settings/tokens/new?scopes=gist&description=SmartWealth_Gist_Sync" 
+                        target="_blank" 
+                        rel="noreferrer"
+                        className="text-[10px] text-indigo-600 dark:text-indigo-400 hover:underline font-bold"
+                      >
+                        🔗 点此 1 秒创建 Token (只需勾选 gist)
+                      </a>
+                    </div>
+                    <input
+                      type="password"
+                      value={gistConfig.token}
+                      onChange={(e) => setGistConfig(prev => ({ ...prev, token: e.target.value }))}
+                      placeholder="例如: ghp_xxxxxxxxxxxxxxxxxxxx"
+                      className="w-full px-3 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-mono text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-slate-500 dark:text-slate-400 block mb-1 font-bold">
+                      私有 Gist ID
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={gistConfig.gistId}
+                        onChange={(e) => setGistConfig(prev => ({ ...prev, gistId: e.target.value }))}
+                        placeholder="填入 Token 后点击右侧按钮可自动生成"
+                        className="flex-1 px-3 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-mono text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                      />
+                      <button
+                        type="button"
+                        disabled={gistCreating || !gistConfig.token}
+                        onClick={async () => {
+                          setGistCreating(true);
+                          setGistStatusMsg(null);
+                          try {
+                            const res = await githubGistSync.createInitialGist(gistConfig.token);
+                            setGistConfig(prev => ({ ...prev, gistId: res.gistId }));
+                            setGistStatusMsg({ success: true, message: res.message });
+                            confetti({ particleCount: 60, spread: 60, origin: { y: 0.7 } });
+                          } catch (e: any) {
+                            setGistStatusMsg({ success: false, message: e.message || '创建失败' });
+                          } finally {
+                            setGistCreating(false);
+                          }
+                        }}
+                        className="px-3 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold transition text-xs whitespace-nowrap active:scale-95 disabled:opacity-40 flex items-center gap-1 shadow-sm"
+                      >
+                        <Zap className="w-3.5 h-3.5" />
+                        {gistCreating ? '创建中...' : '⚡ 一键自动创建'}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Auto Sync Toggle */}
+                  <div className="p-3 rounded-2xl bg-slate-100/80 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex items-center justify-between">
+                    <div>
+                      <div className="font-bold text-slate-800 dark:text-slate-200 text-xs flex items-center gap-1.5">
+                        <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
+                        桌面 App 启动/前台激活时自动静默拉取
+                      </div>
+                      <div className="text-[10px] text-slate-400">快捷指令后台记录后，任何时候打开 App 瞬间批量合并</div>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={gistConfig.autoSync ?? true}
+                      onChange={(e) => setGistConfig(prev => ({ ...prev, autoSync: e.target.checked }))}
+                      className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500"
+                    />
+                  </div>
+
+                  {/* Status Message */}
+                  {gistStatusMsg && (
+                    <div className={`p-3 rounded-xl text-xs font-bold flex items-center gap-2 ${
+                      gistStatusMsg.success 
+                        ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-300 border border-emerald-500/30'
+                        : 'bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-300 border border-rose-500/30'
+                    }`}>
+                      <Activity className="w-4 h-4 flex-shrink-0" />
+                      <span>{gistStatusMsg.message}</span>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                /* WebDAV Tab */
+                <div className="space-y-3.5">
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-slate-500 dark:text-slate-400 font-bold">
+                        WebDAV 服务器地址 (URL)
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setWebDavConfig(prev => ({ ...prev, url: 'https://dav.jianguoyun.com/dav/%E6%88%91%E7%9A%84%E5%9D%9A%E6%9E%9C%E4%BA%91/' }))}
+                        className="text-[10px] text-blue-600 dark:text-blue-400 hover:underline font-bold"
+                      >
+                        ⚡ 一键填入坚果云地址
+                      </button>
+                    </div>
+                    <input
+                      type="text"
+                      value={webDavConfig.url}
+                      onChange={(e) => setWebDavConfig(prev => ({ ...prev, url: e.target.value }))}
+                      placeholder="例如: https://dav.jianguoyun.com/dav/我的坚果云/"
+                      className="w-full px-3 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-mono text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-slate-500 dark:text-slate-400 block mb-1 font-bold">
+                      坚果云账号 / 注册邮箱
+                    </label>
+                    <input
+                      type="text"
+                      value={webDavConfig.user}
+                      onChange={(e) => setWebDavConfig(prev => ({ ...prev, user: e.target.value }))}
+                      placeholder="例如: your_name@163.com"
+                      className="w-full px-3 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-slate-500 dark:text-slate-400 block mb-1 font-bold">
+                      应用授权密码 (App Password)
+                    </label>
+                    <input
+                      type="password"
+                      value={webDavConfig.pass}
+                      onChange={(e) => setWebDavConfig(prev => ({ ...prev, pass: e.target.value }))}
+                      placeholder="坚果云网页版【账户信息】➔【安全选项】中生成的应用密码"
+                      className="w-full px-3 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    />
+                  </div>
                 </div>
               )}
             </div>
@@ -1074,65 +1188,69 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
             {/* Modal Footer Actions */}
             <div className="p-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-800/40">
               <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  disabled={webDavTesting}
-                  onClick={async () => {
-                    setWebDavTesting(true);
-                    setWebDavTestResult(null);
-                    try {
-                      const res = await webdavSync.testConnection(webDavConfig);
-                      setWebDavTestResult(res);
-                      if (res.success) confetti({ particleCount: 40, spread: 40, origin: { y: 0.7 } });
-                    } catch (e: any) {
-                      setWebDavTestResult({ success: false, message: e.message || '连接失败' });
-                    } finally {
-                      setWebDavTesting(false);
-                    }
-                  }}
-                  className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 text-slate-700 dark:text-slate-200 font-bold transition flex items-center gap-1 active:scale-95 text-xs"
-                >
-                  <Cpu className="w-3.5 h-3.5" />
-                  {webDavTesting ? '测试中...' : '测试连接'}
-                </button>
-
-                <button
-                  type="button"
-                  disabled={webDavSyncing || !webDavConfig.url}
-                  onClick={async () => {
-                    setWebDavSyncing(true);
-                    try {
-                      const res = await webdavSync.uploadBackup(webDavConfig);
-                      alert(res.message);
-                      confetti({ particleCount: 60, spread: 50, origin: { y: 0.7 } });
-                    } catch (e: any) {
-                      alert(e.message);
-                    } finally {
-                      setWebDavSyncing(false);
-                    }
-                  }}
-                  className="px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold transition flex items-center gap-1 active:scale-95 text-xs disabled:opacity-40"
-                >
-                  <CloudUpload className="w-3.5 h-3.5" />
-                  {webDavSyncing ? '上传中...' : '立即云备份'}
-                </button>
+                {cloudSyncTab === 'gist' ? (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const res = await githubGistSync.pullAndIngestGist();
+                      if (res.count > 0) {
+                        setGistStatusMsg({ success: true, message: `✅ 成功从 GitHub 同步 ${res.count} 笔新账单！` });
+                        confetti({ particleCount: 50, spread: 50, origin: { y: 0.7 } });
+                        onRefresh();
+                      } else {
+                        setGistStatusMsg({ success: true, message: `☁️ GitHub 信箱当前为空（无待入账流水）` });
+                      }
+                    }}
+                    className="px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold transition flex items-center gap-1 active:scale-95 text-xs shadow-sm"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    立即检测拉取新账单
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={webDavTesting}
+                    onClick={async () => {
+                      setWebDavTesting(true);
+                      setWebDavTestResult(null);
+                      try {
+                        const res = await webdavSync.testConnection(webDavConfig);
+                        setWebDavTestResult(res);
+                        if (res.success) confetti({ particleCount: 40, spread: 40, origin: { y: 0.7 } });
+                      } catch (e: any) {
+                        setWebDavTestResult({ success: false, message: e.message || '连接失败' });
+                      } finally {
+                        setWebDavTesting(false);
+                      }
+                    }}
+                    className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 text-slate-700 dark:text-slate-200 font-bold transition flex items-center gap-1 active:scale-95 text-xs"
+                  >
+                    <Cpu className="w-3.5 h-3.5" />
+                    {webDavTesting ? '测试中...' : '测试连接'}
+                  </button>
+                )}
               </div>
 
               <button
                 type="button"
                 onClick={() => {
-                  localStore.saveWebDavConfig(webDavConfig);
-                  setWebDavSaved(true);
-                  setTimeout(() => {
-                    setWebDavSaved(false);
-                    setWebDavModalOpen(false);
-                  }, 600);
+                  if (cloudSyncTab === 'gist') {
+                    githubGistSync.saveConfig(gistConfig);
+                    setGistSaved(true);
+                    setTimeout(() => setGistSaved(false), 2000);
+                  } else {
+                    localStore.saveWebDavConfig(webDavConfig);
+                    setWebDavSaved(true);
+                    setTimeout(() => setWebDavSaved(false), 2000);
+                  }
+                  setWebDavModalOpen(false);
+                  setStatusMsg('✨ 云同步配置已安全保存！');
+                  setTimeout(() => setStatusMsg(''), 3000);
                 }}
-                className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold transition flex items-center gap-1 shadow-md shadow-blue-500/20 active:scale-95 text-xs"
+                className="px-4 py-2 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold transition flex items-center gap-1 active:scale-95 text-xs shadow-md"
               >
-                {webDavSaved ? <Check className="w-3.5 h-3.5" /> : <Sparkles className="w-3.5 h-3.5" />}
-                {webDavSaved ? '已保存！' : '保存配置'}
-              </button>
+                <Check className="w-3.5 h-3.5" />
+                保存配置
             </div>
           </div>
         </div>
