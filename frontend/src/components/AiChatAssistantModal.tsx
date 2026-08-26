@@ -72,6 +72,93 @@ const DEFAULT_WELCOME_MESSAGE: AgentChatMessage = {
   timestamp: getBeijingDateTimeString()
 };
 
+/**
+ * Intelligent Account Matching & Deduplication Rule
+ * - Automatically resolves WeChat aliases ("微信零钱", "微信支付", "微信钱包", "微信零钱通") to existing WeChat account
+ * - Automatically resolves Alipay aliases ("支付宝余额", "支付宝总资产", "余额宝") to existing Alipay account
+ * - Matches JD Baitiao, Meituan Pay, Douyin Pay, Huabei, Brokers (Huatai, TongHuaShun, etc.)
+ */
+export function findBestMatchingAccount(name: string, type: string = '', accounts: Account[]): Account | null {
+  if (!name || accounts.length === 0) return null;
+  const clean = name.trim().toLowerCase();
+
+  // 1. Exact Name match
+  const exact = accounts.find(a => a.name.trim().toLowerCase() === clean);
+  if (exact) return exact;
+
+  // 2. WeChat matching (e.g. 微信零钱, 微信钱包, 微信零钱通, 微信支付)
+  if (clean.includes('微信')) {
+    const wxAccs = accounts.filter(a => a.name.includes('微信'));
+    if (wxAccs.length === 1) return wxAccs[0];
+    if (wxAccs.length > 1) {
+      if (clean.includes('零钱通')) {
+        const lqt = wxAccs.find(a => a.name.includes('零钱通'));
+        if (lqt) return lqt;
+      }
+      if (clean.includes('分付')) {
+        const ff = wxAccs.find(a => a.name.includes('分付'));
+        if (ff) return ff;
+      }
+      return wxAccs[0];
+    }
+  }
+
+  // 3. Alipay matching
+  if (clean.includes('支付宝') || clean.includes('余额宝') || clean.includes('花呗') || clean.includes('借呗')) {
+    if (clean.includes('花呗')) {
+      const hb = accounts.find(a => a.name.includes('花呗'));
+      if (hb) return hb;
+    }
+    if (clean.includes('借呗')) {
+      const jb = accounts.find(a => a.name.includes('借呗'));
+      if (jb) return jb;
+    }
+    const alipayAccs = accounts.filter(a => a.name.includes('支付宝') || a.name.includes('余额宝'));
+    if (alipayAccs.length === 1) return alipayAccs[0];
+    if (alipayAccs.length > 1) {
+      if (clean.includes('余额宝')) {
+        const yeb = alipayAccs.find(a => a.name.includes('余额宝'));
+        if (yeb) return yeb;
+      }
+      return alipayAccs[0];
+    }
+  }
+
+  // 4. Consumer loans
+  if (clean.includes('白条')) {
+    const bt = accounts.find(a => a.name.includes('白条'));
+    if (bt) return bt;
+  }
+  if (clean.includes('美团')) {
+    const mt = accounts.find(a => a.name.includes('美团'));
+    if (mt) return mt;
+  }
+  if (clean.includes('抖音')) {
+    const dy = accounts.find(a => a.name.includes('抖音'));
+    if (dy) return dy;
+  }
+
+  // 5. Securities & Brokers
+  if (clean.includes('华泰') || clean.includes('涨乐')) {
+    const ht = accounts.find(a => a.name.includes('华泰'));
+    if (ht) return ht;
+  }
+  if (clean.includes('同花顺')) {
+    const ths = accounts.find(a => a.name.includes('同花顺'));
+    if (ths) return ths;
+  }
+  if (clean.includes('东方财富') || clean.includes('东财')) {
+    const dfcf = accounts.find(a => a.name.includes('东方财富') || a.name.includes('东财'));
+    if (dfcf) return dfcf;
+  }
+
+  // 6. Substring match
+  const sub = accounts.find(a => a.name.toLowerCase().includes(clean) || clean.includes(a.name.toLowerCase()));
+  if (sub) return sub;
+
+  return null;
+}
+
 export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
   isOpen,
   onClose,
@@ -179,16 +266,18 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
         const bal = parseFloat(payload.balance) || 0;
         const isLiability = ['credit', 'loan', 'huabei', 'baitiao', 'meituan_pay', 'douyin_pay', 'jiebei', 'fenfu'].includes(accType);
 
-        let targetAcc = accounts.find(a => 
-          (payload.account_id && a.id === payload.account_id) ||
-          a.name.toLowerCase() === accName.toLowerCase()
-        );
+        let targetAcc: Account | undefined = undefined;
+        if (payload.target_account_id && payload.target_account_id !== '__new__') {
+          targetAcc = accounts.find(a => a.id === payload.target_account_id);
+        } else if (!payload.target_account_id) {
+          targetAcc = findBestMatchingAccount(accName, accType, accounts) || undefined;
+        }
 
-        if (targetAcc) {
+        if (targetAcc && payload.target_account_id !== '__new__') {
           const diff = bal - targetAcc.balance;
           await api.updateAccount(targetAcc.id, {
             ...targetAcc,
-            name: accName,
+            name: targetAcc.name,
             type: accType,
             balance: bal
           });
@@ -199,14 +288,14 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
               account_id: targetAcc.id,
               category_name: '余额校准',
               date: getBeijingDateTimeString(),
-              merchant: `${accName}账单/余额校准`,
-              note: `根据确认信息校准 (原: ¥${targetAcc.balance.toFixed(2)} -> 现: ¥${bal.toFixed(2)})`,
+              merchant: `${targetAcc.name}余额覆盖校准`,
+              note: `根据截图覆盖更新 (原: ¥${targetAcc.balance.toFixed(2)} -> 最新覆盖为: ¥${bal.toFixed(2)})`,
               source: 'ai_copilot'
             });
           }
           actionResult = {
             type: 'balance_updated',
-            data: { id: targetAcc.id, platform: accName, type: accType, balance: bal }
+            data: { id: targetAcc.id, platform: targetAcc.name, type: accType, balance: bal }
           };
         } else {
           const createdAcc = await api.createAccount({
@@ -214,7 +303,7 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
             type: accType as any,
             balance: bal,
             currency: payload.currency || 'CNY',
-            note: payload.note || `由 AI 识别并确认录入 (${isLiability ? '消费信贷负债' : '资产'})`
+            note: payload.note || `由 AI 识别开立 (${isLiability ? '消费信贷负债' : '独立资产账户'})`
           });
 
           if (bal > 0) {
@@ -272,17 +361,26 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
           const itemType = item.account_type || item.type || 'wallet';
           const isLiability = ['credit', 'loan', 'huabei', 'baitiao', 'meituan_pay', 'douyin_pay', 'jiebei', 'fenfu'].includes(itemType);
 
-          const matched = accounts.find(a => 
-            a.name.toLowerCase() === platName.toLowerCase() || 
-            (platName.includes('白条') && a.name.includes('白条')) ||
-            (platName.includes('花呗') && a.name.includes('花呗')) ||
-            (platName.includes('美团') && a.name.includes('美团')) ||
-            (platName.includes('抖音') && a.name.includes('抖音'))
-          );
+          const matched = (item.target_account_id && item.target_account_id !== '__new__')
+            ? accounts.find(a => a.id === item.target_account_id)
+            : (item.target_account_id === '__new__' ? null : findBestMatchingAccount(platName, itemType, accounts));
 
           if (matched) {
-            await api.updateAccount(matched.id, { ...matched, name: platName, type: itemType, balance: bal });
-            processedList.push({ name: platName, balance: bal, type: itemType, isUpdated: true });
+            const diff = bal - matched.balance;
+            await api.updateAccount(matched.id, { ...matched, balance: bal });
+            if (Math.abs(diff) > 0.01) {
+              await api.createTransaction({
+                type: isLiability ? 'repayment' : (diff > 0 ? 'income' : 'expense'),
+                amount: Math.abs(diff),
+                account_id: matched.id,
+                category_name: '余额校准',
+                date: getBeijingDateTimeString(),
+                merchant: `${matched.name}余额覆盖校准`,
+                note: `批量识别覆盖更新 (原: ¥${matched.balance.toFixed(2)} -> 覆盖为: ¥${bal.toFixed(2)})`,
+                source: 'ai_copilot'
+              });
+            }
+            processedList.push({ name: matched.name, balance: bal, type: itemType, isUpdated: true });
           } else {
             const newAcc = await api.createAccount({
               name: platName,
@@ -884,7 +982,29 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
         } else {
           // All data creation / modifications are STAGED for user editable confirmation!
           const stagedPayload = { ...(act.payload || {}) };
-          if (act.type === 'batch_create_investments' || act.type === 'create_investment') {
+          if (act.type === 'create_account' || act.type === 'update_balance') {
+            const accName = stagedPayload.name || stagedPayload.platform || '';
+            const matched = findBestMatchingAccount(accName, stagedPayload.type || stagedPayload.account_type, accounts);
+            if (matched) {
+              stagedPayload.target_account_id = matched.id;
+              stagedPayload.matched_account_name = matched.name;
+              stagedPayload.existing_balance = matched.balance;
+            } else {
+              stagedPayload.target_account_id = '__new__';
+            }
+          } else if (act.type === 'batch_create_accounts' || act.type === 'batch_update_balances') {
+            const rawList = stagedPayload.accounts || stagedPayload.updates || [];
+            stagedPayload.accounts = rawList.map((it: any) => {
+              const pName = it.platform || it.name || '';
+              const matched = findBestMatchingAccount(pName, it.account_type || it.type, accounts);
+              return {
+                ...it,
+                target_account_id: matched ? matched.id : '__new__',
+                matched_account_name: matched ? matched.name : undefined,
+                existing_balance: matched ? matched.balance : undefined
+              };
+            });
+          } else if (act.type === 'batch_create_investments' || act.type === 'create_investment') {
             const rawItems = act.type === 'batch_create_investments' ? (stagedPayload.items || []) : [stagedPayload];
             stagedPayload.items = rawItems.map((it: any) => ({
               ...it,
@@ -1309,6 +1429,55 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
                           </div>
                         </div>
 
+                        {/* Target Account Selector: Overwrite vs New Account */}
+                        <div className="p-2 rounded-xl bg-purple-50/80 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800 space-y-1">
+                          <div className="flex items-center justify-between text-[10px]">
+                            <label className="text-purple-900 dark:text-purple-200 font-bold flex items-center gap-1">
+                              <RefreshCw className="w-3 h-3 text-purple-600" />
+                              <span>录入规则与目标账户</span>
+                            </label>
+                            {m.pendingAction.payload.target_account_id && m.pendingAction.payload.target_account_id !== '__new__' ? (
+                              <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                                🔄 覆盖更新 (不重复累加)
+                              </span>
+                            ) : (
+                              <span className="font-bold text-indigo-600 dark:text-indigo-400">
+                                ➕ 开立新独立账户
+                              </span>
+                            )}
+                          </div>
+                          <select
+                            value={m.pendingAction.payload.target_account_id || '__new__'}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              handleUpdatePendingField(m.id, 'target_account_id', val);
+                              if (val !== '__new__') {
+                                const acc = accounts.find(a => a.id === val);
+                                if (acc) {
+                                  handleUpdatePendingField(m.id, 'matched_account_name', acc.name);
+                                  handleUpdatePendingField(m.id, 'existing_balance', acc.balance);
+                                }
+                              }
+                            }}
+                            className="w-full px-2 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-purple-200 dark:border-purple-700 text-xs font-bold text-slate-900 dark:text-white focus:outline-none"
+                          >
+                            {accounts.map(a => (
+                              <option key={a.id} value={a.id}>
+                                🔄 覆盖已有账户：{a.name} (当前余额 ¥{a.balance.toFixed(2)})
+                              </option>
+                            ))}
+                            <option value="__new__">
+                              ➕ 新建独立账户 (如第2个微信/支付宝号)
+                            </option>
+                          </select>
+                          {m.pendingAction.payload.target_account_id && m.pendingAction.payload.target_account_id !== '__new__' && (
+                            <div className="text-[10px] text-slate-500 dark:text-slate-400 flex items-center justify-between font-mono pt-0.5">
+                              <span>原余额: ¥{(m.pendingAction.payload.existing_balance ?? 0).toFixed(2)}</span>
+                              <span className="text-purple-600 dark:text-purple-400 font-bold">➔ 覆盖为: ¥{parseFloat(m.pendingAction.payload.balance || 0).toFixed(2)}</span>
+                            </div>
+                          )}
+                        </div>
+
                         {['credit', 'loan', 'huabei', 'baitiao', 'meituan_pay', 'douyin_pay', 'jiebei', 'fenfu'].includes(m.pendingAction.payload.type || m.pendingAction.payload.account_type) && (
                           <div className="text-[10px] text-rose-600 dark:text-rose-400 font-medium flex items-center gap-1">
                             <span>💳 本项将被计为负债，并在总净资产中自动扣减 ¥{parseFloat(m.pendingAction.payload.balance || 0).toFixed(2)}</span>
@@ -1401,7 +1570,40 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
                                 </div>
                               </div>
 
-                              {/* Row 3: Holdings (if any) */}
+                              {/* Row 3: Target Account Rule for Batch Item */}
+                              <div className="flex items-center gap-2 pt-0.5">
+                                <select
+                                  value={it.target_account_id || '__new__'}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    handleUpdateBatchItemField(m.id, idx, 'target_account_id', val);
+                                    if (val !== '__new__') {
+                                      const acc = accounts.find(a => a.id === val);
+                                      if (acc) {
+                                        handleUpdateBatchItemField(m.id, idx, 'matched_account_name', acc.name);
+                                        handleUpdateBatchItemField(m.id, idx, 'existing_balance', acc.balance);
+                                      }
+                                    }
+                                  }}
+                                  className="flex-1 px-2 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-[10px] font-bold text-slate-700 dark:text-slate-300 focus:outline-none"
+                                >
+                                  {accounts.map(a => (
+                                    <option key={a.id} value={a.id}>
+                                      🔄 覆盖已有：{a.name} (原¥{a.balance.toFixed(2)})
+                                    </option>
+                                  ))}
+                                  <option value="__new__">➕ 开立独立新账户</option>
+                                </select>
+                                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded flex-shrink-0 ${
+                                  it.target_account_id && it.target_account_id !== '__new__'
+                                    ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300'
+                                    : 'bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300'
+                                }`}>
+                                  {it.target_account_id && it.target_account_id !== '__new__' ? '覆盖更新' : '新建独立'}
+                                </span>
+                              </div>
+
+                              {/* Row 4: Holdings (if any) */}
                               {it.holdings && Array.isArray(it.holdings) && it.holdings.length > 0 && (
                                 <div className="text-[10px] text-slate-400 flex flex-wrap items-center gap-1.5 pt-0.5">
                                   <span className="font-bold text-purple-600 dark:text-purple-400">持仓:</span>
