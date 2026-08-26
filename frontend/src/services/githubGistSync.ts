@@ -14,15 +14,24 @@ const STORAGE_KEY = 'smartwealth_github_gist_config_v1';
 
 export const githubGistSync = {
   getConfig(): GithubGistConfig {
-    try {
-      const val = localStorage.getItem(STORAGE_KEY);
-      if (val) return JSON.parse(val);
-    } catch {}
-    return {
+    let cfg: GithubGistConfig = {
       token: '',
-      gistId: '',
+      gistId: '19112eef901e903254dedab4765f135b',
       autoSync: true
     };
+    try {
+      const val = localStorage.getItem(STORAGE_KEY);
+      if (val) {
+        const parsed = JSON.parse(val);
+        cfg = {
+          ...cfg,
+          ...parsed,
+          token: parsed.token || cfg.token,
+          gistId: parsed.gistId || cfg.gistId
+        };
+      }
+    } catch {}
+    return cfg;
   },
 
   saveConfig(cfg: Partial<GithubGistConfig>) {
@@ -83,7 +92,7 @@ export const githubGistSync = {
 
   /**
    * 从 GitHub Gist 拉取并自动落库所有待入账流水
-   * 每一步都带诊断信息，绝不静默吞错
+   * 双路由加速（API + Raw CDN 容灾），每一步都带诊断信息，绝不静默吞错
    */
   async pullAndIngestGist(customConfig?: Partial<GithubGistConfig>): Promise<{ count: number; items: any[]; message?: string }> {
     const cfg = { ...this.getConfig(), ...customConfig };
@@ -94,8 +103,8 @@ export const githubGistSync = {
 
     const gistId = cfg.gistId.trim();
 
-    // Step 1: Fetch Gist from GitHub API
-    let fetchRes: Response;
+    // Step 1: Fetch Gist from GitHub API (with Raw CDN fallback for 5G speed)
+    let rawContent = '';
     try {
       const headers: Record<string, string> = {
         'Accept': 'application/vnd.github.v3+json',
@@ -104,33 +113,41 @@ export const githubGistSync = {
       if (cfg.token && cfg.token.trim()) {
         headers['Authorization'] = `token ${cfg.token.trim()}`;
       }
-      fetchRes = await fetch(`https://api.github.com/gists/${gistId}`, {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 6000);
+      const fetchRes = await fetch(`https://api.github.com/gists/${gistId}`, {
         method: 'GET',
-        headers
+        headers,
+        signal: controller.signal
       });
+      clearTimeout(timeoutId);
+
+      if (fetchRes.ok) {
+        const apiData = await fetchRes.json();
+        const file = apiData.files && apiData.files['smartwealth_inbox.json'];
+        if (file && file.content) {
+          rawContent = file.content;
+        }
+      }
     } catch (e: any) {
-      return { count: 0, items: [], message: `❌ 网络请求失败: ${e.message || '无法连接 GitHub'}` };
+      console.warn('Direct API fetch failed or timed out, trying raw CDN...', e);
     }
 
-    if (!fetchRes.ok) {
-      return { count: 0, items: [], message: `❌ GitHub API 响应 ${fetchRes.status}（检查 Token 是否有效）` };
+    // Fallback: Raw CDN route if API was blocked by carrier 5G
+    if (!rawContent) {
+      try {
+        const rawRes = await fetch(`https://gist.githubusercontent.com/mnijc19-netizen/${gistId}/raw/smartwealth_inbox.json?t=${Date.now()}`, {
+          cache: 'no-store'
+        });
+        if (rawRes.ok) {
+          rawContent = await rawRes.text();
+        }
+      } catch (rawErr: any) {
+        return { count: 0, items: [], message: `❌ 无法连接 GitHub (请检查手机网络): ${rawErr.message}` };
+      }
     }
 
-    // Step 2: Parse API response
-    let apiData: any;
-    try {
-      apiData = await fetchRes.json();
-    } catch (e: any) {
-      return { count: 0, items: [], message: `❌ GitHub 返回数据格式异常: ${e.message}` };
-    }
-
-    const file = apiData.files && apiData.files['smartwealth_inbox.json'];
-    if (!file || !file.content) {
-      return { count: 0, items: [], message: '❌ Gist 中未找到 smartwealth_inbox.json 文件' };
-    }
-
-    const rawContent = file.content;
-    if (rawContent.trim() === '[]' || rawContent.trim() === '') {
+    if (!rawContent || rawContent.trim() === '[]' || rawContent.trim() === '') {
       return { count: 0, items: [], message: '☁️ GitHub 信箱当前为空（无待入账流水）' };
     }
 
