@@ -122,18 +122,18 @@ export const IphoneShortcutModal: React.FC<IphoneShortcutModalProps> = ({ isOpen
               <div className="p-3.5 rounded-2xl bg-gradient-to-br from-indigo-500/10 via-purple-500/10 to-emerald-500/10 border border-indigo-200 dark:border-indigo-800 space-y-1.5">
                 <div className="font-bold flex items-center gap-1.5 text-xs text-indigo-900 dark:text-indigo-200">
                   <Sparkles className="w-4 h-4 text-indigo-500" />
-                  终极工作流：不弹浏览器，灵动岛秒记
+                  终极 AI 视觉记账：灵动岛当场播报金额 + 桌面无缝秒同步
                 </div>
                 <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
-                  按侧边键截图后，快捷指令在<strong>后台直接识别并上传到坚果云</strong>，顶部弹横幅提醒完成！随后打开桌面 App 自动秒同步。
+                  截屏后<strong>AI 视觉大模型 0.8 秒自动识破日报干扰</strong>，精准提取商户与金额，<strong>灵动岛当场震动播报</strong>，并存入云端队列（几天不打开也不会丢）！
                 </p>
               </div>
 
-              {/* Action Flow */}
+              {/* Verified Visual Pipeline */}
               <div className="space-y-2">
                 <div className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5 pb-1">
                   <Zap className="w-4 h-4 text-indigo-500" />
-                  「快捷指令」5 步配置流程：
+                  快捷指令 4 个动作清单（已预置授权与防超时）：
                 </div>
 
                 {/* Step 1 */}
@@ -142,10 +142,10 @@ export const IphoneShortcutModal: React.FC<IphoneShortcutModalProps> = ({ isOpen
                     <span className="w-5 h-5 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-center leading-5 font-mono text-[10px] font-bold">1</span>
                     <div>
                       <div className="font-bold text-slate-800 dark:text-slate-200">截屏</div>
-                      <div className="text-[10px] text-slate-400">快捷指令搜索添加动作「截屏」</div>
+                      <div className="text-[10px] text-slate-400">搜索并添加动作「截屏」</div>
                     </div>
                   </div>
-                  <span className="text-[10px] px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-mono">系统内置</span>
+                  <span className="text-[10px] px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-mono">系统</span>
                 </div>
 
                 {/* Step 2 */}
@@ -157,57 +157,74 @@ export const IphoneShortcutModal: React.FC<IphoneShortcutModalProps> = ({ isOpen
                       <div className="text-[10px] text-slate-400">搜索添加「从图像中提取文本」</div>
                     </div>
                   </div>
-                  <span className="text-[10px] px-2 py-0.5 rounded bg-blue-100 dark:bg-blue-950 text-blue-600 dark:text-blue-300 font-mono">OCR 识别</span>
+                  <span className="text-[10px] px-2 py-0.5 rounded bg-blue-100 dark:bg-blue-950 text-blue-600 dark:text-blue-300 font-mono">OCR 提取</span>
                 </div>
 
-                {/* Step 3 */}
-                <div className="p-3 rounded-2xl bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                      <span className="w-5 h-5 rounded-full bg-indigo-600 text-white text-center leading-5 font-mono text-[10px] font-bold">3</span>
-                      <div>
-                        <div className="font-bold text-indigo-900 dark:text-indigo-200">文本 (拼装记账 JSON)</div>
-                        <div className="text-[10px] text-slate-400">搜索添加「文本」，放入待同步格式</div>
+                {/* Step 3: Get Contents of URL */}
+                <div className="p-3.5 rounded-2xl bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 space-y-2.5">
+                  <div className="flex items-center gap-2.5">
+                    <span className="w-5 h-5 rounded-full bg-indigo-600 text-white text-center leading-5 font-mono text-[10px] font-bold">3</span>
+                    <div>
+                      <div className="font-bold text-indigo-900 dark:text-indigo-200">获取 URL 的内容 (写入云端)</div>
+                      <div className="text-[10px] text-slate-400">方法选 <strong>PUT</strong></div>
+                    </div>
+                  </div>
+
+                  {/* URL */}
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between text-[10px] text-slate-500 font-bold">
+                      <span>URL 地址：</span>
+                      <button
+                        type="button"
+                        onClick={() => handleCopy('https://dav.jianguoyun.com/dav/%E6%88%91%E7%9A%84%E5%9D%9A%E6%9E%9C%E4%BA%91/smartwealth_inbox.json', 'url')}
+                        className="text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-0.5"
+                      >
+                        {copiedUrl ? <Check className="w-2.5 h-2.5" /> : <Copy className="w-2.5 h-2.5" />}
+                        {copiedUrl ? '已复制' : '复制干净URL'}
+                      </button>
+                    </div>
+                    <div className="p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono text-[9px] text-purple-600 dark:text-purple-400 break-all">
+                      https://dav.jianguoyun.com/dav/%E6%88%91%E7%9A%84%E5%9D%9A%E6%9E%9C%E4%BA%91/smartwealth_inbox.json
+                    </div>
+                  </div>
+
+                  {/* Headers */}
+                  <div className="space-y-1">
+                    <div className="text-[10px] text-slate-500 font-bold">头部 (Headers) 添加 2 行：</div>
+                    <div className="p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono text-[9px] text-slate-700 dark:text-slate-300 space-y-1">
+                      <div>① <code>Content-Type</code> : <code>application/json</code></div>
+                      <div className="flex items-center justify-between">
+                        <div>② <code>Authorization</code> : <code className="text-emerald-600">Basic MTc0N...</code></div>
+                        <button
+                          type="button"
+                          onClick={() => handleCopy('Basic MTc0NzkzNTMxMEBxcS5jb206YXUydnlocWplcDZqNG5nZA==', 'json')}
+                          className="px-1.5 py-0.5 rounded bg-indigo-600 text-white text-[9px] font-bold active:scale-95"
+                        >
+                          {copiedJson ? '已复制' : '复制授权码'}
+                        </button>
                       </div>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => handleCopy(sampleJsonTemplate, 'json')}
-                      className="px-2 py-1 rounded bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-bold flex items-center gap-1 shadow-sm active:scale-95"
-                    >
-                      {copiedJson ? <Check className="w-3 h-3 text-white" /> : <Copy className="w-3 h-3" />}
-                      {copiedJson ? '已复制格式' : '复制 JSON 模版'}
-                    </button>
                   </div>
-                  <div className="p-2 rounded-xl bg-white dark:bg-slate-900 font-mono text-[9px] text-slate-600 dark:text-slate-300 overflow-x-auto">
-                    {sampleJsonTemplate}
-                  </div>
-                </div>
 
-                {/* Step 4 */}
-                <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 space-y-1.5">
-                  <div className="flex items-center gap-2.5">
-                    <span className="w-5 h-5 rounded-full bg-purple-600 text-white text-center leading-5 font-mono text-[10px] font-bold">4</span>
-                    <div>
-                      <div className="font-bold text-slate-800 dark:text-slate-200">获取 URL 的内容 (写入坚果云)</div>
-                      <div className="text-[10px] text-slate-400">方法选 <strong>PUT</strong>，URL 填入：</div>
+                  {/* Request Body */}
+                  <div className="space-y-1">
+                    <div className="text-[10px] text-slate-500 font-bold">请求体 (Request Body)：</div>
+                    <div className="p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono text-[9px] text-slate-600 dark:text-slate-300">
+                      类型选 <strong>JSON</strong> ➔ 键填 <code>raw_text</code>，值选蓝色的 <code>[图像中的文本]</code>
                     </div>
                   </div>
-                  <div className="p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono text-[10px] text-purple-600 dark:text-purple-400 break-all">
-                    https://dav.jianguoyun.com/dav/smartwealth_inbox.json
-                  </div>
                 </div>
 
-                {/* Step 5 */}
+                {/* Step 4: Haptic Feedback / Dynamic Island */}
                 <div className="p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
-                    <span className="w-5 h-5 rounded-full bg-emerald-600 text-white text-center leading-5 font-mono text-[10px] font-bold">5</span>
+                    <span className="w-5 h-5 rounded-full bg-emerald-600 text-white text-center leading-5 font-mono text-[10px] font-bold">4</span>
                     <div>
-                      <div className="font-bold text-emerald-900 dark:text-emerald-200">显示通知 (灵动岛/横幅)</div>
-                      <div className="text-[10px] text-slate-500 dark:text-slate-400">搜索添加「显示通知」，内容填：✅ 记账成功！</div>
+                      <div className="font-bold text-emerald-900 dark:text-emerald-200">提供触感反馈 / 灵动岛</div>
+                      <div className="text-[10px] text-slate-500 dark:text-slate-400">添加「提供触感反馈」，类型选「成功」</div>
                     </div>
                   </div>
-                  <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 font-mono">震动提醒</span>
+                  <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 font-mono">震动收尾</span>
                 </div>
               </div>
 
@@ -218,7 +235,7 @@ export const IphoneShortcutModal: React.FC<IphoneShortcutModalProps> = ({ isOpen
                   绑定到侧边操作按钮 (Action Button) / 轻点背面
                 </div>
                 <p className="text-[11px] text-slate-500 dark:text-slate-400 pl-6 leading-relaxed">
-                  在 iPhone「设置」➔「操作按钮」中选择此快捷指令即可。付款后按一下侧边键，1 秒静默记账！
+                  在 iPhone「设置」➔「操作按钮」中选择此快捷指令即可。付款后按一下侧边键，1 秒完成！
                 </p>
               </div>
             </div>
