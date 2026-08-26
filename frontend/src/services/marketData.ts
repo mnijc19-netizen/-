@@ -18,6 +18,30 @@ export interface MarketQuoteResult {
 }
 
 /**
+ * Automatically maps standard Chinese security names or partial codes to standard 6-digit ticker codes
+ */
+export function resolveSecurityCode(name: string, explicitCode?: string): string {
+  if (explicitCode && /^\d{5,6}$/.test(explicitCode.trim())) return explicitCode.trim();
+  const cleanName = (name || '').trim();
+  if (/纳指.*广发|广发.*纳指/i.test(cleanName)) return '159941';
+  if (/标普.*500.*博时|博时.*标普|标普500/i.test(cleanName)) return '513500';
+  if (/纳指科技/i.test(cleanName)) return '159509';
+  if (/沪深300/i.test(cleanName)) return '510300';
+  if (/中证500/i.test(cleanName)) return '510500';
+  if (/中证1000/i.test(cleanName)) return '512100';
+  if (/红利低波/i.test(cleanName)) return '512890';
+  if (/恒生科技/i.test(cleanName)) return '513130';
+  if (/中概互联/i.test(cleanName)) return '513050';
+  if (/医疗ETF/i.test(cleanName)) return '512170';
+  if (/半导体ETF/i.test(cleanName)) return '512480';
+  if (/贵州茅台/i.test(cleanName)) return '600519';
+  if (/腾讯控股/i.test(cleanName)) return '00700';
+  if (/宁德时代/i.test(cleanName)) return '300750';
+  if (/比亚迪/i.test(cleanName)) return '002594';
+  return explicitCode || '159941';
+}
+
+/**
  * Maps a raw stock or fund code into Tencent Finance ticker format
  */
 export function formatTencentTicker(code: string, type?: string): string {

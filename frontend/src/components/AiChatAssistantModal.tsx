@@ -39,7 +39,7 @@ import { api } from '../api/client';
 import { localStore, AiConfig } from '../services/localStore';
 import { sendAgentMessage, cleanRepetitiveText } from '../services/aiAgent';
 import { getBeijingDateTimeString, getBeijingDateString } from '../utils/dateUtils';
-import { refreshInvestmentQuotes } from '../services/marketData';
+import { refreshInvestmentQuotes, resolveSecurityCode } from '../services/marketData';
 import { optimizeImagesBatch } from '../services/imageOptimizer';
 import { BrandLogo, detectBrandType } from './BrandLogo';
 import { AI_PROVIDERS } from '../services/aiParser';
@@ -396,27 +396,60 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
           });
         }
 
-        // 2. Add each investment holding linked to this broker account
-        const createdInvestments = [];
+        // 2. Add or update each investment holding linked to this broker account
+        const createdInvestments: Investment[] = [];
+        const existingInvs = localStore.getInvestments();
+
         for (const it of items) {
           const shares = parseFloat(it.shares) || 100;
           const cost = parseFloat(it.cost_price) || 1.0;
           const currentPrice = parseFloat(it.current_price) || cost;
-          
-          const newInv = await api.addInvestment({
-            account_id: brokerAcc.id,
-            name: it.name || '证券投资标的',
-            code: it.code || '159941',
-            type: it.type || (it.name?.includes('ETF') || it.name?.includes('基金') ? 'fund' : 'stock'),
-            shares,
-            cost_price: cost,
-            current_price: currentPrice,
-            currency: 'CNY'
-          });
-          createdInvestments.push(newInv);
+          const resolvedCode = resolveSecurityCode(it.name || '', it.code);
+          const resolvedName = it.name || (resolvedCode === '159941' ? '纳指ETF广发' : resolvedCode === '513500' ? '标普500ETF博时' : '投资标的');
+
+          const existingMatch = existingInvs.find(i => i.account_id === brokerAcc.id && i.code === resolvedCode);
+          let invRecord: Investment;
+
+          if (existingMatch) {
+            existingMatch.name = resolvedName;
+            existingMatch.shares = shares;
+            existingMatch.cost_price = cost;
+            existingMatch.current_price = currentPrice;
+            existingMatch.total_cost = shares * cost;
+            existingMatch.market_value = shares * currentPrice;
+            existingMatch.floating_pnl = (currentPrice - cost) * shares;
+            existingMatch.pnl_rate = cost > 0 ? ((currentPrice - cost) / cost) * 100 : 0;
+            await api.updateInvestment(existingMatch.id, existingMatch);
+            invRecord = existingMatch;
+          } else {
+            invRecord = await api.addInvestment({
+              account_id: brokerAcc.id,
+              name: resolvedName,
+              code: resolvedCode,
+              type: it.type || (resolvedName.includes('ETF') || resolvedName.includes('基金') ? 'fund' : 'stock_a'),
+              shares,
+              cost_price: cost,
+              current_price: currentPrice,
+              currency: 'CNY'
+            });
+          }
+          createdInvestments.push(invRecord);
         }
 
-        // 3. Immediately refresh live market quotes
+        // 3. Clean up any invalid duplicates with identical codes in the same account
+        const deduplicatedInvs: Investment[] = [];
+        const seenCodes = new Set<string>();
+        for (const inv of localStore.getInvestments()) {
+          const key = `${inv.account_id}:::${inv.code}`;
+          if (seenCodes.has(key)) {
+            continue;
+          }
+          seenCodes.add(key);
+          deduplicatedInvs.push(inv);
+        }
+        localStore.saveInvestments(deduplicatedInvs);
+
+        // 4. Immediately refresh live market quotes
         try {
           await refreshInvestmentQuotes(createdInvestments);
         } catch {}
@@ -636,6 +669,9 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
             ...currentItems[itemIdx],
             [field]: value
           };
+          if (field === 'name' && (!currentItems[itemIdx].code || currentItems[itemIdx].code === '159941')) {
+            currentItems[itemIdx].code = resolveSecurityCode(value);
+          }
           // Recalculate market value live
           if (field === 'shares' || field === 'current_price' || field === 'cost_price') {
             const sh = parseFloat(field === 'shares' ? value : currentItems[itemIdx].shares) || 0;
@@ -799,8 +835,17 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
           onRefresh();
         } else {
           // All data creation / modifications are STAGED for user editable confirmation!
+          const stagedPayload = { ...(act.payload || {}) };
+          if (act.type === 'batch_create_investments' || act.type === 'create_investment') {
+            const rawItems = act.type === 'batch_create_investments' ? (stagedPayload.items || []) : [stagedPayload];
+            stagedPayload.items = rawItems.map((it: any) => ({
+              ...it,
+              code: resolveSecurityCode(it.name || '', it.code)
+            }));
+          }
           pendingAction = {
             ...act,
+            payload: stagedPayload,
             status: 'staged'
           };
         }

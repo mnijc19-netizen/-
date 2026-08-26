@@ -25,6 +25,13 @@ const isStaticMode = typeof window !== 'undefined' && (
   window.location.port !== '8000' && window.location.port !== '3000'
 );
 
+let _idCounter = 0;
+export function generateUniqueId(prefix: string): string {
+  _idCounter = (_idCounter + 1) % 1000000;
+  const rand = Math.random().toString(36).substring(2, 9);
+  return `${prefix}-${Date.now()}-${_idCounter}-${rand}`;
+}
+
 async function request<T>(endpoint: string, options?: RequestInit): Promise<T> {
   if (isStaticMode) {
     throw new Error('Static host mode');
@@ -60,7 +67,7 @@ export const api = {
     if (isStaticMode) {
       const accs = localStore.getAccounts();
       const newAcc: Account = {
-        id: `acc-${Date.now()}`,
+        id: generateUniqueId('acc'),
         name: data.name || '新账户',
         type: data.type || 'bank',
         currency: data.currency || 'CNY',
@@ -80,7 +87,7 @@ export const api = {
     } catch {
       const accs = localStore.getAccounts();
       const newAcc: Account = {
-        id: `acc-${Date.now()}`,
+        id: generateUniqueId('acc'),
         name: data.name || '新账户',
         type: data.type || 'bank',
         currency: data.currency || 'CNY',
@@ -160,7 +167,7 @@ export const api = {
       const targetAcc = accs.find(a => a.id === targetAccId) || accs[0];
 
       const newTx: Transaction = {
-        id: `t-${Date.now()}`,
+        id: generateUniqueId('t'),
         type: data.type || 'expense',
         amount: data.amount || 0,
         account_id: targetAcc?.id || 'acc-1',
@@ -199,7 +206,7 @@ export const api = {
       const targetAcc = accs.find(a => a.id === targetAccId) || accs[0];
 
       const newTx: Transaction = {
-        id: `t-${Date.now()}`,
+        id: generateUniqueId('t'),
         type: data.type || 'expense',
         amount: data.amount || 0,
         account_id: targetAcc?.id || 'acc-1',
@@ -334,7 +341,7 @@ export const api = {
   setBudget: async (data: { period: string; category_id?: string | null; amount: number; alert_threshold?: number }) => {
     const bs = localStore.getBudgets();
     const newB: Budget = {
-      id: `b-${Date.now()}`,
+      id: generateUniqueId('b'),
       period: data.period,
       category_id: data.category_id || undefined,
       category_name: data.category_id ? '分类预算' : '全部分类总预算',
@@ -363,9 +370,9 @@ export const api = {
     const invs = localStore.getInvestments();
     const shares = data.shares || 0;
     const cost = data.cost_price || 0;
-    const curr = data.current_price || 0;
+    const curr = data.current_price || cost;
     const newInv: Investment = {
-      id: `inv-${Date.now()}`,
+      id: generateUniqueId('inv'),
       account_id: data.account_id || 'acc-1',
       code: data.code || '000001',
       name: data.name || '投资标的',
@@ -407,7 +414,7 @@ export const api = {
     const tot = data.total_principal || 0;
     const rem = data.remaining_principal || 0;
     const newD: Debt = {
-      id: `debt-${Date.now()}`,
+      id: generateUniqueId('debt'),
       name: data.name || '新负债',
       type: data.type || 'credit_card',
       total_principal: tot,
@@ -452,7 +459,7 @@ export const api = {
     const tot = data.target_amount || 0;
     const cur = data.current_amount || 0;
     const newG: Goal = {
-      id: `g-${Date.now()}`,
+      id: generateUniqueId('g'),
       name: data.name || '心愿目标',
       target_amount: tot,
       current_amount: cur,
@@ -568,7 +575,7 @@ export const api = {
     localStore.saveAccounts(accs);
 
     const newSnap: AssetSnapshot = {
-      id: `snap-${Date.now()}`,
+      id: generateUniqueId('snap'),
       snapshot_date: data.snapshot_date,
       total_assets: totalAss,
       total_liabilities: totalLiab,
@@ -587,7 +594,7 @@ export const api = {
   addRecurringRule: async (data: Partial<RecurringRule>) => {
     const rules = localStore.getRecurringRules();
     const newR: RecurringRule = {
-      id: `rec-${Date.now()}`,
+      id: generateUniqueId('rec'),
       name: data.name || '周期规则',
       type: data.type || 'expense',
       amount: data.amount || 0,

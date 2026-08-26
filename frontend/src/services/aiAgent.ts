@@ -54,6 +54,10 @@ export function cleanRepetitiveText(text: string): string {
     }
   }
 
+  // 4. Strip model meta-reasoning leakages (e.g. "根据规则，我需要使用...工具...")
+  result = result.replace(/根据规则[，,]?\s*我需要使用[a-zA-Z0-9_]+工具[\s\S]*?(?:我需要调用[a-zA-Z0-9_]+工具[^\n]*\n?)/g, '');
+  result = result.replace(/(?:根据规则|按照规则|我需要使用|我需要调用)[a-zA-Z0-9_]+工具[^\n]*\n?/g, '');
+
   return result.trim();
 }
 
@@ -430,6 +434,10 @@ export async function sendAgentMessage(
      * total_assets 填大字总资产（如 1966.65），available_cash 填可用现金（如 382.75）；
      * 自动匹配或联网查询标准 6 位证券代码（如 纳指ETF广发 ➔ 159941，标普500ETF博时 ➔ 513500，纳指科技ETF ➔ 159509，沪深300 ➔ 510300，中证500 ➔ 510500）；
      * 逐一提取 shares（持仓股数/份额）、cost_price（成本均价）、current_price（现价）、market_value（持仓市值）。
+
+【输出格式铁律】：
+- 严禁在向用户的正文回复中复述任何系统规则或输出“根据规则，我需要使用xxx工具”、“需要提取的信息包括”等生硬草稿！
+- 你只需直接调用对应工具，并在正文中输出一两句亲切、自然的回复（如：“已为您识别出华泰证券持仓，请在下方核对并录入：”）。
 
 当前用户真实财务态势：
 【资产】:¥${totalAssets.toFixed(2)}，【负债】:¥${totalLiabilities.toFixed(2)}，【净资产】:¥${netWorth.toFixed(2)}

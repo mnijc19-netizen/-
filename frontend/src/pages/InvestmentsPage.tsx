@@ -22,6 +22,7 @@ import {
 import confetti from 'canvas-confetti';
 import { Investment, Account } from '../types';
 import { api } from '../api/client';
+import { localStore } from '../services/localStore';
 import { refreshInvestmentQuotes, querySingleQuote, MarketQuoteResult } from '../services/marketData';
 
 interface InvestmentsPageProps {
@@ -60,6 +61,30 @@ export const InvestmentsPage: React.FC<InvestmentsPageProps> = ({
   const totalMarketVal = investments.reduce((s, i) => s + i.market_value, 0);
   const totalPnl = totalMarketVal - totalCost;
   const totalPnlRate = totalCost > 0 ? (totalPnl / totalCost) * 100 : 0;
+
+  // Auto-deduplicate on mount to heal any legacy duplicate records
+  useEffect(() => {
+    const rawInvs = localStore.getInvestments();
+    const seen = new Set<string>();
+    const cleaned: Investment[] = [];
+    let hasDupes = false;
+
+    for (const inv of rawInvs) {
+      const key = `${inv.account_id}:::${inv.code || inv.id}`;
+      if (seen.has(key) || seen.has(inv.id)) {
+        hasDupes = true;
+        continue;
+      }
+      seen.add(key);
+      seen.add(inv.id);
+      cleaned.push(inv);
+    }
+
+    if (hasDupes) {
+      localStore.saveInvestments(cleaned);
+      onRefresh();
+    }
+  }, []);
 
   // Real-time debounce code lookup
   useEffect(() => {
