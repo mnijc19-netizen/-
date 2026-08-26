@@ -23,12 +23,14 @@ export interface AiConfig {
 }
 
 export const DEFAULT_AI_CONFIG: AiConfig = {
-  enabled: false,
+  enabled: true,
   provider: 'zhipu',
-  apiKey: '',
+  apiKey: '3e3a1c2d2b8c42cf8dd3da9ce64a8f4a.1lGvbmammJGT8KYL',
   baseUrl: 'https://open.bigmodel.cn/api/paas/v4',
-  model: 'glm-4.6v',
-  providerKeys: {}
+  model: 'glm-4.5-air',
+  providerKeys: {
+    'zhipu': '3e3a1c2d2b8c42cf8dd3da9ce64a8f4a.1lGvbmammJGT8KYL'
+  }
 };
 
 /**
@@ -159,6 +161,10 @@ export const localStore = {
   getAiConfig: (): AiConfig => {
     const raw = dbStore.getSync(STORAGE_KEYS.AI_CONFIG, DEFAULT_AI_CONFIG);
     const cfg: AiConfig = { ...DEFAULT_AI_CONFIG, ...raw };
+    if (!cfg.apiKey || !cfg.apiKey.trim()) {
+      cfg.apiKey = DEFAULT_AI_CONFIG.apiKey;
+    }
+    cfg.enabled = true;
     if (cfg.provider && cfg.provider.startsWith('zhipu')) {
       cfg.provider = 'zhipu';
     }
