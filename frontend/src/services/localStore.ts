@@ -101,6 +101,40 @@ export const localStore = {
   getTransactions: (): Transaction[] => dbStore.getSync(STORAGE_KEYS.TRANSACTIONS, []),
   saveTransactions: (txs: Transaction[]) => dbStore.set(STORAGE_KEYS.TRANSACTIONS, txs),
 
+  deduplicateAndCleanTransactions: (): number => {
+    const txs = dbStore.getSync<Transaction[]>(STORAGE_KEYS.TRANSACTIONS, []);
+    if (!txs || txs.length === 0) return 0;
+
+    const seen = new Set<string>();
+    const cleaned: Transaction[] = [];
+    let removed = 0;
+
+    for (const tx of txs) {
+      const dateKey = (tx.date || '').substring(0, 10);
+      const key = `${(tx.merchant || '').trim()}_${Number(tx.amount || 0).toFixed(2)}_${tx.type}_${dateKey}`;
+      
+      if (seen.has(key)) {
+        removed++;
+        // Revert balance impact
+        const accs = dbStore.getSync<Account[]>(STORAGE_KEYS.ACCOUNTS, CLEAN_INITIAL_ACCOUNTS);
+        const acc = accs.find(a => a.id === tx.account_id) || accs[0];
+        if (acc) {
+          if (tx.type === 'expense') acc.balance += tx.amount;
+          else if (tx.type === 'income') acc.balance -= tx.amount;
+          dbStore.set(STORAGE_KEYS.ACCOUNTS, accs);
+        }
+        continue;
+      }
+      seen.add(key);
+      cleaned.push(tx);
+    }
+
+    if (removed > 0) {
+      dbStore.set(STORAGE_KEYS.TRANSACTIONS, cleaned);
+    }
+    return removed;
+  },
+
   getCategories: (): Category[] => dbStore.getSync(STORAGE_KEYS.CATEGORIES, DEFAULT_CATEGORIES),
   saveCategories: (cats: Category[]) => dbStore.set(STORAGE_KEYS.CATEGORIES, cats),
 

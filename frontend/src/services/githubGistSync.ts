@@ -224,6 +224,9 @@ export const githubGistSync = {
               numAmt = extracted.amount;
               merchant = extracted.merchant || merchant;
               catName = extracted.category || catName;
+              if (extracted.date) {
+                dateStr = extracted.date;
+              }
             }
           } catch (extErr: any) {
             errors.push(`规则解析[${idx}]: ${extErr.message || '未知错误'}`);
@@ -238,6 +241,28 @@ export const githubGistSync = {
 
       catName = catName || '日常消费';
       merchant = merchant || '快捷指令入账';
+
+      // Deduplication check: Avoid recording the same transaction multiple times
+      const existingTxs = localStore.getTransactions();
+      const isDuplicate = existingTxs.some(existing => {
+        if (rawText && existing.raw_text && existing.raw_text.trim() === rawText.trim()) {
+          return true;
+        }
+        if (existing.merchant === merchant && Math.abs(existing.amount - numAmt) < 0.001) {
+          const d1 = (dateStr || '').substring(0, 10);
+          const d2 = (existing.date || '').substring(0, 10);
+          if (d1 === d2) {
+            return true;
+          }
+        }
+        return false;
+      });
+
+      if (isDuplicate) {
+        // Skip duplicate
+        continue;
+      }
+
       const matchedCat = categories.find(c => c.name === catName);
 
       // Step 5: Create transaction
@@ -251,7 +276,8 @@ export const githubGistSync = {
           date: dateStr,
           merchant,
           note: item.note || `来自 GitHub Gist 快捷指令云同步`,
-          source: 'shortcut'
+          source: 'shortcut',
+          raw_text: rawText
         });
         ingestedList.push({ merchant, amount: numAmt, category: catName, date: dateStr });
       } catch (txErr: any) {

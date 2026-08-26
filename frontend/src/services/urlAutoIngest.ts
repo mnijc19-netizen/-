@@ -128,6 +128,73 @@ export function suggestCategory(merchant: string, fullText: string = ''): string
   return '日常消费';
 }
 
+export function parseTransactionDateTime(text: string): string | null {
+  if (!text) return null;
+  const now = new Date();
+  const currentYear = now.getFullYear();
+
+  // Pattern 1: Standard YYYY-MM-DD HH:mm:ss or YYYY/MM/DD HH:mm
+  const fullMatch = text.match(/(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})\s*(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+  if (fullMatch) {
+    const y = fullMatch[1];
+    const m = fullMatch[2].padStart(2, '0');
+    const d = fullMatch[3].padStart(2, '0');
+    const hh = fullMatch[4].padStart(2, '0');
+    const mm = fullMatch[5].padStart(2, '0');
+    const ss = (fullMatch[6] || '00').padStart(2, '0');
+    return `${y}-${m}-${d} ${hh}:${mm}:${ss}`;
+  }
+
+  let extractedMonth = '';
+  let extractedDay = '';
+  let extractedHour = '';
+  let extractedMinute = '';
+
+  // Extract Month & Day (e.g. 8月23日, 8月18日)
+  const mdMatch = text.match(/(\d{1,2})月(\d{1,2})日/);
+  if (mdMatch) {
+    extractedMonth = mdMatch[1].padStart(2, '0');
+    extractedDay = mdMatch[2].padStart(2, '0');
+  } else if (text.includes('昨天')) {
+    const target = new Date();
+    target.setDate(target.getDate() - 1);
+    extractedMonth = String(target.getMonth() + 1).padStart(2, '0');
+    extractedDay = String(target.getDate()).padStart(2, '0');
+  } else if (text.includes('前天')) {
+    const target = new Date();
+    target.setDate(target.getDate() - 2);
+    extractedMonth = String(target.getMonth() + 1).padStart(2, '0');
+    extractedDay = String(target.getDate()).padStart(2, '0');
+  }
+
+  // Extract Time (e.g. 下午10:51, 上午9:08, 18:54)
+  const timeMatch = text.match(/(上午|下午|晚上|中午|凌晨)?\s*(\d{1,2}):(\d{2})/);
+  if (timeMatch) {
+    const ampm = timeMatch[1] || '';
+    let hour = parseInt(timeMatch[2], 10);
+    const minute = timeMatch[3].padStart(2, '0');
+    if ((ampm === '下午' || ampm === '晚上') && hour < 12) {
+      hour += 12;
+    } else if ((ampm === '凌晨' || ampm === '上午') && hour === 12) {
+      hour = 0;
+    }
+    extractedHour = String(hour).padStart(2, '0');
+    extractedMinute = minute;
+  }
+
+  if (extractedMonth && extractedDay && extractedHour && extractedMinute) {
+    return `${currentYear}-${extractedMonth}-${extractedDay} ${extractedHour}:${extractedMinute}:00`;
+  } else if (extractedMonth && extractedDay) {
+    return `${currentYear}-${extractedMonth}-${extractedDay} 12:00:00`;
+  } else if (extractedHour && extractedMinute) {
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    return `${currentYear}-${m}-${d} ${extractedHour}:${extractedMinute}:00`;
+  }
+
+  return null;
+}
+
 export function extractFromRawText(text: string, accounts: any[] = []): { amount: number; merchant: string; category: string; date?: string; accountId?: string } {
   if (!text) return { amount: 0, merchant: '日常消费', category: '日常消费' };
   
@@ -137,7 +204,7 @@ export function extractFromRawText(text: string, accounts: any[] = []): { amount
   let amount = 0;
   let merchant = '';
   let category = '';
-  let date = '';
+  let date = parseTransactionDateTime(rawClean) || '';
   let targetAccId: string | undefined;
 
   // 1. Explicit merchant prefix extraction

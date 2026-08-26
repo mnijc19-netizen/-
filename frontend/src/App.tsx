@@ -126,6 +126,9 @@ export function App() {
   // Load all data
   const loadAllData = async () => {
     try {
+      // Auto-cleanup any duplicate entries
+      localStore.deduplicateAndCleanTransactions();
+
       const [
         analyticsData,
         accountsData,
@@ -164,18 +167,24 @@ export function App() {
     }
   };
 
-  // Check URL automation parameter and WebDAV cloud inbox on startup
+  // Instant Page Load (Zero Spinner Blocking) & Background Cloud Inbox Sync
   useEffect(() => {
-    const init = async () => {
-      try {
-        // 1. Check URL automation (if opened via old URL scheme)
-        const res = await checkAndHandleUrlAutoIngest();
+    // 1. Render UI immediately from local storage (0ms spinner delay!)
+    loadAllData();
 
+    // 2. Run background cloud syncs non-blockingly
+    const runBackgroundSync = async () => {
+      let needsRefresh = false;
+
+      // A. Check URL automation
+      try {
+        const res = await checkAndHandleUrlAutoIngest();
         if (res && res.triggered) {
           if (res.success) {
             setAutoToastMsg(res.message);
             confetti({ particleCount: 80, spread: 60, origin: { y: 0.2 } });
             setTimeout(() => setAutoToastMsg(null), 6000);
+            needsRefresh = true;
           } else if (res.showClipboardButton) {
             setShowClipboardOverlay(true);
           } else {
@@ -183,18 +192,21 @@ export function App() {
             setTimeout(() => setAutoToastMsg(null), 8000);
           }
         }
+      } catch {}
 
-        // 2. Check GitHub Gist Cloud Inbox (100% CORS-safe, silent background writes)
-        try {
-          const gistRes = await githubGistSync.pullAndIngestGist();
-          if (gistRes.count > 0) {
-            setAutoToastMsg(`🐙 已自动从 GitHub 云信箱同步 ${gistRes.count} 笔新账单！`);
-            confetti({ particleCount: 80, spread: 60, origin: { y: 0.2 } });
-            setTimeout(() => setAutoToastMsg(null), 5000);
-          }
-        } catch {}
+      // B. Check GitHub Gist Cloud Inbox
+      try {
+        const gistRes = await githubGistSync.pullAndIngestGist();
+        if (gistRes.count > 0) {
+          setAutoToastMsg(`🐙 已自动从 GitHub 云信箱同步 ${gistRes.count} 笔新账单！`);
+          confetti({ particleCount: 80, spread: 60, origin: { y: 0.2 } });
+          setTimeout(() => setAutoToastMsg(null), 5000);
+          needsRefresh = true;
+        }
+      } catch {}
 
-        // 3. Check WebDAV Cloud Inbox (Fallback)
+      // C. Check WebDAV Cloud Inbox
+      try {
         const webDavCfg = localStore.getWebDavConfig();
         if (webDavCfg.url && webDavCfg.user && webDavCfg.pass) {
           const syncRes = await webdavSync.checkAndIngestInbox(webDavCfg);
@@ -202,17 +214,19 @@ export function App() {
             setAutoToastMsg(`☁️ 已自动同步 ${syncRes.ingestedCount} 笔快捷指令截图记账！`);
             confetti({ particleCount: 80, spread: 60, origin: { y: 0.2 } });
             setTimeout(() => setAutoToastMsg(null), 5000);
+            needsRefresh = true;
           }
         }
-      } catch (e: any) {
-        console.error(e);
-      } finally {
+      } catch {}
+
+      if (needsRefresh) {
         await loadAllData();
       }
     };
-    init();
 
-    // Re-check GitHub Gist / WebDAV and data when switching back to app
+    runBackgroundSync();
+
+    // Re-check GitHub Gist / WebDAV when switching back to app
     const handleVisibility = async () => {
       if (document.visibilityState === 'visible') {
         try {
@@ -221,27 +235,17 @@ export function App() {
             setAutoToastMsg(`🐙 已自动从 GitHub 云信箱同步 ${gistRes.count} 笔新账单！`);
             confetti({ particleCount: 80, spread: 60, origin: { y: 0.2 } });
             setTimeout(() => setAutoToastMsg(null), 5000);
+            await loadAllData();
           }
         } catch {}
-
-        const webDavCfg = localStore.getWebDavConfig();
-        if (webDavCfg.url && webDavCfg.user && webDavCfg.pass) {
-          try {
-            const syncRes = await webdavSync.checkAndIngestInbox(webDavCfg);
-            if (syncRes.ingestedCount > 0) {
-              setAutoToastMsg(`☁️ 已自动同步 ${syncRes.ingestedCount} 笔快捷指令截图记账！`);
-              confetti({ particleCount: 80, spread: 60, origin: { y: 0.2 } });
-              setTimeout(() => setAutoToastMsg(null), 5000);
-            }
-          } catch {}
-        }
-        loadAllData();
       }
     };
-    window.addEventListener('visibilitychange', handleVisibility);
+
+    document.addEventListener('visibilitychange', handleVisibility);
     window.addEventListener('focus', handleVisibility);
+
     return () => {
-      window.removeEventListener('visibilitychange', handleVisibility);
+      document.removeEventListener('visibilitychange', handleVisibility);
       window.removeEventListener('focus', handleVisibility);
     };
   }, []);
