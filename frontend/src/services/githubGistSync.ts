@@ -204,21 +204,31 @@ export const githubGistSync = {
       const item = rawList[idx];
       if (!item) continue;
 
-      let numAmt = parseFloat(String(item.amount || '0'));
+      let numAmt = Math.abs(parseFloat(String(item.amount || '0')));
       let merchant = item.merchant || '';
       let catName = item.category || '';
       let dateStr = item.date || getBeijingDateTimeString();
+      let targetAccountId = defaultAccount.id;
+
+      const channel = item.channel || item.account || '';
+      if (/支付宝|花呗|余额宝/.test(channel)) {
+        const alipayAcc = accounts.find(a => a.name && (a.name.includes('支付宝') || a.name.includes('花呗'))) || accounts.find(a => a.id === 'acc-2');
+        if (alipayAcc) targetAccountId = alipayAcc.id;
+      } else if (/微信|零钱/.test(channel)) {
+        const wxAcc = accounts.find(a => a.name && (a.name.includes('微信') || a.name.includes('零钱'))) || accounts.find(a => a.id === 'acc-1');
+        if (wxAcc) targetAccountId = wxAcc.id;
+      }
 
       const rawText = item.raw_text || item['键'] || item.text || (typeof item === 'string' ? item : '');
 
-      if ((!numAmt || numAmt <= 0) && rawText) {
+      if ((isNaN(numAmt) || numAmt <= 0) && rawText) {
         // 1. Try AI parsing first (if enabled)
         const aiConfig = localStore.getAiConfig();
         if (aiConfig.enabled && aiConfig.apiKey && aiConfig.apiKey.trim()) {
           try {
             const aiRes = await parseWithAi(rawText, accounts);
             if (aiRes && aiRes.amount && aiRes.amount > 0) {
-              numAmt = aiRes.amount;
+              numAmt = Math.abs(aiRes.amount);
               merchant = aiRes.merchant || merchant;
               catName = aiRes.suggested_category || catName;
             }
@@ -228,15 +238,18 @@ export const githubGistSync = {
         }
 
         // 2. Fallback to rule-based extraction
-        if (!numAmt || numAmt <= 0) {
+        if (isNaN(numAmt) || numAmt <= 0) {
           try {
             const extracted = await extractFromRawText(rawText, accounts);
             if (extracted.amount && extracted.amount > 0) {
-              numAmt = extracted.amount;
+              numAmt = Math.abs(extracted.amount);
               merchant = extracted.merchant || merchant;
               catName = extracted.category || catName;
               if (extracted.date) {
                 dateStr = extracted.date;
+              }
+              if (extracted.accountId) {
+                targetAccountId = extracted.accountId;
               }
             }
           } catch (extErr: any) {
@@ -245,7 +258,7 @@ export const githubGistSync = {
         }
       }
 
-      if (!numAmt || numAmt <= 0) {
+      if (isNaN(numAmt) || numAmt <= 0) {
         errors.push(`条目[${idx}]: 金额为0，跳过`);
         continue;
       }
@@ -281,7 +294,7 @@ export const githubGistSync = {
         await api.createTransaction({
           type: item.type === 'income' ? 'income' : 'expense',
           amount: Math.abs(numAmt),
-          account_id: defaultAccount.id,
+          account_id: targetAccountId,
           category_id: matchedCat?.id,
           category_name: catName,
           date: dateStr,
