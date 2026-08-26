@@ -118,6 +118,16 @@ export interface Debt {
   notes?: string;
   progress_percentage: number;
   remaining_months?: number;
+  total_installments?: number;
+  current_installment?: number;
+  target_month?: string;
+  is_repaid_this_month?: boolean;
+}
+
+export interface MonthlyPlanConfig {
+  expected_salary: number;
+  additional_income?: number;
+  include_installments_in_budget?: boolean;
 }
 
 export interface Goal {

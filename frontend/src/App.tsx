@@ -19,6 +19,7 @@ import { AccountsPage } from './pages/AccountsPage';
 import { TransactionsPage } from './pages/TransactionsPage';
 import { SmartParserPage } from './pages/SmartParserPage';
 import { BudgetsPage } from './pages/BudgetsPage';
+import { MonthlyPlannerPage } from './pages/MonthlyPlannerPage';
 import { InvestmentsPage } from './pages/InvestmentsPage';
 import { DebtsPage } from './pages/DebtsPage';
 import { AnalyticsPage } from './pages/AnalyticsPage';
@@ -411,6 +412,18 @@ export function App() {
                   budgets={budgets}
                   categories={categories}
                   onRefresh={loadAllData}
+                />
+              )}
+
+              {currentPage === 'planner' && (
+                <MonthlyPlannerPage
+                  debts={debts}
+                  budgets={budgets}
+                  transactions={transactions}
+                  categories={categories}
+                  onRefresh={loadAllData}
+                  onNavigate={(p) => setCurrentPage(p as any)}
+                  onOpenAiChat={() => setAiChatOpen(true)}
                 />
               )}
 

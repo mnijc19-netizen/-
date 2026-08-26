@@ -145,6 +145,22 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </div>
           </div>
         </div>
+
+        {/* Quick Link to Monthly Cashflow & Installment Planner */}
+        <button
+          type="button"
+          onClick={() => onNavigateTo('planner')}
+          className="w-full mt-2.5 pt-2 border-t border-white/15 flex items-center justify-between text-xs text-indigo-100 hover:text-white transition group"
+        >
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-white/15 font-bold">规划</span>
+            <span className="text-[11px] truncate">月度资金规划与分期还款大厅</span>
+          </div>
+          <div className="flex items-center gap-1 text-[10px] font-bold text-emerald-300 group-hover:translate-x-0.5 transition-transform flex-shrink-0">
+            <span>测算自由现金流</span>
+            <ArrowRight className="w-3 h-3" />
+          </div>
+        </button>
       </div>
 
       {/* 2. Recent Transactions Ledger (Clean, immediate and uncluttered) */}

@@ -403,6 +403,18 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
           <button
             type="button"
+            onClick={() => onNavigate?.('planner')}
+            className="p-3 rounded-2xl bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-100 dark:border-emerald-900/40 text-left hover:border-emerald-400 active:scale-95 transition space-y-1 group"
+          >
+            <div className="w-8 h-8 rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center group-hover:scale-105 transition">
+              <Calendar className="w-4 h-4" />
+            </div>
+            <div className="text-xs font-bold text-slate-900 dark:text-white">📅 月度资金规划</div>
+            <div className="text-[10px] text-slate-400">工资/分期应还/自由资金</div>
+          </button>
+
+          <button
+            type="button"
             onClick={() => onNavigate?.('budgets')}
             className="p-3 rounded-2xl bg-blue-50/60 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900/40 text-left hover:border-blue-400 active:scale-95 transition space-y-1 group"
           >

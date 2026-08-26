@@ -40,6 +40,7 @@ import { localStore, AiConfig } from '../services/localStore';
 import { sendAgentMessage, cleanRepetitiveText } from '../services/aiAgent';
 import { getBeijingDateTimeString, getBeijingDateString } from '../utils/dateUtils';
 import { refreshInvestmentQuotes, resolveSecurityCode } from '../services/marketData';
+import { calculateMonthlyCashflowPlan, saveMonthlyPlanConfig } from '../services/repaymentScheduler';
 import { optimizeImagesBatch } from '../services/imageOptimizer';
 import { BrandLogo, detectBrandType } from './BrandLogo';
 import { AI_PROVIDERS } from '../services/aiParser';
@@ -468,16 +469,22 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
           }
         };
       }
-      // 6. Debt
+      // 6. Debt & Installments
       else if (act.type === 'create_debt') {
         const p = act.payload;
+        const tot = parseFloat(p.total_principal) || 1000;
+        const periods = parseInt(p.total_installments) || 1;
+        const monthly = parseFloat(p.monthly_payment) || (periods > 1 ? Number((tot / periods).toFixed(2)) : tot);
         const createdDebt = await api.addDebt({
-          name: p.name || '消费信贷负债',
-          type: p.type || 'baitiao',
-          total_principal: parseFloat(p.total_principal) || 1000,
-          remaining_principal: parseFloat(p.remaining_principal) || parseFloat(p.total_principal) || 1000,
+          name: p.name || '消费分期账单',
+          type: p.type || 'huabei',
+          total_principal: tot,
+          remaining_principal: parseFloat(p.remaining_principal) || tot,
+          total_installments: periods,
+          current_installment: parseInt(p.current_installment) || 1,
+          monthly_payment: monthly,
+          repay_day: parseInt(p.repay_day) || 10,
           interest_rate_annual: parseFloat(p.interest_rate_annual) || 0,
-          monthly_payment: parseFloat(p.monthly_payment) || 0,
           start_date: getBeijingDateString(),
           end_date: '2026-12-31',
           account_id: accounts[0]?.id || 'acc-1',
@@ -487,6 +494,36 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
           type: 'debt_created',
           data: createdDebt
         };
+      }
+      // 6.1 Set Monthly Income Plan
+      else if (act.type === 'set_monthly_income_plan') {
+        const p = act.payload;
+        const salary = parseFloat(p.expected_salary) || 8000;
+        const addInc = parseFloat(p.additional_income) || 0;
+        const cfg = saveMonthlyPlanConfig({ expected_salary: salary, additional_income: addInc });
+        actionResult = {
+          type: 'monthly_plan_set',
+          data: cfg
+        };
+      }
+      // 6.2 Mark Debt Repaid
+      else if (act.type === 'mark_debt_repaid') {
+        const p = act.payload;
+        const dName = (p.debt_name || '').toLowerCase();
+        const currentDebts = localStore.getDebts();
+        const target = currentDebts.find(d => d.name.toLowerCase().includes(dName) || dName.includes(d.name.toLowerCase()));
+        if (target) {
+          const updated = await api.updateDebt(target.id, { is_repaid_this_month: p.is_repaid !== false });
+          actionResult = {
+            type: 'debt_repaid_marked',
+            data: updated
+          };
+        } else {
+          actionResult = {
+            type: 'debt_repaid_marked',
+            data: { name: p.debt_name || '分期账单', is_repaid_this_month: true }
+          };
+        }
       }
       // 7. Budget
       else if (act.type === 'set_budget') {
@@ -809,14 +846,20 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
         if (act.type === 'navigate_to' && act.payload?.page) {
           const pageMap: Record<string, string> = {
             dashboard: '首页', accounts: '资产账户', transactions: '记账明细',
-            budgets: '月度预算', goals: '存钱目标', analytics: '财务图表',
-            investments: '投资持仓', debts: '负债信贷', settings: '系统设置'
+            budgets: '月度预算', planner: '月度资金规划与分期大厅', goals: '存钱目标', 
+            analytics: '财务图表', investments: '投资持仓', debts: '负债信贷', settings: '系统设置'
           };
           actionResult = {
             type: 'navigated',
             data: { page: act.payload.page, pageName: pageMap[act.payload.page] || act.payload.page }
           };
           onNavigate?.(act.payload.page);
+        } else if (act.type === 'get_monthly_cashflow_plan') {
+          const plan = calculateMonthlyCashflowPlan(debts, budgets, transactions);
+          actionResult = {
+            type: 'cashflow_plan_retrieved',
+            data: plan
+          };
         } else if (act.type === 'export_data') {
           const data = await api.exportBackup();
           const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -1499,7 +1542,7 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
                       </div>
                     )}
 
-                    {/* Debt Staging Card */}
+                    {/* Debt & Installment Staging Card */}
                     {m.pendingAction.type === 'create_debt' && (
                       <div className="space-y-2 bg-white/90 dark:bg-slate-900/90 p-3 rounded-2xl border border-rose-300 dark:border-rose-700 text-xs">
                         <div className="flex items-center gap-1.5 font-black text-rose-900 dark:text-rose-200">
@@ -1508,17 +1551,17 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
                         </div>
                         <div className="grid grid-cols-2 gap-2">
                           <div>
-                            <label className="text-[9px] text-slate-400 block mb-0.5">负债名称</label>
+                            <label className="text-[9px] text-slate-400 block mb-0.5">账单/平台名称</label>
                             <input
                               type="text"
                               value={m.pendingAction.payload.name || ''}
                               onChange={(e) => handleUpdatePendingField(m.id, 'name', e.target.value)}
-                              placeholder="京东白条分期"
+                              placeholder="花呗分期 / 京东白条"
                               className="w-full px-2 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold text-xs"
                             />
                           </div>
                           <div>
-                            <label className="text-[9px] text-slate-400 block mb-0.5">待还本金 (¥)</label>
+                            <label className="text-[9px] text-slate-400 block mb-0.5">总金额 (¥)</label>
                             <input
                               type="number"
                               step="any"
@@ -1526,6 +1569,76 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
                               onChange={(e) => handleUpdatePendingField(m.id, 'total_principal', parseFloat(e.target.value) || 0)}
                               className="w-full px-2 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono font-black text-xs text-rose-600 dark:text-rose-400 text-right"
                             />
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2 pt-1">
+                          <div>
+                            <label className="text-[9px] text-slate-400 block mb-0.5">分期期数</label>
+                            <input
+                              type="number"
+                              min="1"
+                              value={m.pendingAction.payload.total_installments ?? 1}
+                              onChange={(e) => handleUpdatePendingField(m.id, 'total_installments', parseInt(e.target.value) || 1)}
+                              className="w-full px-2 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono text-xs text-center"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[9px] text-slate-400 block mb-0.5">每期月供 (¥)</label>
+                            <input
+                              type="number"
+                              step="any"
+                              value={m.pendingAction.payload.monthly_payment ?? ''}
+                              onChange={(e) => handleUpdatePendingField(m.id, 'monthly_payment', parseFloat(e.target.value) || 0)}
+                              placeholder="自动计算"
+                              className="w-full px-2 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono text-xs text-right font-bold text-rose-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[9px] text-slate-400 block mb-0.5">还款日(号)</label>
+                            <input
+                              type="number"
+                              min="1"
+                              max="31"
+                              value={m.pendingAction.payload.repay_day ?? 10}
+                              onChange={(e) => handleUpdatePendingField(m.id, 'repay_day', parseInt(e.target.value) || 10)}
+                              className="w-full px-2 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono text-xs text-center font-bold text-indigo-500"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Set Monthly Salary Staging Card */}
+                    {m.pendingAction.type === 'set_monthly_income_plan' && (
+                      <div className="space-y-2 bg-white/90 dark:bg-slate-900/90 p-3 rounded-2xl border border-emerald-300 dark:border-emerald-700 text-xs">
+                        <div className="flex items-center gap-1.5 font-black text-emerald-900 dark:text-emerald-200">
+                          <Calendar className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                          <span>💼 每月基准工资与入账规划待设定：</span>
+                        </div>
+                        <div>
+                          <label className="text-[9px] text-slate-400 block mb-0.5">预计每月到手工资 (¥)</label>
+                          <input
+                            type="number"
+                            step="any"
+                            value={m.pendingAction.payload.expected_salary ?? ''}
+                            onChange={(e) => handleUpdatePendingField(m.id, 'expected_salary', parseFloat(e.target.value) || 0)}
+                            placeholder="例如 8500"
+                            className="w-full px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-emerald-300 dark:border-emerald-700 font-mono font-black text-sm text-emerald-600 dark:text-emerald-400 text-right"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Mark Debt Repaid Staging Card */}
+                    {m.pendingAction.type === 'mark_debt_repaid' && (
+                      <div className="p-3 rounded-2xl bg-white/90 dark:bg-slate-900/90 border border-teal-300 dark:border-teal-700 text-xs flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Check className="w-4 h-4 text-teal-600" />
+                          <div>
+                            <div className="font-bold text-slate-900 dark:text-white">
+                              标记【{m.pendingAction.payload.debt_name}】当月已结清
+                            </div>
+                            <div className="text-[10px] text-slate-400">将本月应还额度释放为自由现金流</div>
                           </div>
                         </div>
                       </div>
@@ -1734,6 +1847,149 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
                     </div>
                   </div>
                 )}
+
+                {/* 1. Debt & Installment Created Result */}
+                {m.actionResult && m.actionResult.type === 'debt_created' && (
+                  <div className="mt-2.5 p-3 rounded-2xl bg-gradient-to-r from-rose-50 to-purple-50 dark:from-rose-950/50 dark:to-purple-950/50 border border-rose-300 dark:border-rose-700 text-rose-950 dark:text-rose-200 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 font-bold text-xs">
+                        <CreditCard className="w-4 h-4 text-rose-600 flex-shrink-0" />
+                        <span>💳 分期账单已成功录入负债日程！</span>
+                      </div>
+                      <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-rose-200/60 dark:bg-rose-900/60 text-rose-800 dark:text-rose-300">
+                        {m.actionResult.data.name}
+                      </span>
+                    </div>
+                    <div className="p-2 bg-white/80 dark:bg-slate-900/80 rounded-xl border border-rose-100 dark:border-rose-800/50 text-xs flex items-center justify-between">
+                      <div>
+                        <div className="font-bold text-slate-900 dark:text-white">
+                          总金额: ¥{m.actionResult.data.total_principal.toFixed(2)}
+                          {m.actionResult.data.total_installments > 1 && (
+                            <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300">
+                              共{m.actionResult.data.total_installments}期
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[10px] text-slate-400 font-mono mt-0.5">
+                          每月{m.actionResult.data.repay_day || 10}号还款 • 每期月供 ¥{m.actionResult.data.monthly_payment.toFixed(2)}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onClose();
+                          onNavigate?.('planner');
+                        }}
+                        className="px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-bold text-[10px] transition"
+                      >
+                        去资金大厅查看
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* 2. Monthly Salary Set Result */}
+                {m.actionResult && m.actionResult.type === 'monthly_plan_set' && (
+                  <div className="mt-2.5 p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-300 dark:border-emerald-700 text-emerald-950 dark:text-emerald-200 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 font-bold text-xs">
+                        <Calendar className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                        <span>💼 每月基准到手工资与收入规划已更新！</span>
+                      </div>
+                      <span className="text-xs font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                        ¥{m.actionResult.data.expected_salary.toFixed(2)}/月
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
+                      <span>系统已将该收入自动联动至月度自由现金流测算</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onClose();
+                          onNavigate?.('planner');
+                        }}
+                        className="text-emerald-600 dark:text-emerald-400 font-bold hover:underline"
+                      >
+                        前往规划大厅 ➔
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* 3. Debt Repaid Marked Result */}
+                {m.actionResult && m.actionResult.type === 'debt_repaid_marked' && (
+                  <div className="mt-2.5 p-2.5 rounded-xl bg-teal-50 dark:bg-teal-950/50 border border-teal-300 dark:border-teal-700 text-teal-900 dark:text-teal-200 flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-1.5 font-bold">
+                      <CheckCircle2 className="w-4 h-4 text-teal-600" />
+                      <span>✅ 【{m.actionResult.data.name}】已成功标记为当月结清！</span>
+                    </div>
+                    <span className="text-[10px] text-teal-700 dark:text-teal-300 font-bold">现金流已释放</span>
+                  </div>
+                )}
+
+                {/* 4. Cashflow Plan Diagnosis Result */}
+                {m.actionResult && m.actionResult.type === 'cashflow_plan_retrieved' && (
+                  <div className="mt-2.5 p-3 rounded-2xl bg-gradient-to-br from-indigo-900 to-slate-900 text-white border border-indigo-500/30 shadow-md space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-indigo-200">
+                        <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+                        <span>{m.actionResult.data.period} 月度资金与现金流诊断</span>
+                      </div>
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/10 font-bold">
+                        {m.actionResult.data.healthMessage}
+                      </span>
+                    </div>
+                    <div className="p-2.5 rounded-xl bg-white/10 flex items-center justify-between">
+                      <div>
+                        <div className="text-[10px] text-indigo-200">本月预计剩余安全自由资金</div>
+                        <div className="text-lg font-mono font-black text-emerald-400">
+                          ¥{m.actionResult.data.safeFreeCashflow.toFixed(2)}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onClose();
+                          onNavigate?.('planner');
+                        }}
+                        className="px-2.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[11px] transition shadow"
+                      >
+                        查看详细规划 ➔
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-3 gap-1.5 text-[10px] text-center pt-1 border-t border-white/10">
+                      <div>
+                        <div className="text-slate-400">预计入账</div>
+                        <div className="font-mono font-bold text-emerald-300">¥{m.actionResult.data.totalIncome.toFixed(0)}</div>
+                      </div>
+                      <div>
+                        <div className="text-slate-400">本月信贷待还</div>
+                        <div className="font-mono font-bold text-rose-300">¥{m.actionResult.data.thisMonthDueAmount.toFixed(0)}</div>
+                      </div>
+                      <div>
+                        <div className="text-slate-400">日常已花</div>
+                        <div className="font-mono font-bold text-amber-300">¥{m.actionResult.data.livingExpensesSpent.toFixed(0)}</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 5. Navigated Result Card */}
+                {m.actionResult && m.actionResult.type === 'navigated' && (
+                  <div className="mt-2.5 p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-1.5 font-bold text-slate-700 dark:text-slate-300">
+                      <ArrowRight className="w-3.5 h-3.5 text-indigo-500" />
+                      <span>已带你前往【{m.actionResult.data.pageName}】页面</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => onClose()}
+                      className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold hover:underline"
+                    >
+                      关闭弹窗查看
+                    </button>
+                  </div>
+                )}
               </div>
               <span className="text-[9px] text-slate-400 px-1">
                 {m.timestamp}
@@ -1777,7 +2033,26 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
         )}
 
         {/* Input Bar */}
-        <div className="p-3 sm:p-4 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900">
+        <div className="p-3 sm:p-4 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-2">
+          {/* Quick Action Suggestion Chips */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none text-[11px]">
+            {[
+              '📅 测算我这个月还剩多少钱能花？',
+              '💳 记花呗分期1200元分3期每月9号还400',
+              '💼 把我每月预计工资设为8500元',
+              '带我去月度资金规划大厅'
+            ].map((chip, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => handleSend(chip)}
+                className="flex-shrink-0 px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-purple-50 hover:text-purple-600 dark:hover:bg-purple-950/40 dark:hover:text-purple-300 text-slate-600 dark:text-slate-300 transition active:scale-95 border border-slate-200/60 dark:border-slate-700/60 font-medium"
+              >
+                {chip}
+              </button>
+            ))}
+          </div>
+
           <form
             onSubmit={(e) => {
               e.preventDefault();

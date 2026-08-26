@@ -19,6 +19,7 @@ export type PageId =
   | 'transactions'
   | 'parser'
   | 'budgets'
+  | 'planner'
   | 'investments'
   | 'debts'
   | 'analytics'

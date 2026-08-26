@@ -412,7 +412,11 @@ export const api = {
   addDebt: async (data: Partial<Debt>): Promise<Debt> => {
     const debts = localStore.getDebts();
     const tot = data.total_principal || 0;
-    const rem = data.remaining_principal || 0;
+    const rem = typeof data.remaining_principal === 'number' ? data.remaining_principal : tot;
+    const totalInst = data.total_installments || 1;
+    const currInst = data.current_installment || 1;
+    const monthlyPay = data.monthly_payment || (totalInst > 1 ? Number((tot / totalInst).toFixed(2)) : rem);
+
     const newD: Debt = {
       id: generateUniqueId('debt'),
       name: data.name || '新负债',
@@ -420,14 +424,26 @@ export const api = {
       total_principal: tot,
       remaining_principal: rem,
       interest_rate_annual: data.interest_rate_annual || 0,
-      monthly_payment: data.monthly_payment || 0,
+      monthly_payment: monthlyPay,
       bill_day: data.bill_day,
-      repay_day: data.repay_day,
+      repay_day: data.repay_day || 10,
+      total_installments: totalInst,
+      current_installment: currInst,
+      target_month: data.target_month,
+      is_repaid_this_month: !!data.is_repaid_this_month,
       progress_percentage: tot > 0 ? ((tot - rem) / tot) * 100 : 0
     };
     debts.push(newD);
     localStore.saveDebts(debts);
     return newD;
+  },
+  updateDebt: async (id: string, patch: Partial<Debt>): Promise<Debt> => {
+    const debts = localStore.getDebts();
+    const idx = debts.findIndex(d => d.id === id);
+    if (idx === -1) throw new Error('负债记录不存在');
+    debts[idx] = { ...debts[idx], ...patch };
+    localStore.saveDebts(debts);
+    return debts[idx];
   },
   deleteDebt: async (id: string) => {
     const debts = localStore.getDebts().filter(d => d.id !== id);

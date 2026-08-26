@@ -33,6 +33,8 @@ export const DebtsPage: React.FC<DebtsPageProps> = ({ debts, accounts, onRefresh
   const [monthlyPayment, setMonthlyPayment] = useState('');
   const [billDay, setBillDay] = useState('10');
   const [repayDay, setRepayDay] = useState('28');
+  const [totalInstallments, setTotalInstallments] = useState('1');
+  const [currentInstallment, setCurrentInstallment] = useState('1');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -54,7 +56,9 @@ export const DebtsPage: React.FC<DebtsPageProps> = ({ debts, accounts, onRefresh
         interest_rate_annual: parseFloat(interestRate) || 0,
         monthly_payment: parseFloat(monthlyPayment) || 0,
         bill_day: parseInt(billDay) || 1,
-        repay_day: parseInt(repayDay) || 20
+        repay_day: parseInt(repayDay) || 20,
+        total_installments: parseInt(totalInstallments) || 1,
+        current_installment: parseInt(currentInstallment) || 1
       });
       setModalOpen(false);
       setName('');
@@ -165,12 +169,21 @@ export const DebtsPage: React.FC<DebtsPageProps> = ({ debts, accounts, onRefresh
                 </div>
               </div>
 
-              {d.type === 'credit_card' && (
-                <div className="p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-xs text-rose-700 dark:text-rose-300 flex items-center justify-between">
-                  <span>账单日: 每月 {d.bill_day} 日</span>
-                  <span>还款日: 每月 {d.repay_day} 日</span>
+              <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-300 flex items-center justify-between">
+                <div className="flex items-center gap-1.5 font-mono">
+                  {d.total_installments && d.total_installments > 1 ? (
+                    <span className="px-1.5 py-0.5 rounded bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 font-bold text-[10px]">
+                      分期 {d.current_installment || 1}/{d.total_installments} 期
+                    </span>
+                  ) : (
+                    <span className="text-slate-400">单期消费</span>
+                  )}
+                  {d.bill_day && <span className="text-[11px] text-slate-400">出账:{d.bill_day}号</span>}
                 </div>
-              )}
+                <div className="font-mono text-emerald-600 dark:text-emerald-400 font-bold">
+                  每月 {d.repay_day || 10} 号还款
+                </div>
+              </div>
             </div>
           ))}
         </div>
@@ -356,6 +369,41 @@ export const DebtsPage: React.FC<DebtsPageProps> = ({ debts, accounts, onRefresh
                     value={remainingPrincipal}
                     onChange={(e) => setRemainingPrincipal(e.target.value)}
                     className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-mono font-bold"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-slate-500 block mb-1">分期总期数</label>
+                  <select
+                    value={totalInstallments}
+                    onChange={(e) => {
+                      setTotalInstallments(e.target.value);
+                      const periods = parseInt(e.target.value) || 1;
+                      const tot = parseFloat(totalPrincipal) || 0;
+                      if (periods > 1 && tot > 0) {
+                        setMonthlyPayment((tot / periods).toFixed(2));
+                      }
+                    }}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
+                  >
+                    <option value="1">单期 (全额结清)</option>
+                    <option value="3">3 期</option>
+                    <option value="6">6 期</option>
+                    <option value="12">12 期 (1年)</option>
+                    <option value="24">24 期 (2年)</option>
+                    <option value="36">36 期 (3年)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-slate-500 block mb-1">当前进行到第几期</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={currentInstallment}
+                    onChange={(e) => setCurrentInstallment(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-mono"
                   />
                 </div>
               </div>

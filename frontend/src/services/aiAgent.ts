@@ -241,16 +241,60 @@ export const FINANCIAL_AGENT_TOOLS: any[] = [
     type: 'function',
     function: {
       name: 'create_debt',
-      description: '录入借贷或分期负债',
+      description: '录入借贷、分期账单或信贷还款（如 蚂蚁花呗分期、京东白条、美团月付、信用卡分期、房贷、车贷、网贷等）',
       parameters: {
         type: 'object',
         properties: {
-          name: { type: 'string', description: '负债名称，如 房贷、车贷、个人借款' },
-          total_principal: { type: 'number', description: '借款总本金' },
-          monthly_payment: { type: 'number', description: '每月月供金额' },
-          type: { type: 'string', enum: ['mortgage', 'car_loan', 'personal_loan', 'credit_card_stage', 'other'], description: '负债类别' }
+          name: { type: 'string', description: '账单或负债名称，如 蚂蚁花呗分期、京东白条账单、美团月付、手机分期' },
+          total_principal: { type: 'number', description: '借款/账单总本金或总分期金额' },
+          total_installments: { type: 'number', description: '分期总期数，如 3, 6, 12, 24（若无分期则为 1）' },
+          current_installment: { type: 'number', description: '当前第几期，默认 1' },
+          monthly_payment: { type: 'number', description: '每月应还金额/每期月供（若未提供则自动由总额除以期数）' },
+          repay_day: { type: 'number', description: '每月固定还款日 (1-31)，如 花呗为9号/10号，白条为10号/20号' },
+          type: { type: 'string', enum: ['huabei', 'baitiao', 'meituan_pay', 'douyin_pay', 'credit_card', 'mortgage', 'car_loan', 'personal_loan', 'jiebei', 'fenfu', 'other'], description: '负债类别' }
         },
         required: ['name', 'total_principal']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'set_monthly_income_plan',
+      description: '设定或修改每月基准工资与预计收入规划（用于测算月度安全自由现金流）',
+      parameters: {
+        type: 'object',
+        properties: {
+          expected_salary: { type: 'number', description: '每月预计固定到手工资/薪资（元），如 8500' },
+          additional_income: { type: 'number', description: '额外预计固定收入（元，可选）' }
+        },
+        required: ['expected_salary']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'mark_debt_repaid',
+      description: '一键标记某笔分期或账单在当月已还清/已结清',
+      parameters: {
+        type: 'object',
+        properties: {
+          debt_name: { type: 'string', description: '账单或负债名称，如 花呗、京东白条' },
+          is_repaid: { type: 'boolean', description: '是否已还清，默认 true' }
+        },
+        required: ['debt_name']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_monthly_cashflow_plan',
+      description: '诊断与查询当月完整的现金流健康度规划（预计总收入、本月信贷应还、日常消费已花、预留预算与真正剩余安全自由资金）',
+      parameters: {
+        type: 'object',
+        properties: {}
       }
     }
   },
@@ -310,7 +354,7 @@ export const FINANCIAL_AGENT_TOOLS: any[] = [
       parameters: {
         type: 'object',
         properties: {
-          page: { type: 'string', enum: ['dashboard', 'accounts', 'transactions', 'budgets', 'goals', 'analytics', 'investments', 'debts', 'settings'], description: '目标页面路由' }
+          page: { type: 'string', enum: ['dashboard', 'accounts', 'transactions', 'budgets', 'planner', 'goals', 'analytics', 'investments', 'debts', 'settings'], description: '目标页面路由' }
         },
         required: ['page']
       }
@@ -407,6 +451,12 @@ export async function sendAgentMessage(
 【工具调用选择铁律】：
 1. 当且仅当用户输入中包含 2 笔或 2 笔以上的收支流水时，【必须且只能调用 batch_create_transactions 工具】一次性记录所有交易，严禁调用单笔 create_transaction！
 2. 只有明确仅有 1 笔消费时才调用单笔 create_transaction。
+3. 当用户涉及月度资金规划与分期还款时：
+   - 设定/调整预计月薪或收入（如“把每月工资设为8500”）：【必须调用 set_monthly_income_plan 工具】。
+   - 录入花呗/白条/消费分期（如“记一笔花呗分期1200元分3期每月9号还400”）：【必须调用 create_debt 工具】，并准确填入 total_installments（总期数）、current_installment（当前期数）、repay_day（每月还款日）与 monthly_payment。
+   - 标记当期还款结清（如“把花呗标记为本月已还”）：【必须调用 mark_debt_repaid 工具】。
+   - 诊断/查询当月现金流与还能花多少（如“我这个月还能花多少钱？还要还多少花呗？”）：【必须调用 get_monthly_cashflow_plan 工具】。
+   - 页面跳转（如“带我去资金大厅/看看规划”）：调用 navigate_to(page='planner')。
 
 【顶级真实场景视觉识别铁律】：
 1. 🦘【美团月付 (meituan_pay)】：
