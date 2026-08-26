@@ -177,6 +177,17 @@ export const githubGistSync = {
       return { count: 0, items: [], message: '❌ 信箱数据格式无法识别（既非 JSON 也无法通过正则提取）' };
     }
 
+    // Direct Vision AI Response Unpacking (If Shortcut sends GLM-4.6V output directly)
+    if (parsed.choices && parsed.choices[0]?.message?.content) {
+      try {
+        const innerContent = parsed.choices[0].message.content.trim();
+        const jsonMatch = innerContent.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          parsed = [JSON.parse(jsonMatch[0])];
+        }
+      } catch {}
+    }
+
     const rawList: any[] = Array.isArray(parsed) ? parsed : (parsed.items || [parsed]);
     if (!rawList || rawList.length === 0) {
       return { count: 0, items: [], message: '☁️ 信箱解析成功但列表为空' };
