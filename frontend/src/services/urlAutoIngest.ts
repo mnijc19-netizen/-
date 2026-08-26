@@ -208,7 +208,7 @@ export function extractFromRawText(text: string, accounts: any[] = []): { amount
   let targetAccId: string | undefined;
 
   // 1. Explicit merchant prefix extraction
-  const explicitMerchantMatch = rawClean.match(/(?:商户名称|交易对方|收款方|收款人|商家|交易商户|店铺名称)[:：]\s*([^\n\r]+)/);
+  const explicitMerchantMatch = rawClean.match(/(?:商户名称|交易对方|收款方|收款人|商家|交易商户|店铺名称|商户|收款方全称)[:：]\s*([^\n\r]+)/);
   if (explicitMerchantMatch) {
     merchant = cleanMerchantName(explicitMerchantMatch[1]);
   }
@@ -216,7 +216,7 @@ export function extractFromRawText(text: string, accounts: any[] = []): { amount
   // 2. Channel Detection via robust scoring
   const isAlipay = /支付宝|花呗|借呗|余额宝|蚂蚁|全部账单|账单详情|支付奖励|淘|闪购|蜂鸟|饿了么/.test(rawClean);
   const isWechat = /微信支付|微信记账本|使用零钱支付|零钱通|微信/.test(rawClean);
-  const isBank = /招商银行|工商银行|建设银行|农业银行|中国银行|交通银行|信用卡|储蓄卡/.test(rawClean);
+  const isBank = /招商银行|工商银行|建设银行|农业银行|中国银行|交通银行|信用卡|储蓄卡|云闪付|银联/.test(rawClean);
 
   if (isAlipay) {
     const alipayAcc = accounts.find(a => a.name && (a.name.includes('支付宝') || a.name.includes('花呗'))) || accounts.find(a => a.id === 'acc-2');
@@ -229,12 +229,40 @@ export function extractFromRawText(text: string, accounts: any[] = []): { amount
     targetAccId = bankAcc?.id || 'acc-3';
   }
 
-  // 2.5. Absolute Priority: Payment Card / Auto-Debit / Single Transaction (Bottom-Up)
+  // 2.5 Priority 1: 实付金额 / 实付款 / 净实付款 / 优惠后实付 (e.g. 云闪付、美团、抖音、淘宝)
+  const paidMatch = rawClean.match(/(?:实付金额|实付款|实付|净支付|净额|已扣款|实收款)[:：]?\s*[¥￥$]?\s*(\d+(?:\.\d{1,2})?)/);
+  if (paidMatch) {
+    amount = parseFloat(paidMatch[1]);
+  }
+
+  // 2.6 Priority 2: Bank SMS format (在[商户]消费/支出人民币[金额]元)
+  if (!amount) {
+    const smsMatch = rawClean.match(/(?:消费|支出|支出人民币|扣款|人民币|支付)[:：]?\s*[¥￥$]?\s*(\d+(?:\.\d{1,2})?)\s*元/);
+    if (smsMatch && !rawClean.includes('服务消息') && !rawClean.includes('支付消息')) {
+      amount = parseFloat(smsMatch[1]);
+      if (!merchant) {
+        const atMatch = rawClean.match(/在\s*[【\[]?([^】\]\n\r，,。\s]{2,25})[】\]]?\s*(?:刷卡|快捷|网银|扫码|消费|支出|扣款)/);
+        if (atMatch) merchant = cleanMerchantName(atMatch[1]);
+      }
+    }
+  }
+
+  // 2.7 Priority 3: Negative / Positive bill header (e.g. -14.05, -168.50, ¥458.20, ￥15.00)
+  if (!amount) {
+    for (const l of allLines) {
+      const m = l.match(/^[-－]?\s*[¥￥$]\s*(\d+\.\d{1,2})$/) || l.match(/^[-－]\s*(\d+\.\d{1,2})$/);
+      if (m) {
+        amount = parseFloat(m[1]);
+        break;
+      }
+    }
+  }
+
+  // 2.8 Priority 4: Payment Card / Auto-Debit / Single Transaction (Bottom-Up, e.g. ·14.90, ·7.90)
   if (!amount) {
     for (let i = allLines.length - 1; i >= 0; i--) {
       const line = allLines[i];
-      if (line.includes('使用零钱支付') || line.includes('零钱支付') || line.includes('零钱扣款') || line.includes('扣款') || line.includes('付款成功') || line.includes('支付成功') || line.includes('自动支付') || line.includes('订单已完成')) {
-        // Find amount (adjacent lines)
+      if (line.includes('使用零钱支付') || line.includes('零钱支付') || line.includes('零钱扣款') || line.includes('扣款') || line.includes('付款成功') || line.includes('支付成功') || line.includes('自动支付') || line.includes('订单已完成') || line.includes('交易成功') || line.includes('充值成功') || line.includes('刷卡消费')) {
         for (let j = i; j < Math.min(allLines.length, i + 4); j++) {
           const m = allLines[j].match(/(?:[·•・¥￥$]\s*|[-－]\s*)?(\d+\.\d{1,2})/);
           if (m && !allLines[j].includes('共') && !allLines[j].includes('已支出') && !allLines[j].includes('已入账') && !allLines[j].includes(':') && !allLines[j].includes('月')) {
@@ -242,122 +270,8 @@ export function extractFromRawText(text: string, accounts: any[] = []): { amount
             break;
           }
         }
-        // Find merchant (previous lines)
-        for (let k = i - 1; k >= Math.max(0, i - 5); k--) {
-          const p = allLines[k];
-          if (!p.includes('星期') && !p.includes(':') && !p.includes('>') && !p.includes('日报') && !p.includes('微信') && !p.includes('支出') && !p.includes('入账') && !p.includes('统计') && !p.includes('管理') && !p.includes('扣费') && p.length > 1) {
-            merchant = cleanMerchantName(p);
-            break;
-          }
-        }
-        if (amount > 0) break;
-      }
-    }
-  }
-
-  // 3. WeChat Daily Report (Bottom Up)
-  if (!amount && (rawClean.includes('微信记账本') || rawClean.includes('记账日报') || rawClean.includes('昨日支出'))) {
-    for (let i = allLines.length - 1; i >= 0; i--) {
-      const l = allLines[i];
-      if (l.includes('总支出') || l.includes('日报') || l.includes('共') || l.includes('已支出')) continue;
-      const m = l.match(/(.+?)\s*[-－¥￥$]\s*(\d+\.\d{1,2})/);
-      if (m) {
-        merchant = cleanMerchantName(m[1]);
-        amount = parseFloat(m[2]);
-        break;
-      }
-    }
-  }
-
-  // 4. Specialized Check: Bank SMS text (【招商银行】等)
-  if (!amount) {
-    const smsMatch = rawClean.match(/(?:支出|消费|扣款|转出|付款|人民币|RMB|支出\(消费\))\s*(?:人民币|RMB|[¥￥$])?\s*(\d+(?:\.\d{1,2})?)\s*元?/i);
-    if (smsMatch && !rawClean.includes('服务消息') && !rawClean.includes('支付消息') && !rawClean.includes('账单详情')) {
-      amount = parseFloat(smsMatch[1]);
-      const atMatch = rawClean.match(/在\s*[【\[]?([^】\]\n\r]+?)[】\]]?\s*(?:消费|支出|扣款|快捷)/);
-      if (atMatch) {
-        merchant = cleanMerchantName(atMatch[1]);
-      } else {
-        const bankNameMatch = rawClean.match(/【([^】]+)】/);
-        if (bankNameMatch) merchant = cleanMerchantName(bankNameMatch[1]);
-      }
-    }
-  }
-
-  // 5. Specialized Check: Food delivery / E-commerce Order Detail (e.g. 淘宝闪购 / 饿了么 / 美团实付)
-  if (!amount) {
-    const paidMatch = rawClean.match(/(?:实付|合计|应付|总计|实收款|实付款)\s*[:：]?\s*[¥￥$]?\s*(\d+(?:\.\d{1,2})?)/);
-    if (paidMatch) {
-      amount = parseFloat(paidMatch[1]);
-      if (!merchant) {
-        for (const line of allLines) {
-          if (line.includes('闪购') || line.includes('生鲜') || line.includes('生活服务') || (line.includes('店') && !line.includes('设置') && !line.includes('订单') && !line.includes('备注'))) {
-            merchant = cleanMerchantName(line);
-            break;
-          }
-        }
-      }
-    }
-  }
-
-  // 6. Specialized Check: Alipay Payment Messages List (支付消息列表 - 识别第一条最新付款)
-  if (!amount && (rawClean.includes('支付消息') || rawClean.includes('服务消息') || rawClean.includes('付款成功') || rawClean.includes('支付成功'))) {
-    const validLines: string[] = [];
-    for (let idx = 0; idx < allLines.length; idx++) {
-      const l = allLines[idx];
-      // Skip top monthly stat bars
-      if (l.includes('统计支出') || l.includes('本月支出') || l.includes('大额消费') || l.includes('自动扣款') || l.includes('分期付款')) {
-        continue;
-      }
-      if (l.includes('服务消息') || l.includes('支付消息')) {
-        continue;
-      }
-      validLines.push(l);
-    }
-
-    // Find the FIRST "付款成功" / "支付成功" / "扣款成功" from top to bottom
-    for (let i = 0; i < validLines.length; i++) {
-      const line = validLines[i];
-      if (line === '付款成功' || line.includes('付款成功') || line === '支付成功' || line.includes('支付成功') || line.includes('付款金额') || line.includes('扣款金额')) {
-        // Amount is immediately below
-        for (let j = i; j <= Math.min(validLines.length - 1, i + 2); j++) {
-          const amtM = validLines[j].match(/[¥￥$]?\s*(\d+\.\d{1,2})/);
-          if (amtM) {
-            amount = parseFloat(amtM[1]);
-            break;
-          }
-        }
-        // Merchant is immediately above
         if (!merchant) {
-          for (let k = i - 1; k >= Math.max(0, i - 4); k--) {
-            const prev = validLines[k];
-            if (!prev.includes('PM') && !prev.includes('AM') && !prev.includes(':') && !prev.includes('昨天') && !prev.includes('今天') && !prev.includes('支付成功') && !prev.includes('付款成功') && !prev.includes('扣款成功') && !prev.includes('行程结束') && !prev.includes('微信记账本') && !prev.includes('微信支付') && !prev.includes('时长') && !prev.includes('分钟') && prev.length > 1) {
-              merchant = cleanMerchantName(prev);
-              break;
-            }
-          }
-        }
-        if (amount > 0) break;
-      }
-    }
-  }
-
-  // 6.5. Specialized Priority: WeChat / Alipay Payment Card & Auto-Debit (e.g. 零钱支付, 自动支付, 扣款, 麦当劳, 拼多多)
-  if (!amount) {
-    for (let i = 0; i < allLines.length; i++) {
-      const line = allLines[i];
-      if (line.includes('使用零钱支付') || line.includes('零钱扣款') || line.includes('付款成功') || line.includes('支付成功') || line.includes('自动支付') || line.includes('订单已完成') || line.includes('扣款')) {
-        // Find amount in next 3 lines
-        for (let j = i + 1; j < Math.min(allLines.length, i + 4); j++) {
-          const m = allLines[j].match(/(?:[·•・¥￥$]\s*|[-－]\s*)?(\d+\.\d{1,2})/);
-          if (m && !allLines[j].includes('共') && !allLines[j].includes('已支出') && !allLines[j].includes('已入账') && !allLines[j].includes(':') && !allLines[j].includes('月')) {
-            amount = parseFloat(m[1]);
-            break;
-          }
-        }
-        // Find merchant in previous 4 lines
-        if (!merchant) {
-          for (let k = i - 1; k >= Math.max(0, i - 4); k--) {
+          for (let k = i - 1; k >= Math.max(0, i - 5); k--) {
             const p = allLines[k];
             if (!p.includes('星期') && !p.includes(':') && !p.includes('>') && !p.includes('日报') && !p.includes('微信') && !p.includes('支出') && !p.includes('入账') && !p.includes('统计') && !p.includes('管理') && !p.includes('扣费') && p.length > 1) {
               merchant = cleanMerchantName(p);
@@ -369,62 +283,12 @@ export function extractFromRawText(text: string, accounts: any[] = []): { amount
       }
     }
   }
-  if (!amount && (rawClean.includes('账单详情') || rawClean.includes('商品说明') || rawClean.includes('账单分类'))) {
-    const productDescMatch = rawClean.match(/商品说明\s*([^\n\r]+)/);
-    if (productDescMatch) {
-      merchant = cleanMerchantName(productDescMatch[1]);
-    }
 
-    for (let i = 0; i < allLines.length; i++) {
-      const line = allLines[i];
-      const match = line.match(/^[-－]?\s*[¥￥$]?\s*(\d+\.\d{1,2})$/);
-      if (match) {
-        amount = parseFloat(match[1]);
-        if (!merchant && i > 0) {
-          merchant = cleanMerchantName(allLines[i - 1]);
-        }
-        break;
-      }
-    }
-
-    const catMatch = rawClean.match(/账单分类\s*([^\n\r>]+)/);
-    if (catMatch) {
-      const rawCat = catMatch[1].trim();
-      if (/餐饮/.test(rawCat)) category = '餐饮美食';
-      else if (/百货|超市/.test(rawCat)) category = '日用百货';
-      else if (/交通|出行/.test(rawCat)) category = '交通出行';
-      else if (/购物/.test(rawCat)) category = '购物消费';
-    }
-
-    const timeMatch = rawClean.match(/支付时间\s*(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}(?::\d{2})?)/);
-    if (timeMatch) {
-      date = timeMatch[1].substring(0, 16);
-    }
-  }
-
-  // 8. Fallback: Search for any valid amount
-  if (!amount) {
-    for (let i = 0; i < allLines.length; i++) {
-      const l = allLines[i];
-      if (l.includes('积分') || l.includes('订单号') || l.includes('预计') || l.includes(':') || l.length > 15) continue;
-      const m = l.match(/(?:[·•・¥￥$]\s*|[-－]\s*)?(\d+\.\d{1,2})/);
-      if (m) {
-        const val = parseFloat(m[1]);
-        if (val > 0 && val < 1000000) {
-          amount = val;
-          if (!merchant && i > 0) {
-            merchant = cleanMerchantName(allLines[i - 1]);
-          }
-          break;
-        }
-      }
-    }
-  }
-
-  if (!merchant || merchant === '日常消费' || merchant === '消费' || merchant === '支付成功' || merchant === '付款成功' || merchant === '商户消费' || merchant === '快车' || merchant === '美团平台商户' || merchant === '淘宝平台商户' || merchant === '支付宝消费' || merchant === '微信商户消费' || merchant.includes('分钟') || merchant === '行程结束') {
+  // 3. Known Brands Fallback
+  if (!merchant || merchant === '日常消费' || merchant === '消费' || merchant === '支付成功' || merchant === '付款成功' || merchant === '商户消费' || merchant === '快车' || merchant === '美团平台商户' || merchant === '淘宝平台商户' || merchant === '支付宝消费' || merchant === '微信商户消费' || merchant.includes('分钟') || merchant === '行程结束' || merchant.startsWith('￥') || merchant.startsWith('¥')) {
     const brands = [
-      "铁路12306", "中国铁路", "12306", "中国石化", "中国电信", "中国移动", "中国联通", "万亩良田生鲜超市", "万亩良田", "抖音生活服务", 
-      "清口清汤面", "老乡鸡", "麦当劳", "肯德基", "汉堡王", "瑞幸咖啡", "星巴克", 
+      "铁路12306", "中国铁路", "12306", "中国石化", "中国电信", "中国移动", "中国联通", "万亩良田生鲜超市", "万亩良田", "抖音生活服务", "抖音商城", "三只松鼠旗舰店", "三只松鼠",
+      "清口清汤面", "老乡鸡", "麦当劳", "肯德基", "汉堡王", "瑞幸咖啡", "luckincoffee", "星巴克", 
       "海底捞火锅", "海底捞", "喜茶", "霸王茶姬", "茶百道", "蜜雪冰城", "美团外卖", "美团", "饿了么", 
       "滴滴出行", "滴滴", "曹操出行", "T3出行", "哈啰单车", "哈啰", "淘宝闪购", "淘宝", "天猫", "京东商城", "京东", "拼多多", "盒马鲜生", "盒马", "山姆会员商店", "山姆", "全家便利店", "全家", "FamilyMart", "永辉超市", "生鲜超市"
     ];
@@ -435,6 +299,19 @@ export function extractFromRawText(text: string, accounts: any[] = []): { amount
       }
     }
   }
+
+  if (!category) {
+    category = suggestCategory(merchant, rawClean);
+  }
+
+  return {
+    amount,
+    merchant: merchant || (isAlipay ? '支付宝消费' : '微信商户消费'),
+    category,
+    date,
+    accountId: targetAccId
+  };
+}
 
   if (!category) {
     category = suggestCategory(merchant, rawClean);
