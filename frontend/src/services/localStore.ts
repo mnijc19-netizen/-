@@ -43,7 +43,7 @@ export function getModelMaxTokens(modelName: string): number {
   if (m.includes('4v-flash') || m === 'glm-4v-flash') {
     return 1024; // Zhipu 4V-Flash API hard ceiling
   }
-  if (m.includes('4.6v') || m.includes('4.5-air') || m.includes('4-plus') || m.includes('4-flash') || m.includes('deepseek') || m.includes('gpt-4o') || m.includes('qwen') || m.includes('kimi')) {
+  if (m.includes('5.6') || m.includes('5.5') || m.includes('5.4') || m.includes('deepseek') || m.includes('4.6v') || m.includes('4.5-air') || m.includes('4-plus') || m.includes('gpt') || m.includes('o3') || m.includes('o1') || m.includes('qwen') || m.includes('kimi')) {
     return 8192; // Flagship models max ceiling
   }
   return 4096;

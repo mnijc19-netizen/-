@@ -65,10 +65,13 @@ export const AI_PROVIDERS: AiProviderDef[] = [
     baseUrl: 'https://api.deepseek.com/v1',
     docUrl: 'https://platform.deepseek.com/api_keys',
     keyPlaceholder: 'sk-...',
-    hint: '超强中文语义理解与高性价比',
+    hint: '超强中文语义理解与高性价比，全面升级至 V4 系列',
     models: [
-      { id: 'deepseek-chat', name: 'DeepSeek-V3', desc: '官方接口统一名称 · 通用旗舰对话与记账', vision: false, tag: 'V3 旗舰', tagColor: 'cyan' },
-      { id: 'deepseek-reasoner', name: 'DeepSeek-R1', desc: '官方接口统一名称 · 深度思考推理与财务推导', vision: false, tag: 'R1 思考', tagColor: 'indigo' }
+      { id: 'deepseek-v4-pro', name: 'DeepSeek-V4-Pro', desc: 'V4 顶配旗舰 · 复杂推理/编程/Agent · 支持思考模式', vision: false, tag: 'V4 旗舰', tagColor: 'indigo' },
+      { id: 'deepseek-v4-flash', name: 'DeepSeek-V4-Flash', desc: '极速高性价比主力 · 1秒秒回 · 大量记账首选', vision: false, tag: 'V4 极速', tagColor: 'cyan' },
+      { id: 'deepseek-v4-flash-vision-exp', name: 'DeepSeek-V4-Vision', desc: '多模态看图识图实验版 · 支持小票与流水截图识别', vision: true, tag: 'V4 看图', tagColor: 'purple' },
+      { id: 'deepseek-chat', name: 'DeepSeek-Chat', desc: '官方通用兼容接口 (自动路由至最新核心)', vision: false, tag: '兼容接口', tagColor: 'slate' },
+      { id: 'deepseek-reasoner', name: 'DeepSeek-Reasoner', desc: '官方推理兼容接口 (自动路由至最新 R1/V4 思考)', vision: false, tag: '深度思考', tagColor: 'indigo' }
     ]
   },
   {
@@ -79,13 +82,15 @@ export const AI_PROVIDERS: AiProviderDef[] = [
     baseUrl: 'https://api.openai.com/v1',
     docUrl: 'https://platform.openai.com/api-keys',
     keyPlaceholder: 'sk-...',
-    hint: '全球顶级大模型，支持多模态视觉',
+    hint: 'OpenAI 官方最新旗舰体系，主力已全面升级至 GPT-5.6 系列',
     models: [
-      { id: 'gpt-4o', name: 'GPT-4o', desc: '旗舰全能多模态 · 超强看图与逻辑', vision: true, tag: '旗舰多模态', tagColor: 'emerald' },
-      { id: 'o3-mini', name: 'o3-mini', desc: '最新前沿推理旗舰 · 极速深度推导', vision: false, tag: '前沿推理', tagColor: 'purple' },
-      { id: 'o1', name: 'o1', desc: '顶配深度思考大模型 · 复杂财务规划', vision: true, tag: '顶配思考', tagColor: 'indigo' },
-      { id: 'gpt-4.5-preview', name: 'GPT-4.5-Preview', desc: 'OpenAI 史上最大参量旗舰前瞻版', vision: true, tag: '超大旗舰', tagColor: 'amber' },
-      { id: 'gpt-4o-mini', name: 'GPT-4o-mini', desc: '轻量极速多模态 · 快速省流', vision: true, tag: '极速', tagColor: 'blue' }
+      { id: 'gpt-5.6-sol', name: 'GPT-5.6 Sol', desc: '当前最高档通用旗舰 · 复杂推理/编程/Agent', vision: true, tag: '顶配旗舰', tagColor: 'amber' },
+      { id: 'gpt-5.6-terra', name: 'GPT-5.6 Terra', desc: '中间档主力 · 性能与成本平衡之选', vision: true, tag: '推荐主力', tagColor: 'emerald' },
+      { id: 'gpt-5.6-luna', name: 'GPT-5.6 Luna', desc: '低成本高速档 · 大量调用与实时记账最实用', vision: true, tag: '极速轻量', tagColor: 'blue' },
+      { id: 'gpt-5.5', name: 'GPT-5.5', desc: '上代经典通用旗舰 · 依然强悍稳定', vision: true, tag: '5.5 经典', tagColor: 'slate' },
+      { id: 'gpt-5.4-mini', name: 'GPT-5.4-mini', desc: '高性价比小模型 · 经济实惠', vision: true, tag: '经济型', tagColor: 'slate' },
+      { id: 'o3-deep-research', name: 'o3-Deep-Research', desc: '深度研究与长篇分析专用模型', vision: false, tag: '深度研究', tagColor: 'purple' },
+      { id: 'gpt-4o', name: 'GPT-4o', desc: '经典全能多模态兼容模型', vision: true, tag: '4o 兼容', tagColor: 'slate' }
     ]
   },
   {
