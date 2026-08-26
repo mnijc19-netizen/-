@@ -3,7 +3,6 @@ import { api } from '../api/client';
 import { getBeijingDateTimeString } from '../utils/dateUtils';
 import { extractFromRawText } from './urlAutoIngest';
 import { parseWithAi } from './aiParser';
-import { Transaction } from '../types';
 
 export interface GithubGistConfig {
   token: string;
@@ -83,14 +82,20 @@ export const githubGistSync = {
   },
 
   /**
-   * 从 GitHub Gist 拉取并自动落库所有待入账流水（100% 官方 CORS 通行证，永不拦截）
+   * 从 GitHub Gist 拉取并自动落库所有待入账流水
+   * 每一步都带诊断信息，绝不静默吞错
    */
   async pullAndIngestGist(customConfig?: Partial<GithubGistConfig>): Promise<{ count: number; items: any[]; message?: string }> {
     const cfg = { ...this.getConfig(), ...customConfig };
+
     if (!cfg.gistId || !cfg.gistId.trim()) {
-      return { count: 0, items: [], message: '未配置 Gist ID' };
+      return { count: 0, items: [], message: '❌ 未配置 Gist ID，请先填入或点击一键创建' };
     }
 
+    const gistId = cfg.gistId.trim();
+
+    // Step 1: Fetch Gist from GitHub API
+    let fetchRes: Response;
     try {
       const headers: Record<string, string> = {
         'Accept': 'application/vnd.github.v3+json',
@@ -99,96 +104,127 @@ export const githubGistSync = {
       if (cfg.token && cfg.token.trim()) {
         headers['Authorization'] = `token ${cfg.token.trim()}`;
       }
-
-      const res = await fetch(`https://api.github.com/gists/${cfg.gistId.trim()}`, {
+      fetchRes = await fetch(`https://api.github.com/gists/${gistId}`, {
         method: 'GET',
         headers
       });
+    } catch (e: any) {
+      return { count: 0, items: [], message: `❌ 网络请求失败: ${e.message || '无法连接 GitHub'}` };
+    }
 
-      if (!res.ok) {
-        return { count: 0, items: [], message: `GitHub 响应异常 (${res.status})` };
-      }
+    if (!fetchRes.ok) {
+      return { count: 0, items: [], message: `❌ GitHub API 响应 ${fetchRes.status}（检查 Token 是否有效）` };
+    }
 
-      const data = await res.json();
-      const file = data.files && data.files['smartwealth_inbox.json'];
-      if (!file || !file.content || file.content.trim() === '[]' || file.content.trim() === '') {
-        return { count: 0, items: [], message: 'GitHub 信箱当前为空（无待入账流水）' };
-      }
+    // Step 2: Parse API response
+    let apiData: any;
+    try {
+      apiData = await fetchRes.json();
+    } catch (e: any) {
+      return { count: 0, items: [], message: `❌ GitHub 返回数据格式异常: ${e.message}` };
+    }
 
-      let parsed: any;
+    const file = apiData.files && apiData.files['smartwealth_inbox.json'];
+    if (!file || !file.content) {
+      return { count: 0, items: [], message: '❌ Gist 中未找到 smartwealth_inbox.json 文件' };
+    }
+
+    const rawContent = file.content;
+    if (rawContent.trim() === '[]' || rawContent.trim() === '') {
+      return { count: 0, items: [], message: '☁️ GitHub 信箱当前为空（无待入账流水）' };
+    }
+
+    // Step 3: Parse the file content (handle iOS unescaped newlines)
+    let parsed: any;
+    try {
+      parsed = JSON.parse(rawContent);
+    } catch {
+      // iOS Shortcut sends raw newlines that break JSON.parse
       try {
-        parsed = JSON.parse(file.content);
-      } catch {
-        // Handle unescaped newlines or control characters from iOS Shortcut raw text
-        try {
-          const m = file.content.match(/"raw_text"\s*:\s*"([\s\S]*?)"\s*\}\s*\]/);
-          if (m) {
-            parsed = [{ raw_text: m[1] }];
-          } else {
-            const rawMatch = file.content.match(/\[\s*\{([\s\S]*)\}\s*\]/);
-            if (rawMatch) {
-              const textContent = file.content.replace(/^\[\s*\{\s*"raw_text"\s*:\s*"/, '').replace(/"\s*\}\s*\]$/, '');
-              parsed = [{ raw_text: textContent }];
-            }
+        const m = rawContent.match(/"raw_text"\s*:\s*"([\s\S]*?)"\s*\}\s*\]/);
+        if (m) {
+          parsed = [{ raw_text: m[1] }];
+        } else {
+          // Try extracting everything between [ ] as raw text
+          const textContent = rawContent.replace(/^\[\s*\{\s*"raw_text"\s*:\s*"/, '').replace(/"\s*\}\s*\]$/, '');
+          if (textContent && textContent.length > 5) {
+            parsed = [{ raw_text: textContent }];
           }
-        } catch {
-          return { count: 0, items: [] };
+        }
+      } catch (e2: any) {
+        return { count: 0, items: [], message: `❌ 信箱内容解析失败: ${e2.message}` };
+      }
+    }
+
+    if (!parsed) {
+      return { count: 0, items: [], message: '❌ 信箱数据格式无法识别（既非 JSON 也无法通过正则提取）' };
+    }
+
+    const rawList: any[] = Array.isArray(parsed) ? parsed : (parsed.items || [parsed]);
+    if (!rawList || rawList.length === 0) {
+      return { count: 0, items: [], message: '☁️ 信箱解析成功但列表为空' };
+    }
+
+    // Step 4: Process each item
+    const accounts = localStore.getAccounts();
+    const defaultAccount = accounts[0] || { id: 'acc-1', name: '默认账户' };
+    const categories = localStore.getCategories();
+    const ingestedList: any[] = [];
+    const errors: string[] = [];
+
+    for (let idx = 0; idx < rawList.length; idx++) {
+      const item = rawList[idx];
+      if (!item) continue;
+
+      let numAmt = parseFloat(String(item.amount || '0'));
+      let merchant = item.merchant || '';
+      let catName = item.category || '';
+      let dateStr = item.date || getBeijingDateTimeString();
+
+      const rawText = item.raw_text || item['键'] || item.text || (typeof item === 'string' ? item : '');
+
+      if ((!numAmt || numAmt <= 0) && rawText) {
+        // 1. Try AI parsing first (if enabled)
+        const aiConfig = localStore.getAiConfig();
+        if (aiConfig.enabled && aiConfig.apiKey && aiConfig.apiKey.trim()) {
+          try {
+            const aiRes = await parseWithAi(rawText, accounts);
+            if (aiRes && aiRes.amount && aiRes.amount > 0) {
+              numAmt = aiRes.amount;
+              merchant = aiRes.merchant || merchant;
+              catName = aiRes.suggested_category || catName;
+            }
+          } catch (aiErr: any) {
+            errors.push(`AI解析[${idx}]: ${aiErr.message || '未知错误'}`);
+          }
+        }
+
+        // 2. Fallback to rule-based extraction
+        if (!numAmt || numAmt <= 0) {
+          try {
+            const extracted = await extractFromRawText(rawText, accounts);
+            if (extracted.amount && extracted.amount > 0) {
+              numAmt = extracted.amount;
+              merchant = extracted.merchant || merchant;
+              catName = extracted.category || catName;
+            }
+          } catch (extErr: any) {
+            errors.push(`规则解析[${idx}]: ${extErr.message || '未知错误'}`);
+          }
         }
       }
 
-      if (!parsed) return { count: 0, items: [] };
+      if (!numAmt || numAmt <= 0) {
+        errors.push(`条目[${idx}]: 金额为0，跳过`);
+        continue;
+      }
 
-      const rawList: any[] = Array.isArray(parsed) ? parsed : (parsed.items || [parsed]);
-      if (!rawList || rawList.length === 0) return { count: 0, items: [] };
+      catName = catName || '日常消费';
+      merchant = merchant || '快捷指令入账';
+      const matchedCat = categories.find(c => c.name === catName);
 
-      const accounts = localStore.getAccounts();
-      const defaultAccount = accounts[0] || { id: 'acc-1', name: '默认账户' };
-      const categories = localStore.getCategories();
-      const ingestedList: any[] = [];
-
-      for (const item of rawList) {
-        if (!item) continue;
-
-        let numAmt = parseFloat(String(item.amount || '0'));
-        let merchant = item.merchant || '';
-        let catName = item.category || '';
-        let dateStr = item.date || getBeijingDateTimeString();
-
-        const rawText = item.raw_text || item['键'] || item.text || (typeof item === 'string' ? item : '');
-
-        if ((!numAmt || numAmt <= 0) && rawText) {
-          // 1. High precision AI parsing if enabled
-          const aiConfig = localStore.getAiConfig();
-          if (aiConfig.enabled && aiConfig.apiKey && aiConfig.apiKey.trim()) {
-            try {
-              const aiRes = await parseWithAi(rawText, accounts);
-              if (aiRes && aiRes.amount && aiRes.amount > 0) {
-                numAmt = aiRes.amount;
-                merchant = aiRes.merchant || merchant;
-                catName = aiRes.suggested_category || catName;
-              }
-            } catch {}
-          }
-
-          // 2. Specialized OCR payment card rule fallback
-          if (!numAmt || numAmt <= 0) {
-            try {
-              const extracted = await extractFromRawText(rawText, accounts);
-              if (extracted.amount && extracted.amount > 0) {
-                numAmt = extracted.amount;
-                merchant = extracted.merchant || merchant;
-                catName = extracted.category || catName;
-              }
-            } catch {}
-          }
-        }
-
-        if (!numAmt || numAmt <= 0) continue;
-
-        catName = catName || '日常消费';
-        merchant = merchant || '快捷指令入账';
-        const matchedCat = categories.find(c => c.name === catName);
-
+      // Step 5: Create transaction
+      try {
         await api.createTransaction({
           type: item.type === 'income' ? 'income' : 'expense',
           amount: Math.abs(numAmt),
@@ -198,19 +234,21 @@ export const githubGistSync = {
           date: dateStr,
           merchant,
           note: item.note || `来自 GitHub Gist 快捷指令云同步`,
-          source: 'shortcut',
-          raw_text: rawText
+          source: 'shortcut'
         });
-
         ingestedList.push({ merchant, amount: numAmt, category: catName, date: dateStr });
+      } catch (txErr: any) {
+        errors.push(`入账[${idx}]: ${txErr.message || '写入失败'}`);
       }
+    }
 
-      // Clear Gist after successful ingestion
-      if (ingestedList.length > 0) {
-        await fetch(`https://api.github.com/gists/${cfg.gistId}`, {
+    // Step 6: Clear Gist after successful ingestion
+    if (ingestedList.length > 0 && cfg.token && cfg.token.trim()) {
+      try {
+        await fetch(`https://api.github.com/gists/${gistId}`, {
           method: 'PATCH',
           headers: {
-            'Authorization': `token ${cfg.token}`,
+            'Authorization': `token ${cfg.token.trim()}`,
             'Accept': 'application/vnd.github.v3+json',
             'Content-Type': 'application/json'
           },
@@ -221,13 +259,25 @@ export const githubGistSync = {
               }
             }
           })
-        }).catch(() => {});
-      }
-
-      return { count: ingestedList.length, items: ingestedList };
-    } catch (e) {
-      console.warn('Gist pull error:', e);
-      return { count: 0, items: [] };
+        });
+      } catch {}
     }
+
+    if (ingestedList.length > 0) {
+      const summary = ingestedList.map(i => `${i.merchant} ¥${i.amount}`).join('、');
+      return {
+        count: ingestedList.length,
+        items: ingestedList,
+        message: `✅ 成功入账 ${ingestedList.length} 笔：${summary}`
+      };
+    }
+
+    // If we got here, data existed but nothing was ingested
+    const errDetail = errors.length > 0 ? errors.join('；') : '金额识别为0';
+    return {
+      count: 0,
+      items: [],
+      message: `⚠️ 信箱有 ${rawList.length} 条数据，但入账失败：${errDetail}`
+    };
   }
 };
