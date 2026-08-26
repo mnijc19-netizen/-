@@ -1,4 +1,4 @@
-﻿import { localStore } from './localStore';
+import { localStore } from './localStore';
 import { api } from '../api/client';
 import { getBeijingDateTimeString } from '../utils/dateUtils';
 import { extractFromRawText } from './urlAutoIngest';
@@ -14,17 +14,23 @@ const STORAGE_KEY = 'smartwealth_github_gist_config_v1';
 
 export const githubGistSync = {
   getConfig(): GithubGistConfig {
-    return localStore.getSync(STORAGE_KEY, {
+    try {
+      const val = localStorage.getItem(STORAGE_KEY);
+      if (val) return JSON.parse(val);
+    } catch {}
+    return {
       token: '',
       gistId: '',
       autoSync: true
-    });
+    };
   },
 
   saveConfig(cfg: Partial<GithubGistConfig>) {
     const current = this.getConfig();
     const updated = { ...current, ...cfg };
-    localStore.saveSync(STORAGE_KEY, updated);
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    } catch {}
   },
 
   /**

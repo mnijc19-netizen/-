@@ -972,12 +972,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         <div className="fixed inset-0 z-[90] flex items-center justify-center p-3.5 sm:p-4 bg-slate-950/75 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[85vh] my-auto">
             {/* Modal Header */}
-            <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-gradient-to-r from-blue-500/10 via-indigo-500/10 to-transparent">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-blue-500/20 text-blue-600 dark:text-blue-400 flex items-center justify-center">
-                  <Cloud className="w-5 h-5" />
-                </div>
-            {/* Modal Header */}
             <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-2xl bg-indigo-50 dark:bg-indigo-950/50 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
@@ -1251,6 +1245,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
               >
                 <Check className="w-3.5 h-3.5" />
                 保存配置
+              </button>
             </div>
           </div>
         </div>
