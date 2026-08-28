@@ -16,6 +16,7 @@ import {
   Bot
 } from 'lucide-react';
 import { githubGistSync } from '../services/githubGistSync';
+import { cloudCodeSync } from '../services/cloudCodeSync';
 import { localStore } from '../services/localStore';
 import { haptic } from '../services/haptic';
 
@@ -26,10 +27,12 @@ interface IphoneShortcutModalProps {
 
 export const IphoneShortcutModal: React.FC<IphoneShortcutModalProps> = ({ isOpen, onClose }) => {
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'silent_ai' | 'easy_url' | 'pwa'>('silent_ai');
+  const [activeTab, setActiveTab] = useState<'cloud_code' | 'silent_ai' | 'easy_url' | 'pwa'>('cloud_code');
 
   // Dynamically retrieve user's configured Gist ID & AI Key from local storage (privacy-safe)
+  const codeConfig = cloudCodeSync.getConfig();
   const gistConfig = githubGistSync.getConfig();
+  const codeApiUrl = codeConfig.inboxId ? `https://api.restful-api.dev/objects/${codeConfig.inboxId}` : 'https://api.restful-api.dev/objects/请在设置中生成专属同步码';
   const aiConfig = localStore.getAiConfig();
   const userGistId = gistConfig.gistId || '19112eef901e903254dedab4765f135b';
   const gistApiUrl = `https://api.github.com/gists/${userGistId}`;
@@ -95,6 +98,21 @@ export const IphoneShortcutModal: React.FC<IphoneShortcutModalProps> = ({ isOpen
             type="button"
             onClick={() => {
               haptic.selection();
+              setActiveTab('cloud_code');
+            }}
+            className={`py-2 rounded-xl font-bold transition flex items-center justify-center gap-1 ${
+              activeTab === 'cloud_code' 
+                ? 'bg-white dark:bg-slate-700 text-emerald-600 dark:text-emerald-400 shadow-sm' 
+                : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+            }`}
+          >
+            <Zap className="w-3.5 h-3.5" /> ⚡ 6位同步码 (推荐)
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              haptic.selection();
               setActiveTab('silent_ai');
             }}
             className={`py-2 rounded-xl font-bold transition flex items-center justify-center gap-1 ${
@@ -103,22 +121,7 @@ export const IphoneShortcutModal: React.FC<IphoneShortcutModalProps> = ({ isOpen
                 : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
             }`}
           >
-            <Bot className="w-3.5 h-3.5" /> 🤖 AI静默云记
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              haptic.selection();
-              setActiveTab('easy_url');
-            }}
-            className={`py-2 rounded-xl font-bold transition flex items-center justify-center gap-1 ${
-              activeTab === 'easy_url' 
-                ? 'bg-white dark:bg-slate-700 text-emerald-600 dark:text-emerald-400 shadow-sm' 
-                : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-            }`}
-          >
-            <Zap className="w-3.5 h-3.5" /> ⚡ 0门槛免配置
+            <Bot className="w-3.5 h-3.5" /> 🤖 极客Gist
           </button>
 
           <button
@@ -139,6 +142,74 @@ export const IphoneShortcutModal: React.FC<IphoneShortcutModalProps> = ({ isOpen
 
         {/* Content */}
         <div className="p-5 overflow-y-auto space-y-3.5 flex-1 text-xs">
+          {/* Tab 0: 6-Digit Sync Code (Zero Account, 100% Free, Silent Sync) */}
+          {activeTab === 'cloud_code' && (
+            <div className="space-y-3">
+              <div className="p-3.5 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 space-y-1.5">
+                <div className="font-bold text-emerald-900 dark:text-emerald-200 flex items-center gap-1.5 text-xs">
+                  <Sparkles className="w-4 h-4 text-emerald-500" />
+                  ⚡ 6 位专属同步码 · 免注册 GitHub · 0 门槛静默入云
+                </div>
+                <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
+                  完全不需要 GitHub 账号或 Token！只需生成一个 6 位专属码，快捷指令在<strong>后台静默写入云信箱</strong>，打开网页自动批量全部导入！
+                </p>
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <div className="font-bold text-slate-800 dark:text-slate-200 text-[11px]">
+                    我的同步码状态：
+                  </div>
+                  <span className="font-mono font-bold px-2 py-0.5 rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+                    {codeConfig.syncCode ? `同步码: ${codeConfig.syncCode}` : '未生成同步码'}
+                  </span>
+                </div>
+
+                <div className="space-y-2 text-[11px] text-slate-700 dark:text-slate-300">
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span>1. 快捷指令写入接口 (PUT)：</span>
+                      <button
+                        type="button"
+                        onClick={() => handleCopy(codeApiUrl, 'codeUrl')}
+                        className="px-2 py-0.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[9.5px] flex items-center gap-1 active:scale-95 transition"
+                      >
+                        {copiedKey === 'codeUrl' ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                        <span>{copiedKey === 'codeUrl' ? '已复制' : '一键复制接口'}</span>
+                      </button>
+                    </div>
+                    <div className="p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono text-[9px] text-emerald-600 dark:text-emerald-400 break-all select-all">
+                      {codeApiUrl}
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span>2. 快捷指令请求体模板 (JSON)：</span>
+                      <button
+                        type="button"
+                        onClick={() => handleCopy(JSON.stringify({ name: `SmartWealth_Inbox_${codeConfig.syncCode || '888666'}`, data: { sync_code: codeConfig.syncCode || '888666', inbox: [{ amount: 18.5, merchant: "商户名称", category: "餐饮美食", type: "expense" }] } }, null, 2), 'codeBody')}
+                        className="px-2 py-0.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[9.5px] flex items-center gap-1 active:scale-95 transition"
+                      >
+                        {copiedKey === 'codeBody' ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                        <span>{copiedKey === 'codeBody' ? '已复制' : '复制 JSON 模板'}</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleOpenShortcutsApp}
+                className="w-full py-2.5 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-md shadow-emerald-500/20 active:scale-98 transition"
+              >
+                <ExternalLink className="w-4 h-4" />
+                <span>一键打开 iPhone 快捷指令 App</span>
+              </button>
+            </div>
+          )}
+          
           {/* Tab 1: Silent AI + Gist (The User's Favorite Flow!) */}
           {activeTab === 'silent_ai' && (
             <div className="space-y-3">

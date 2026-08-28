@@ -45,6 +45,7 @@ import { localStore, AiConfig, DEFAULT_AI_CONFIG } from '../services/localStore'
 import { AI_PROVIDERS, testAiConnection, AiTestResult } from '../services/aiParser';
 import { webdavSync, WebDavConfig } from '../services/webdavSync';
 import { githubGistSync, GithubGistConfig } from '../services/githubGistSync';
+import { cloudCodeSync, CloudCodeSyncConfig } from '../services/cloudCodeSync';
 
 interface SettingsPageProps {
   accounts: Account[];
@@ -110,7 +111,10 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   const [aiSaved, setAiSaved] = useState(false);
 
   // ☁️ WebDAV / GitHub Gist Cloud Sync State
-  const [cloudSyncTab, setCloudSyncTab] = useState<'gist' | 'webdav'>('gist');
+  const [cloudSyncTab, setCloudSyncTab] = useState<'code' | 'gist' | 'webdav'>('code');
+  const [cloudCodeConfig, setCloudCodeConfig] = useState<CloudCodeSyncConfig>(() => cloudCodeSync.getConfig());
+  const [codeLoading, setCodeLoading] = useState(false);
+  const [codeStatusMsg, setCodeStatusMsg] = useState<{ success: boolean; message: string } | null>(null);
   const [gistConfig, setGistConfig] = useState<GithubGistConfig>(() => githubGistSync.getConfig());
   const [gistCreating, setGistCreating] = useState(false);
   const [gistStatusMsg, setGistStatusMsg] = useState<{ success: boolean; message: string } | null>(null);
@@ -1036,6 +1040,17 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
             <div className="px-5 pt-3 pb-0 flex gap-2 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30">
               <button
                 type="button"
+                onClick={() => setCloudSyncTab('code')}
+                className={`pb-2.5 px-3 text-xs font-bold transition border-b-2 flex items-center gap-1.5 ${
+                  cloudSyncTab === 'code'
+                    ? 'border-emerald-600 text-emerald-600 dark:text-emerald-400'
+                    : 'border-transparent text-slate-400 hover:text-slate-600'
+                }`}
+              >
+                ⚡ 6位同步码 (免注册推荐)
+              </button>
+              <button
+                type="button"
                 onClick={() => setCloudSyncTab('gist')}
                 className={`pb-2.5 px-3 text-xs font-bold transition border-b-2 flex items-center gap-1.5 ${
                   cloudSyncTab === 'gist'
@@ -1043,24 +1058,139 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                     : 'border-transparent text-slate-400 hover:text-slate-600'
                 }`}
               >
-                🐙 GitHub Gist (推荐 · 100% 官方CORS)
+                🐙 GitHub Gist (极客版)
               </button>
               <button
                 type="button"
                 onClick={() => setCloudSyncTab('webdav')}
                 className={`pb-2.5 px-3 text-xs font-bold transition border-b-2 flex items-center gap-1.5 ${
                   cloudSyncTab === 'webdav'
-                    ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400'
+                    ? 'border-slate-600 text-slate-600 dark:text-slate-400'
                     : 'border-transparent text-slate-400 hover:text-slate-600'
                 }`}
               >
-                ☁️ 传统 WebDAV (备用)
+                ☁️ 传统 WebDAV
               </button>
             </div>
 
             {/* Modal Body */}
             <div className="p-5 overflow-y-auto space-y-3.5 flex-1 text-xs">
-              {cloudSyncTab === 'gist' ? (
+              {cloudSyncTab === 'code' ? (
+                /* ⚡ 6-Digit Sync Code Tab (Zero Accounts, Zero Tokens) */
+                <div className="space-y-3.5">
+                  <div className="p-3.5 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 space-y-1.5">
+                    <div className="font-bold text-emerald-900 dark:text-emerald-200 flex items-center gap-1.5">
+                      <Sparkles className="w-4 h-4 text-emerald-500" />
+                      免注册 · 免 Token · 100% 极速直连云信箱
+                    </div>
+                    <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
+                      无需 GitHub 账号，只需一键生成或填入 6 位同步码。iPhone 快捷指令直接将账单推入此信箱，网页随时一键拉取全部入账！
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="text-slate-500 dark:text-slate-400 block mb-1 font-bold">
+                      我的 6 位专属同步码
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={cloudCodeConfig.syncCode}
+                        onChange={(e) => setCloudCodeConfig(prev => ({ ...prev, syncCode: e.target.value }))}
+                        placeholder="例如: 888666"
+                        className="flex-1 px-3 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-mono font-bold text-sm tracking-wider focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                      />
+                      <button
+                        type="button"
+                        disabled={codeLoading}
+                        onClick={async () => {
+                          setCodeLoading(true);
+                          setCodeStatusMsg(null);
+                          try {
+                            const res = await cloudCodeSync.createOrBindInbox(cloudCodeConfig.syncCode);
+                            setCloudCodeConfig(prev => ({ ...prev, syncCode: res.syncCode, inboxId: res.inboxId }));
+                            setCodeStatusMsg({ success: true, message: res.message });
+                          } catch (e: any) {
+                            setCodeStatusMsg({ success: false, message: e.message });
+                          } finally {
+                            setCodeLoading(false);
+                          }
+                        }}
+                        className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition active:scale-95 disabled:opacity-50 flex items-center gap-1 shadow-sm"
+                      >
+                        <Sparkles className="w-3.5 h-3.5" />
+                        <span>{codeLoading ? '生成中...' : '一键生成/绑定'}</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {cloudCodeConfig.inboxId && (
+                    <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-1.5">
+                      <div className="text-[10px] text-slate-400 font-bold">云信箱服务接口 (供快捷指令直接调用)：</div>
+                      <div className="p-2 rounded-xl bg-white dark:bg-slate-900 font-mono text-[9.5px] text-emerald-600 dark:text-emerald-400 break-all select-all border border-slate-200/60 dark:border-slate-800">
+                        https://api.restful-api.dev/objects/${cloudCodeConfig.inboxId}
+                      </div>
+                    </div>
+                  )}
+
+                  {codeStatusMsg && (
+                    <div className={`p-3 rounded-2xl text-xs font-bold ${
+                      codeStatusMsg.success 
+                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
+                        : 'bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800'
+                    }`}>
+                      {codeStatusMsg.message}
+                    </div>
+                  )}
+
+                  <div className="flex gap-2 pt-2">
+                    <button
+                      type="button"
+                      disabled={codeLoading || !cloudCodeConfig.inboxId}
+                      onClick={async () => {
+                        setCodeLoading(true);
+                        setCodeStatusMsg(null);
+                        try {
+                          const res = await cloudCodeSync.testConnection(cloudCodeConfig.inboxId);
+                          setCodeStatusMsg(res);
+                        } catch (e: any) {
+                          setCodeStatusMsg({ success: false, message: e.message });
+                        } finally {
+                          setCodeLoading(false);
+                        }
+                      }}
+                      className="flex-1 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold transition active:scale-95 disabled:opacity-50 flex items-center justify-center gap-1.5"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      <span>测试连接</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={codeLoading || !cloudCodeConfig.inboxId}
+                      onClick={async () => {
+                        setCodeLoading(true);
+                        setCodeStatusMsg(null);
+                        try {
+                          const res = await cloudCodeSync.pullAndIngestInbox();
+                          setCodeStatusMsg({ success: res.count > 0, message: res.message });
+                          if (res.count > 0) {
+                            window.location.reload();
+                          }
+                        } catch (e: any) {
+                          setCodeStatusMsg({ success: false, message: e.message });
+                        } finally {
+                          setCodeLoading(false);
+                        }
+                      }}
+                      className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition active:scale-95 disabled:opacity-50 flex items-center justify-center gap-1.5 shadow-sm shadow-emerald-500/20"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      <span>立即拉取账单</span>
+                    </button>
+                  </div>
+                </div>
+              ) : cloudSyncTab === 'gist' ? (
                 /* GitHub Gist Tab */
                 <div className="space-y-3.5">
                   <div className="p-3 rounded-2xl bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 space-y-1.5">
