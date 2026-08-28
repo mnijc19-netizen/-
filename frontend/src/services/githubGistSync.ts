@@ -201,11 +201,33 @@ export const githubGistSync = {
     const errors: string[] = [];
 
     for (let idx = 0; idx < rawList.length; idx++) {
-      const item = rawList[idx];
+      let item = rawList[idx];
       if (!item) continue;
 
-      let numAmt = Math.abs(parseFloat(String(item.amount || '0')));
-      let merchant = item.merchant || '';
+      // 1. Deep Unpack BigModel/GLM API choices format
+      if (item.choices && item.choices[0]?.message?.content) {
+        try {
+          const contentStr = item.choices[0].message.content.trim();
+          const jsonMatch = contentStr.match(/\{[\s\S]*\}/);
+          if (jsonMatch) item = { ...item, ...JSON.parse(jsonMatch[0]) };
+        } catch {}
+      }
+
+      // 2. Unpack if item.raw_text is a JSON string
+      if (typeof item.raw_text === 'string' && item.raw_text.trim().startsWith('{')) {
+        try {
+          const jsonMatch = item.raw_text.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            const unpacked = JSON.parse(jsonMatch[0]);
+            item = { ...item, ...unpacked };
+          }
+        } catch {}
+      }
+
+      // 3. Robust numeric extraction (handling commas, currency symbols, and various field names)
+      let rawAmtVal = item.amount ?? item.total_principal ?? item.balance ?? item.total_asset ?? item.money ?? '0';
+      let numAmt = Math.abs(parseFloat(String(rawAmtVal).replace(/,/g, '').replace(/[¥$￥\s]/g, '')) || 0);
+      let merchant = item.merchant || item.account_name || item.platform || item.broker_name || '';
       let catName = item.category || '';
       let dateStr = item.date || getBeijingDateTimeString();
       let targetAccountId = defaultAccount.id;

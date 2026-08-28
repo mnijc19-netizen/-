@@ -474,22 +474,21 @@ export const TransactionsPage: React.FC<TransactionsPageProps> = ({
                       {tx.category_name === '余额校准' ? <Wallet className="w-4 h-4" /> : tx.type === 'income' ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
                     </div>
 
-                    <div className="min-w-0">
-                      <div className="text-xs font-bold text-slate-900 dark:text-white truncate">
-                        {tx.merchant || tx.category_name || '日常消费'}
-                      </div>
-                      <div className="text-[10px] text-slate-400 truncate flex items-center gap-1.5 mt-0.5">
-                        <span>{tx.date.substring(5, 16)}</span>
-                        <span>•</span>
-                        <span>{tx.account_name || '默认账户'}</span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                          {tx.merchant || tx.category_name || '日常消费'}
+                        </span>
                         {tx.category_name && (
-                          <>
-                            <span>•</span>
-                            <span className="px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-[9px] text-slate-600 dark:text-slate-300">
-                              {tx.category_name}
-                            </span>
-                          </>
+                          <span className="flex-shrink-0 px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-[9px] font-medium text-slate-600 dark:text-slate-300">
+                            {tx.category_name}
+                          </span>
                         )}
+                      </div>
+                      <div className="text-[10px] text-slate-400 flex items-center gap-1.5 mt-0.5 min-w-0">
+                        <span className="flex-shrink-0">{tx.date.substring(5, 16)}</span>
+                        <span>•</span>
+                        <span className="truncate">{tx.account_name || '默认账户'}</span>
                       </div>
                     </div>
                   </div>

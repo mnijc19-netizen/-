@@ -141,6 +141,73 @@ export const localStore = {
     return removed;
   },
 
+  convertMistakenDebtTransactions: (): boolean => {
+    const txs = dbStore.getSync<Transaction[]>(STORAGE_KEYS.TRANSACTIONS, []);
+    if (!txs || txs.length === 0) return false;
+
+    let modified = false;
+    const remainingTxs: Transaction[] = [];
+
+    for (const tx of txs) {
+      const isMistakenDebt = Math.abs(tx.amount - 2691.41) < 0.01 && 
+        (tx.merchant === '快捷指令入账' || tx.merchant.includes('白条') || tx.category_name === '餐饮美食' || tx.category_name === '日常消费');
+      
+      if (isMistakenDebt) {
+        modified = true;
+        // 1. Revert balance on WeChat account
+        const accs = dbStore.getSync<Account[]>(STORAGE_KEYS.ACCOUNTS, CLEAN_INITIAL_ACCOUNTS);
+        const wxAcc = accs.find(a => a.id === tx.account_id || a.name.includes('微信') || a.name.includes('零钱')) || accs[0];
+        if (wxAcc) {
+          wxAcc.balance += tx.amount;
+        }
+        // 2. Add as correct debt in debts list if not already present
+        const debts = dbStore.getSync<Debt[]>(STORAGE_KEYS.DEBTS, []);
+        if (!debts.some(d => d.name === '京东白条' || d.type === 'baitiao')) {
+          debts.push({
+            id: 'debt-jd-baitiao',
+            name: '京东白条',
+            type: 'baitiao' as any,
+            total_principal: 2691.41,
+            remaining_principal: 2691.41,
+            interest_rate_annual: 0,
+            monthly_payment: 804.05,
+            repay_day: 4,
+            total_installments: 3,
+            current_installment: 1,
+            is_repaid_this_month: false,
+            progress_percentage: 0
+          });
+          dbStore.set(STORAGE_KEYS.DEBTS, debts);
+        }
+        // 3. Ensure liability account exists
+        let baitiaoAcc = accs.find(a => a.name.includes('白条') || a.type === 'baitiao');
+        if (!baitiaoAcc) {
+          accs.push({
+            id: 'acc-baitiao',
+            name: '京东白条',
+            type: 'baitiao' as any,
+            currency: 'CNY',
+            balance: 2691.41,
+            initial_balance: 2691.41,
+            is_active: 1,
+            note: '京东白条待还分期'
+          });
+        } else {
+          baitiaoAcc.balance = 2691.41;
+        }
+        dbStore.set(STORAGE_KEYS.ACCOUNTS, accs);
+        continue;
+      }
+      remainingTxs.push(tx);
+    }
+
+    if (modified) {
+      dbStore.set(STORAGE_KEYS.TRANSACTIONS, remainingTxs);
+      return true;
+    }
+    return false;
+  },
+
   getCategories: (): Category[] => dbStore.getSync(STORAGE_KEYS.CATEGORIES, DEFAULT_CATEGORIES),
   saveCategories: (cats: Category[]) => dbStore.set(STORAGE_KEYS.CATEGORIES, cats),
 

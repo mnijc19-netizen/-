@@ -149,8 +149,9 @@ export function App() {
   // Load all data
   const loadAllData = async () => {
     try {
-      // Auto-cleanup any duplicate entries
+      // Auto-cleanup any duplicate entries or mistaken debt transactions
       localStore.deduplicateAndCleanTransactions();
+      localStore.convertMistakenDebtTransactions();
 
       const [
         analyticsData,
