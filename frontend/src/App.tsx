@@ -623,6 +623,15 @@ export function App() {
         onOpenBudgets={() => setCurrentPage('budgets')}
         onOpenIphoneShortcut={() => setIphoneShortcutOpen(true)}
         onOpenAiChat={() => setAiChatOpen(true)}
+        onNavigateToBackup={() => {
+          setCurrentPage('settings');
+          setTimeout(() => {
+            const el = document.getElementById('backup-restore-section');
+            if (el) {
+              el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+          }, 200);
+        }}
       />
 
       {/* Global Modals */}

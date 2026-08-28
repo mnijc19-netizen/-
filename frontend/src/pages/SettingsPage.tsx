@@ -778,7 +778,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
       </div>
 
       {/* Backup & Restore */}
-      <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+      <div id="backup-restore-section" className="p-4 sm:p-5 rounded-2xl sm:rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs space-y-3.5 scroll-mt-20">
         <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
           <Download className="w-4 h-4 text-emerald-500" />
           数据全量备份与还原
