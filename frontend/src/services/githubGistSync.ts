@@ -310,8 +310,8 @@ export const githubGistSync = {
           let remainingAmt = 0;
 
           if (targetDebt) {
-            currentInst = targetDebt.current_installment;
-            totalInst = targetDebt.total_installments;
+            currentInst = targetDebt.current_installment || 1;
+            totalInst = targetDebt.total_installments || 3;
             remainingAmt = Math.max(0, targetDebt.remaining_principal - numAmt);
             const nextInst = Math.min(totalInst, currentInst + 1);
 
