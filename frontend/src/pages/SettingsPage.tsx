@@ -34,7 +34,8 @@ import {
   Server,
   Lock,
   LockOpen,
-  Smartphone
+  Smartphone,
+  Copy
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { api } from '../api/client';
@@ -1126,9 +1127,22 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
 
                   {cloudCodeConfig.inboxId && (
                     <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-1.5">
-                      <div className="text-[10px] text-slate-400 font-bold">云信箱服务接口 (供快捷指令直接调用)：</div>
+                      <div className="flex items-center justify-between">
+                        <div className="text-[10px] text-slate-400 font-bold">云信箱服务接口 (供快捷指令直接调用)：</div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard.writeText(`https://api.restful-api.dev/objects/${cloudCodeConfig.inboxId}`);
+                            setCodeStatusMsg({ success: true, message: '📋 已复制专属接口地址！' });
+                          }}
+                          className="px-2 py-0.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[9.5px] active:scale-95 transition flex items-center gap-1"
+                        >
+                          <Copy className="w-2.5 h-2.5" />
+                          <span>一键复制接口</span>
+                        </button>
+                      </div>
                       <div className="p-2 rounded-xl bg-white dark:bg-slate-900 font-mono text-[9.5px] text-emerald-600 dark:text-emerald-400 break-all select-all border border-slate-200/60 dark:border-slate-800">
-                        https://api.restful-api.dev/objects/${cloudCodeConfig.inboxId}
+                        {`https://api.restful-api.dev/objects/${cloudCodeConfig.inboxId}`}
                       </div>
                     </div>
                   )}
