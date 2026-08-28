@@ -263,6 +263,86 @@ export const githubGistSync = {
         continue;
       }
 
+      const combinedContent = `${item.type || ''} ${merchant} ${catName} ${channel} ${rawText} ${item.note || ''}`;
+      const isDebt = item.type === 'debt' || 
+        /待还账单|全部待还|剩余待还|分期还款|提前结清|月待还|已出账|还款日/i.test(combinedContent) ||
+        (/白条|花呗|借呗|月付|分付|信用卡|房贷|车贷/.test(combinedContent) && /待还|欠款|账单|本金/.test(combinedContent));
+
+      // 💳 Special Branch: Debt & Installments Auto-Routing (DO NOT DEDUCT CASH)
+      if (isDebt) {
+        let debtPlatform = 'baitiao';
+        let debtName = '京东白条';
+        if (/花呗/.test(combinedContent)) { debtPlatform = 'huabei'; debtName = '蚂蚁花呗'; }
+        else if (/美团/.test(combinedContent)) { debtPlatform = 'meituan_pay'; debtName = '美团月付'; }
+        else if (/抖音/.test(combinedContent)) { debtPlatform = 'douyin_pay'; debtName = '抖音月付'; }
+        else if (/信用卡/.test(combinedContent)) { debtPlatform = 'credit_card'; debtName = '信用卡分期'; }
+        else if (/房贷/.test(combinedContent)) { debtPlatform = 'mortgage'; debtName = '房贷按揭'; }
+        else if (/车贷/.test(combinedContent)) { debtPlatform = 'car_loan'; debtName = '车贷分期'; }
+
+        let installments = item.installments || item.total_installments;
+        if (!installments && rawText) {
+          const m = rawText.match(/(\d+)月待还/g);
+          if (m && m.length > 0) installments = m.length;
+        }
+        installments = installments || 3;
+
+        let monthlyPayment = item.monthly_payment;
+        if (!monthlyPayment && rawText) {
+          const m = rawText.match(/剩余待还\s*([0-9,.]+)/);
+          if (m) monthlyPayment = parseFloat(m[1].replace(/,/g, ''));
+        }
+        if (!monthlyPayment || isNaN(monthlyPayment)) {
+          monthlyPayment = Number((numAmt / installments).toFixed(2));
+        }
+
+        let repayDay = item.repay_day || 4;
+        if (rawText) {
+          const m = rawText.match(/还款日\s*(?:\d+月)?(\d+)日/);
+          if (m) repayDay = parseInt(m[1]);
+        }
+
+        try {
+          const existingDebts = localStore.getDebts();
+          const existingDebt = existingDebts.find(d => d.name === debtName || d.type === debtPlatform);
+          if (existingDebt) {
+            await api.updateDebt(existingDebt.id, {
+              total_principal: numAmt,
+              remaining_principal: numAmt,
+              monthly_payment: monthlyPayment,
+              total_installments: installments,
+              repay_day: repayDay
+            });
+          } else {
+            await api.addDebt({
+              name: debtName,
+              type: debtPlatform as any,
+              total_principal: numAmt,
+              remaining_principal: numAmt,
+              monthly_payment: monthlyPayment,
+              total_installments: installments,
+              repay_day: repayDay
+            });
+          }
+
+          // Update liability account balance
+          let liabAcc = accounts.find(a => a.type === debtPlatform || a.name.includes(debtName));
+          if (liabAcc) {
+            liabAcc.balance = numAmt;
+            localStore.saveAccounts(accounts);
+          }
+
+          ingestedList.push({
+            merchant: `💳 ${debtName}分期负债 (${installments}期)`,
+            amount: numAmt,
+            category: '信贷分期',
+            date: dateStr
+          });
+        } catch (debtErr: any) {
+          errors.push(`负债入账[${idx}]: ${debtErr.message || '写入失败'}`);
+        }
+        continue;
+      }
+
       catName = catName || '日常消费';
       merchant = merchant || '快捷指令入账';
 

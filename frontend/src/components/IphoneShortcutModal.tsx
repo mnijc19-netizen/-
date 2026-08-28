@@ -25,9 +25,15 @@ interface IphoneShortcutModalProps {
 export const IphoneShortcutModal: React.FC<IphoneShortcutModalProps> = ({ isOpen, onClose }) => {
   const [copiedUrl, setCopiedUrl] = useState(false);
   const [copiedJson, setCopiedJson] = useState(false);
+  const [copiedVisionPrompt, setCopiedVisionPrompt] = useState(false);
   const [activeTab, setActiveTab] = useState<'silent_cloud' | 'pwa_guide' | 'sms'>('silent_cloud');
 
   const baseShortcutUrl = `https://mnijc19-netizen.github.io/-/?text=`;
+
+  const sampleVisionPrompt = `你是一个专业财务记账 AI。请直接分析截图像素：
+1. 若为日常消费/收款：输出 {"type":"expense","amount":14.05,"merchant":"商户名称","category":"餐饮美食|日用百货|交通出行|医疗健康|生活服务","channel":"微信支付|支付宝|银行卡"}
+2. 若为待还账单/信贷分期（如白条/花呗/美团月付/信用卡）：输出 {"type":"debt","amount":2691.41,"merchant":"京东白条","category":"信贷分期","channel":"京东白条","installments":3,"monthly_payment":804.05,"repay_day":4}
+严格只返回单个纯 JSON 对象（禁止 markdown 与多余文字）。`;
 
   const sampleJsonTemplate = `[
   {
@@ -203,6 +209,31 @@ export const IphoneShortcutModal: React.FC<IphoneShortcutModalProps> = ({ isOpen
                     <div className="text-[10px] text-slate-500 font-bold">请求体 (Request Body)：</div>
                     <div className="p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono text-[9px] text-slate-600 dark:text-slate-300">
                       类型选 <strong>JSON</strong> ➔ 键填 <code>files</code> ➔ 字典 <code>smartwealth_inbox.json</code> ➔ <code>content</code> ➔ <code>{'[{"raw_text":"[图像中的文本]"}]'}</code>
+                    </div>
+                  </div>
+
+                  {/* Upgraded Vision AI Prompt (Expense + Debt) */}
+                  <div className="p-2.5 rounded-xl bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800 space-y-1.5 mt-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold text-purple-900 dark:text-purple-200 flex items-center gap-1">
+                        <Sparkles className="w-3 h-3 text-purple-600" />
+                        智谱 GLM-4V 视觉提示词 (支持日常消费与分期负债分流)：
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText(sampleVisionPrompt);
+                          setCopiedVisionPrompt(true);
+                          setTimeout(() => setCopiedVisionPrompt(false), 2000);
+                        }}
+                        className="text-[10px] font-bold text-purple-600 dark:text-purple-400 hover:underline flex items-center gap-0.5"
+                      >
+                        {copiedVisionPrompt ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                        {copiedVisionPrompt ? '已复制' : '一键复制提示词'}
+                      </button>
+                    </div>
+                    <div className="p-2 rounded bg-white dark:bg-slate-900 border border-purple-100 dark:border-purple-900 font-mono text-[8.5px] text-slate-600 dark:text-slate-300 whitespace-pre-wrap leading-relaxed max-h-24 overflow-y-auto">
+                      {sampleVisionPrompt}
                     </div>
                   </div>
                 </div>
