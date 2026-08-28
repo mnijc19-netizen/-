@@ -93,6 +93,15 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     haptic.setHapticEnabled(enabled);
   };
 
+  // 🔒 Debts Default Gaussian Blur State
+  const [debtsDefaultBlur, setDebtsDefaultBlur] = useState<boolean>(() => localStore.getDebtsDefaultBlur());
+
+  const handleToggleDebtsBlur = (enabled: boolean) => {
+    haptic.toggle();
+    setDebtsDefaultBlur(enabled);
+    localStore.saveDebtsDefaultBlur(enabled);
+  };
+
   // 🧪 Laboratory AI Config State
   const [aiConfig, setAiConfig] = useState<AiConfig>(() => localStore.getAiConfig());
   const [showApiKey, setShowApiKey] = useState(false);
@@ -437,6 +446,38 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
             className="sr-only peer"
           />
           <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600"></div>
+        </label>
+      </div>
+
+      {/* 🔒 Debts Default Blur Setting */}
+      <div className="p-4 sm:p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex items-center justify-between transition">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-rose-500 to-pink-600 text-white flex items-center justify-center shadow-md shadow-rose-500/20 flex-shrink-0">
+            <Lock className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
+                🔒 分期信息默认高斯模糊
+              </h3>
+              <span className="text-[8px] font-mono font-bold px-1.5 py-0.2 rounded bg-rose-500/15 text-rose-600 dark:text-rose-400">
+                防窥
+              </span>
+            </div>
+            <p className="text-[10px] text-slate-400 mt-0.5">
+              进入网站默认磨砂遮挡分期金额与详情，轻点卡片即可随时解密/遮挡
+            </p>
+          </div>
+        </div>
+
+        <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
+          <input 
+            type="checkbox" 
+            checked={debtsDefaultBlur}
+            onChange={(e) => handleToggleDebtsBlur(e.target.checked)}
+            className="sr-only peer"
+          />
+          <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-rose-600"></div>
         </label>
       </div>
 

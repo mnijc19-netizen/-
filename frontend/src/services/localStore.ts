@@ -426,6 +426,13 @@ export const localStore = {
     dbStore.set('smartwealth_liquid_glass_unlocked_v1', unlocked);
   },
 
+  getDebtsDefaultBlur(): boolean {
+    return dbStore.getSync('smartwealth_debts_default_blur_v1', true);
+  },
+  saveDebtsDefaultBlur(val: boolean): void {
+    dbStore.set('smartwealth_debts_default_blur_v1', val);
+  },
+
   getWebDavConfig(): { url: string; user: string; pass: string; autoSync: boolean } {
     return dbStore.getSync(STORAGE_KEYS.WEBDAV_CONFIG, {
       url: '',

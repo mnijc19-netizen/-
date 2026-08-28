@@ -52,8 +52,9 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
   const [modalOpen, setModalOpen] = useState(false);
   const [activeDragIdx, setActiveDragIdx] = useState<number | null>(null);
 
-  // Privacy State: Default Gaussian blur on load for maximum confidentiality!
-  const [debtsPrivacyRevealed, setDebtsPrivacyRevealed] = useState(false);
+  // Privacy State: Customizable Default Gaussian blur!
+  const [debtsDefaultBlur, setDebtsDefaultBlur] = useState<boolean>(() => localStore.getDebtsDefaultBlur());
+  const [debtsPrivacyRevealed, setDebtsPrivacyRevealed] = useState<boolean>(() => !localStore.getDebtsDefaultBlur());
 
   // Sync with global privacy mode toggle
   useEffect(() => {
@@ -1100,6 +1101,37 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
                   </div>
                 </div>
               ))}
+            </div>
+
+            {/* 🔒 Privacy Configuration Option */}
+            <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <div className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                  <Lock className="w-3.5 h-3.5 text-rose-500" />
+                  <span>分期卡片默认高斯模糊</span>
+                </div>
+                <div className="text-[10px] text-slate-400 mt-0.5">
+                  开启后进入网站默认遮蔽分期金额，点按卡片可随时解密/再遮挡
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  haptic.toggle();
+                  const next = !debtsDefaultBlur;
+                  setDebtsDefaultBlur(next);
+                  localStore.saveDebtsDefaultBlur(next);
+                  setDebtsPrivacyRevealed(!next);
+                }}
+                className={`w-11 h-6 rounded-full transition-colors relative flex items-center p-0.5 flex-shrink-0 ${
+                  debtsDefaultBlur ? 'bg-rose-600' : 'bg-slate-300 dark:bg-slate-700'
+                }`}
+              >
+                <div className={`w-5 h-5 rounded-full bg-white shadow-md transform transition-transform ${
+                  debtsDefaultBlur ? 'translate-x-5' : 'translate-x-0'
+                }`} />
+              </button>
             </div>
 
             {/* Footer */}
