@@ -156,7 +156,7 @@ export const AiHubModal: React.FC<AiHubModalProps> = ({
           const a = accounts.find(x => x.name.includes('微信') || x.id === 'acc-1');
           if (a) acc = a;
         } else if (/银行|卡/.test(item.channel)) {
-          const a = accounts.find(x => x.type === 'bank' || x.id === 'acc-3');
+          const a = accounts.find(x => x.type === 'bank' || x.name.includes('银行') || x.name.includes('卡'));
           if (a) acc = a;
         }
 

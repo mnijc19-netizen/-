@@ -88,12 +88,10 @@ const DEFAULT_CATEGORIES: Category[] = [
   { id: 'cat-inc-3', name: '兼职副业', type: 'income', icon: 'Briefcase', color: '#F59E0B' }
 ];
 
-// Clean initial starting accounts with ¥0.00 balance
+// Clean initial starting accounts (Only everyday ubiquitous digital wallets by default)
 const CLEAN_INITIAL_ACCOUNTS: Account[] = [
   { id: 'acc-1', name: '微信零钱/零钱通', type: 'wallet', currency: 'CNY', balance: 0.0, initial_balance: 0.0, bank_name: '微信支付', is_active: 1 },
-  { id: 'acc-2', name: '支付宝/余额宝', type: 'wallet', currency: 'CNY', balance: 0.0, initial_balance: 0.0, bank_name: '支付宝', is_active: 1 },
-  { id: 'acc-3', name: '主要银行储蓄卡', type: 'bank', currency: 'CNY', balance: 0.0, initial_balance: 0.0, card_last4: '', bank_name: '招商/工行/建行', is_active: 1 },
-  { id: 'acc-4', name: '信用卡账户', type: 'credit', currency: 'CNY', balance: 0.0, initial_balance: 0.0, card_last4: '', bank_name: '信用卡', credit_limit: 20000, bill_day: 10, repay_day: 28, is_active: 1 }
+  { id: 'acc-2', name: '支付宝/余额宝', type: 'wallet', currency: 'CNY', balance: 0.0, initial_balance: 0.0, bank_name: '支付宝', is_active: 1 }
 ];
 
 export const localStore = {
@@ -200,6 +198,20 @@ export const localStore = {
         continue;
       }
       remainingTxs.push(tx);
+    }
+
+    // Prune generic placeholder accounts ("主要银行储蓄卡", "信用卡账户") if they have 0 balance and no transactions
+    const currentAccs = dbStore.getSync<Account[]>(STORAGE_KEYS.ACCOUNTS, CLEAN_INITIAL_ACCOUNTS);
+    const activeTxAccIds = new Set(remainingTxs.map(t => t.account_id));
+    const prunedAccs = currentAccs.filter(a => {
+      if ((a.id === 'acc-3' || a.name === '主要银行储蓄卡' || a.id === 'acc-4' || a.name === '信用卡账户') && a.balance === 0 && !activeTxAccIds.has(a.id)) {
+        modified = true;
+        return false;
+      }
+      return true;
+    });
+    if (prunedAccs.length !== currentAccs.length) {
+      dbStore.set(STORAGE_KEYS.ACCOUNTS, prunedAccs);
     }
 
     if (modified) {

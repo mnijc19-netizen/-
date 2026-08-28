@@ -333,7 +333,7 @@ ${clean}`;
       const acc = accountsLookup.find(a => a.name.includes('微信') || a.id === 'acc-1');
       if (acc) matchedAcc = acc;
     } else if (/银行|卡/.test(channel)) {
-      const acc = accountsLookup.find(a => a.type === 'bank' || a.id === 'acc-3');
+      const acc = accountsLookup.find(a => a.type === 'bank' || a.name.includes('银行') || a.name.includes('卡'));
       if (acc) matchedAcc = acc;
     }
 
@@ -616,8 +616,8 @@ export async function parseImageWithAiVision(
     } else if (/微信|零钱/.test(channel)) {
       const acc = accountsLookup.find(a => a.name && (a.name.includes('微信') || a.name.includes('零钱'))) || accountsLookup.find(a => a.id === 'acc-1');
       if (acc) matchedAcc = acc;
-    } else if (/银行|卡|招商|工行|建行/.test(channel)) {
-      const acc = accountsLookup.find(a => a.type === 'bank' || a.id === 'acc-3');
+    } else if (/银行|卡|招商|工行|建行|农行|交行|中行|平安/.test(channel)) {
+      const acc = accountsLookup.find(a => a.type === 'bank' || a.name.includes('银行') || a.name.includes('卡'));
       if (acc) matchedAcc = acc;
     }
 

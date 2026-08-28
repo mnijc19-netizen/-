@@ -231,8 +231,8 @@ export function extractFromRawText(text: string, accounts: any[] = []): { amount
     const wxAcc = accounts.find(a => a.name && (a.name.includes('微信') || a.name.includes('零钱'))) || accounts.find(a => a.id === 'acc-1');
     targetAccId = wxAcc?.id || 'acc-1';
   } else if (isBank) {
-    const bankAcc = accounts.find(a => a.type === 'bank' || a.id === 'acc-3');
-    targetAccId = bankAcc?.id || 'acc-3';
+    const bankAcc = accounts.find(a => a.type === 'bank' || a.name.includes('银行') || a.name.includes('卡'));
+    targetAccId = bankAcc?.id || accounts[0]?.id || 'acc-1';
   }
 
   // 2.5 Priority 1: 实付金额 / 实付款 / 净实付款 / 优惠后实付 (e.g. 云闪付、美团、抖音、淘宝)
