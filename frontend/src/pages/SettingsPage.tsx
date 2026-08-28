@@ -343,7 +343,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         </div>
       )}
 
-      {/* 🧪 Laboratory Feature: AI Large Language Model Integration Entry */}
+      {/* AI 智能大模型 */}
       <div 
         onClick={() => setAiModalOpen(true)}
         className="p-4 sm:p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex items-center justify-between cursor-pointer hover:border-indigo-500/50 active:scale-98 transition group"
@@ -355,7 +355,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
           <div className="min-w-0">
             <div className="flex items-center gap-1.5">
               <h3 className="text-sm font-bold text-slate-900 dark:text-white truncate">
-                🧪 实验室特性：AI 智能大模型
+                AI 智能大模型
               </h3>
               <span className="text-[8px] font-mono font-bold px-1.5 py-0.2 rounded bg-purple-500/15 text-purple-600 dark:text-purple-400">
                 AI
@@ -364,7 +364,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
             <p className="text-[11px] text-slate-400 mt-0.5 truncate">
               {aiConfig.enabled && aiConfig.apiKey 
                 ? `已启用 • ${AI_PROVIDERS.find(p => p.id === aiConfig.provider)?.name?.split(' ')[0] || '智谱/DeepSeek'}` 
-                : '未配置 • 点击接入 DeepSeek / 智谱 GLM-4V'}
+                : '智能记账、拍照识图与对话管家'}
             </p>
           </div>
         </div>
@@ -377,7 +377,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         </div>
       </div>
 
-      {/* 🧪 Laboratory Feature: iOS Liquid Glass UI (液态毛玻璃质感 - 内测加锁保护) */}
+      {/* iOS 液态毛玻璃 UI */}
       <div className="p-4 sm:p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex items-center justify-between transition">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-600 text-white flex items-center justify-center shadow-md shadow-cyan-500/20 flex-shrink-0">
@@ -386,22 +386,11 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
           <div>
             <div className="flex items-center gap-2">
               <h3 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
-                🧪 实验室：iOS 液态毛玻璃 UI
+                iOS 液态毛玻璃 UI
               </h3>
-              {liquidGlassUnlocked ? (
-                <span className="text-[8px] font-mono font-bold px-1.5 py-0.2 rounded bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5">
-                  <LockOpen className="w-2.5 h-2.5" /> 已解锁
-                </span>
-              ) : (
-                <span className="text-[8px] font-mono font-bold px-1.5 py-0.2 rounded bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center gap-0.5">
-                  <Lock className="w-2.5 h-2.5" /> 内测功能
-                </span>
-              )}
             </div>
             <p className="text-[10px] text-slate-400 mt-0.5">
-              {liquidGlassUnlocked 
-                ? '开启 iOS 拟真磨砂液态玻璃与高光倒角质感' 
-                : '内测功能：输入专属密码后解锁并开启'}
+              开启拟真磨砂液态玻璃与微光倒角材质
             </p>
           </div>
         </div>
@@ -417,7 +406,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         </label>
       </div>
 
-      {/* 📳 Haptic Feedback Switch (全域触感反馈震动引擎) */}
+      {/* 手机触感反馈 */}
       <div className="p-4 sm:p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex items-center justify-between transition">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-violet-500 to-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-500/20 flex-shrink-0">
@@ -426,14 +415,11 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
           <div>
             <div className="flex items-center gap-2">
               <h3 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
-                📳 手机触感反馈 (Haptic Engine)
+                手机触感反馈
               </h3>
-              <span className="text-[8px] font-mono font-bold px-1.5 py-0.2 rounded bg-indigo-500/15 text-indigo-600 dark:text-indigo-400">
-                震动
-              </span>
             </div>
             <p className="text-[10px] text-slate-400 mt-0.5">
-              点击开关、切换标签与操作按钮时触发舒适的微震动反馈 (支持移动端)
+              操作开关与按钮时触发轻微触感震动反馈
             </p>
           </div>
         </div>
@@ -446,38 +432,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
             className="sr-only peer"
           />
           <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600"></div>
-        </label>
-      </div>
-
-      {/* 🔒 Debts Default Blur Setting */}
-      <div className="p-4 sm:p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex items-center justify-between transition">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-rose-500 to-pink-600 text-white flex items-center justify-center shadow-md shadow-rose-500/20 flex-shrink-0">
-            <Lock className="w-5 h-5" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h3 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
-                🔒 分期信息默认高斯模糊
-              </h3>
-              <span className="text-[8px] font-mono font-bold px-1.5 py-0.2 rounded bg-rose-500/15 text-rose-600 dark:text-rose-400">
-                防窥
-              </span>
-            </div>
-            <p className="text-[10px] text-slate-400 mt-0.5">
-              进入网站默认磨砂遮挡分期金额与详情，轻点卡片即可随时解密/遮挡
-            </p>
-          </div>
-        </div>
-
-        <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
-          <input 
-            type="checkbox" 
-            checked={debtsDefaultBlur}
-            onChange={(e) => handleToggleDebtsBlur(e.target.checked)}
-            className="sr-only peer"
-          />
-          <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-rose-600"></div>
         </label>
       </div>
 

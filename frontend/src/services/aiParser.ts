@@ -50,11 +50,11 @@ export const AI_PROVIDERS: AiProviderDef[] = [
     keyPlaceholder: 'xxxxxxxx.yyyyyyyy（格式需含英文句号）',
     hint: '支持多模态看图识别、深度思考推理与极速文本',
     models: [
-      { id: 'glm-4.6v', name: 'GLM-4.6V', desc: '旗舰视觉多模态 · 600万资源包 · 截图开账首选', vision: true, tag: '推荐看图', tagColor: 'purple' },
-      { id: 'glm-4.5-air', name: 'GLM-4.5-Air', desc: '极速旗舰纯文本 · 1200万资源包 · 1秒秒回', vision: false, tag: '极速文字', tagColor: 'blue' },
-      { id: 'glm-4-plus', name: 'GLM-4-Plus', desc: '顶配深度推理旗舰 · 200万通用资源包', vision: false, tag: '深度推理', tagColor: 'amber' },
-      { id: 'glm-4v-flash', name: 'GLM-4V-Flash', desc: '永久免费视觉大模型 · 基础看图识别', vision: true, tag: '免费看图', tagColor: 'emerald' },
-      { id: 'glm-4-flash', name: 'GLM-4-Flash', desc: '永久免费纯文本 · 基础记账对话', vision: false, tag: '免费文本', tagColor: 'emerald' }
+      { id: 'glm-4.6v', name: 'GLM-4.6V', desc: '旗舰视觉多模态 · 小票识别与余额开账首选', vision: true, tag: '推荐看图', tagColor: 'purple' },
+      { id: 'glm-4.5-air', name: 'GLM-4.5-Air', desc: '极速旗舰大模型 · 秒级文字对话记账', vision: false, tag: '极速文字', tagColor: 'blue' },
+      { id: 'glm-4-plus', name: 'GLM-4-Plus', desc: '顶配通用大模型 · 深度财务分析', vision: false, tag: '深度推理', tagColor: 'amber' },
+      { id: 'glm-4v-flash', name: 'GLM-4V-Flash', desc: '免费视觉大模型 · 基础看图识别', vision: true, tag: '免费看图', tagColor: 'emerald' },
+      { id: 'glm-4-flash', name: 'GLM-4-Flash', desc: '免费纯文本模型 · 基础记账对话', vision: false, tag: '免费文本', tagColor: 'emerald' }
     ]
   },
   {
