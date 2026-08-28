@@ -4,7 +4,7 @@ import { getBeijingDateTimeString, getBeijingMonthString } from '../utils/dateUt
 const CONFIG_KEY = 'monthly_plan_config';
 
 export const DEFAULT_MONTHLY_CONFIG: MonthlyPlanConfig = {
-  expected_salary: 8000,
+  expected_salary: 0,
   additional_income: 0,
   include_installments_in_budget: true
 };

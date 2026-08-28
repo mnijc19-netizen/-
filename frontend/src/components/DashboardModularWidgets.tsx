@@ -31,6 +31,7 @@ import {
   DEFAULT_DASHBOARD_WIDGETS, 
   localStore 
 } from '../services/localStore';
+import { calculateMonthlyCashflowPlan } from '../services/repaymentScheduler';
 import { haptic } from '../services/haptic';
 
 interface DashboardModularWidgetsProps {
@@ -217,7 +218,12 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
     updateWidgets(DEFAULT_DASHBOARD_WIDGETS);
   };
 
-  // Data sources
+  // Helper amount formatter
+  const formatAmount = (val: number) => {
+    return (val || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+
+  // 100% Real Dynamic Data Sources from LocalStore (Zero fake hardcoded mock numbers)
   const debts = localStore.getDebts();
   const activeDebts = debts.filter(d => (d.remaining_principal || 0) > 0);
   const budgets = localStore.getBudgets();
@@ -226,25 +232,42 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
   const transactions = localStore.getTransactions();
   const recentTransactions = transactions.slice(0, 6);
 
-  // Helper amount formatter (returns clean number string)
-  const formatAmount = (val: number) => {
-    return val.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  };
-
-  // Budget calculations
-  const totalBudget = budgets.reduce((acc, b) => acc + (b.amount || 0), 0) || 3000;
+  // Real Budget Calculations
+  const totalBudget = budgets.reduce((acc, b) => acc + (b.amount || 0), 0);
   const currentMonthExpenses = transactions
     .filter(t => t.type === 'expense' && t.category_name !== '余额校准' && t.category_name !== '账户校准')
     .reduce((acc, t) => acc + t.amount, 0);
-  const budgetSpentPct = Math.min(100, Math.round((currentMonthExpenses / totalBudget) * 100));
+  const budgetSpentPct = totalBudget > 0 ? Math.min(100, Math.round((currentMonthExpenses / totalBudget) * 100)) : 0;
   const budgetRemaining = Math.max(0, totalBudget - currentMonthExpenses);
 
-  // Goal calculations
+  // Real Goal Calculations
   const primaryGoal = goals.length > 0 ? goals[0] : null;
-  const goalPct = primaryGoal ? Math.min(100, Math.round((primaryGoal.current_amount / primaryGoal.target_amount) * 100)) : 0;
+  const goalPct = primaryGoal && primaryGoal.target_amount > 0 
+    ? Math.min(100, Math.round((primaryGoal.current_amount / primaryGoal.target_amount) * 100)) 
+    : 0;
 
-  // Investment calculations
-  const totalInv = investments.reduce((acc, inv) => acc + (inv.market_value || inv.cost_price || 0), 0) || 1966.65;
+  // Real Investment Calculations
+  const totalInvMarket = investments.reduce((acc, inv) => acc + (inv.market_value || inv.cost_price || 0), 0);
+  const totalInvCost = investments.reduce((acc, inv) => acc + (inv.cost_price || inv.market_value || 0), 0);
+  const totalInvProfit = totalInvMarket - totalInvCost;
+  const invProfitPct = totalInvCost > 0 ? (totalInvProfit / totalInvCost) * 100 : 0;
+
+  // Real Cashflow Planner Calculations
+  const cashflowPlan = calculateMonthlyCashflowPlan(debts, budgets, transactions);
+  const hasCashflowData = cashflowPlan.totalIncome > 0 || cashflowPlan.thisMonthDueAmount > 0 || currentMonthExpenses > 0;
+
+  // Real Category Analytics Calculations
+  const expenseTransactions = transactions.filter(t => t.type === 'expense' && t.category_name !== '余额校准' && t.category_name !== '账户校准');
+  const catMap: Record<string, number> = {};
+  let totalCatExpenses = 0;
+  for (const tx of expenseTransactions) {
+    const cat = tx.category_name || '其他支出';
+    catMap[cat] = (catMap[cat] || 0) + tx.amount;
+    totalCatExpenses += tx.amount;
+  }
+  const topCategories = Object.entries(catMap)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 2);
 
   // Enabled & Hidden widgets
   const enabledWidgets = widgets.filter(w => w.enabled);
@@ -256,7 +279,7 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
       case 'debts':
         return (
           <div className="space-y-2.5">
-            {/* Header: Title + Privacy Eye Toggle + Hall link */}
+            {/* Header */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <div className="w-6 h-6 rounded-lg bg-rose-500/15 text-rose-600 dark:text-rose-400 flex items-center justify-center font-bold">
@@ -348,7 +371,6 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
                         )}
                       </div>
 
-                      {/* Gaussian Blurred Sub-details */}
                       <div 
                         style={{
                           filter: debtsPrivacyRevealed ? 'none' : 'blur(5.5px)',
@@ -360,7 +382,6 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
                       </div>
                     </div>
 
-                    {/* Gaussian Blurred Amount */}
                     <div className="text-right">
                       <div 
                         style={{
@@ -369,14 +390,13 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
                         }}
                         className={`text-xs font-mono font-bold text-rose-600 dark:text-rose-400 select-none ${!debtsPrivacyRevealed ? 'opacity-85' : 'opacity-100'}`}
                       >
-                        ¥{formatAmount(d.monthly_payment || 268.02)}
+                        ¥{formatAmount(d.monthly_payment || 0)}
                       </div>
                       <div className="text-[9px] text-slate-400">
                         {d.is_repaid_this_month ? '当期已结清' : '当期应还'}
                       </div>
                     </div>
 
-                    {/* Subtle Frosted Unlock Hint Overlay when Blurred */}
                     {!debtsPrivacyRevealed && !isEditing && (
                       <div className="absolute inset-0 bg-slate-900/5 dark:bg-white/5 flex items-center justify-center pointer-events-none">
                         <span className="text-[10px] font-bold text-rose-600 dark:text-rose-400 bg-white/90 dark:bg-slate-900/90 px-2 py-0.5 rounded-full shadow-xs border border-rose-200/60 dark:border-rose-900/60 flex items-center gap-1 backdrop-blur-xs">
@@ -410,7 +430,7 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
                   <PieChart className="w-3.5 h-3.5" />
                 </div>
                 <span className="text-xs font-bold text-slate-900 dark:text-white">
-                  📊 月度预算实时监控
+                  📊 月度预算实时监控 {budgets.length > 0 ? `(${budgets.length}项)` : ''}
                 </span>
               </div>
               <button
@@ -427,32 +447,44 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
               </button>
             </div>
 
-            <div 
-              onClick={() => safeNavigate('budgets')}
-              className={`p-3 rounded-2xl bg-white/70 dark:bg-slate-900/60 border border-blue-200/50 dark:border-blue-900/40 space-y-2 transition ${
-                isEditing ? 'cursor-default' : 'hover:border-blue-400 cursor-pointer active:scale-[0.99]'
-              }`}
-            >
-              <div className="flex items-center justify-between text-xs">
-                <div className="font-bold text-slate-800 dark:text-slate-200">
-                  已用 <span className="font-mono text-blue-600 dark:text-blue-400 font-bold">¥{formatAmount(currentMonthExpenses)}</span>
-                  <span className="text-slate-400 font-normal text-[10px] ml-1">/ 预算 ¥{formatAmount(totalBudget)}</span>
+            {totalBudget > 0 ? (
+              <div 
+                onClick={() => safeNavigate('budgets')}
+                className={`p-3 rounded-2xl bg-white/70 dark:bg-slate-900/60 border border-blue-200/50 dark:border-blue-900/40 space-y-2 transition ${
+                  isEditing ? 'cursor-default' : 'hover:border-blue-400 cursor-pointer active:scale-[0.99]'
+                }`}
+              >
+                <div className="flex items-center justify-between text-xs">
+                  <div className="font-bold text-slate-800 dark:text-slate-200">
+                    已用 <span className="font-mono text-blue-600 dark:text-blue-400 font-bold">¥{formatAmount(currentMonthExpenses)}</span>
+                    <span className="text-slate-400 font-normal text-[10px] ml-1">/ 预算 ¥{formatAmount(totalBudget)}</span>
+                  </div>
+                  <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+                    剩余 ¥{formatAmount(budgetRemaining)} ({100 - budgetSpentPct}%)
+                  </div>
                 </div>
-                <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
-                  剩余 ¥{formatAmount(budgetRemaining)} ({100 - budgetSpentPct}%)
-                </div>
-              </div>
 
-              {/* Progress Bar */}
-              <div className="w-full h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-                <div 
-                  className={`h-full rounded-full transition-all duration-500 ${
-                    budgetSpentPct > 90 ? 'bg-rose-500' : budgetSpentPct > 70 ? 'bg-amber-500' : 'bg-gradient-to-r from-blue-500 to-indigo-500'
-                  }`}
-                  style={{ width: `${budgetSpentPct}%` }}
-                />
+                {/* Progress Bar */}
+                <div className="w-full h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                  <div 
+                    className={`h-full rounded-full transition-all duration-500 ${
+                      budgetSpentPct > 90 ? 'bg-rose-500' : budgetSpentPct > 70 ? 'bg-amber-500' : 'bg-gradient-to-r from-blue-500 to-indigo-500'
+                    }`}
+                    style={{ width: `${budgetSpentPct}%` }}
+                  />
+                </div>
               </div>
-            </div>
+            ) : (
+              <div 
+                onClick={() => safeNavigate('budgets')}
+                className={`p-3 rounded-2xl bg-white/50 dark:bg-slate-900/40 border border-dashed border-blue-200 dark:border-blue-900/40 flex items-center justify-between text-slate-500 transition ${
+                  isEditing ? 'cursor-default' : 'hover:text-blue-600 cursor-pointer'
+                }`}
+              >
+                <span className="text-[11px]">暂未设置月度预算，点击设定每月消费限额与超支预警</span>
+                <Plus className="w-4 h-4 text-blue-500" />
+              </div>
+            )}
           </div>
         );
 
@@ -549,33 +581,45 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
               </button>
             </div>
 
-            <div 
-              onClick={() => safeNavigate('planner')}
-              className={`p-3 rounded-2xl bg-white/70 dark:bg-slate-900/60 border border-emerald-200/50 dark:border-emerald-900/40 grid grid-cols-3 gap-2 text-center transition ${
-                isEditing ? 'cursor-default' : 'hover:border-emerald-400 cursor-pointer active:scale-[0.99]'
-              }`}
-            >
-              <div className="space-y-0.5">
-                <div className="text-[10px] text-slate-400">预计月入</div>
-                <div className="text-xs font-mono font-bold text-slate-800 dark:text-slate-200">
-                  ¥{formatAmount(8500.00)}
+            {hasCashflowData ? (
+              <div 
+                onClick={() => safeNavigate('planner')}
+                className={`p-3 rounded-2xl bg-white/70 dark:bg-slate-900/60 border border-emerald-200/50 dark:border-emerald-900/40 grid grid-cols-3 gap-2 text-center transition ${
+                  isEditing ? 'cursor-default' : 'hover:border-emerald-400 cursor-pointer active:scale-[0.99]'
+                }`}
+              >
+                <div className="space-y-0.5">
+                  <div className="text-[10px] text-slate-400">预计月入</div>
+                  <div className="text-xs font-mono font-bold text-slate-800 dark:text-slate-200">
+                    ¥{formatAmount(cashflowPlan.totalIncome || cashflowPlan.recordedIncome)}
+                  </div>
+                </div>
+                <div className="space-y-0.5 border-x border-slate-100 dark:border-slate-800">
+                  <div className="text-[10px] text-slate-400">刚性支出+待还</div>
+                  <div className="text-xs font-mono font-bold text-rose-500">
+                    -¥{formatAmount(cashflowPlan.thisMonthDueAmount + (cashflowPlan.livingExpensesSpent || currentMonthExpenses))}
+                  </div>
+                </div>
+                <div className="space-y-0.5">
+                  <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold flex items-center justify-center gap-0.5">
+                    <Sparkles className="w-2.5 h-2.5" /> 自由现金流
+                  </div>
+                  <div className="text-xs font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                    ¥{formatAmount(cashflowPlan.safeFreeCashflow)}
+                  </div>
                 </div>
               </div>
-              <div className="space-y-0.5 border-x border-slate-100 dark:border-slate-800">
-                <div className="text-[10px] text-slate-400">刚性支出+待还</div>
-                <div className="text-xs font-mono font-bold text-rose-500">
-                  -¥{formatAmount(3480.00)}
-                </div>
+            ) : (
+              <div 
+                onClick={() => safeNavigate('planner')}
+                className={`p-3 rounded-2xl bg-white/50 dark:bg-slate-900/40 border border-dashed border-emerald-200 dark:border-emerald-900/40 flex items-center justify-between text-slate-500 transition ${
+                  isEditing ? 'cursor-default' : 'hover:text-emerald-600 cursor-pointer'
+                }`}
+              >
+                <span className="text-[11px]">暂未设定月度资金规划，点击开启薪资与自由现金流测算</span>
+                <Plus className="w-4 h-4 text-emerald-500" />
               </div>
-              <div className="space-y-0.5">
-                <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold flex items-center justify-center gap-0.5">
-                  <Sparkles className="w-2.5 h-2.5" /> 自由现金流
-                </div>
-                <div className="text-xs font-mono font-bold text-emerald-600 dark:text-emerald-400">
-                  ¥{formatAmount(5020.00)}
-                </div>
-              </div>
-            </div>
+            )}
           </div>
         );
 
@@ -588,7 +632,7 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
                   <TrendingUp className="w-3.5 h-3.5" />
                 </div>
                 <span className="text-xs font-bold text-slate-900 dark:text-white">
-                  💰 投资理财与基金持仓
+                  💰 投资理财与基金持仓 {investments.length > 0 ? `(${investments.length}个)` : ''}
                 </span>
               </div>
               <button
@@ -605,29 +649,41 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
               </button>
             </div>
 
-            <div 
-              onClick={() => safeNavigate('investments')}
-              className={`p-3 rounded-2xl bg-white/70 dark:bg-slate-900/60 border border-amber-200/50 dark:border-amber-900/40 flex items-center justify-between transition ${
-                isEditing ? 'cursor-default' : 'hover:border-amber-400 cursor-pointer active:scale-[0.99]'
-              }`}
-            >
-              <div className="space-y-0.5">
-                <div className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                  券商与基金总持仓
+            {investments.length > 0 && totalInvMarket > 0 ? (
+              <div 
+                onClick={() => safeNavigate('investments')}
+                className={`p-3 rounded-2xl bg-white/70 dark:bg-slate-900/60 border border-amber-200/50 dark:border-amber-900/40 flex items-center justify-between transition ${
+                  isEditing ? 'cursor-default' : 'hover:border-amber-400 cursor-pointer active:scale-[0.99]'
+                }`}
+              >
+                <div className="space-y-0.5">
+                  <div className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                    券商与基金总市值
+                  </div>
+                  <div className="text-[10px] text-slate-400">
+                    共 {investments.length} 个持仓标的
+                  </div>
                 </div>
-                <div className="text-[10px] text-slate-400">
-                  含华泰证券、天天基金等理财资产
+                <div className="text-right">
+                  <div className="text-xs font-mono font-bold text-amber-600 dark:text-amber-400">
+                    ¥{formatAmount(totalInvMarket)}
+                  </div>
+                  <div className={`text-[9px] font-bold ${totalInvProfit >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                    {totalInvProfit >= 0 ? '+' : ''}¥{formatAmount(totalInvProfit)} ({invProfitPct >= 0 ? '+' : ''}{invProfitPct.toFixed(2)}%)
+                  </div>
                 </div>
               </div>
-              <div className="text-right">
-                <div className="text-xs font-mono font-bold text-amber-600 dark:text-amber-400">
-                  ¥{formatAmount(totalInv)}
-                </div>
-                <div className="text-[9px] text-emerald-500 font-bold">
-                  +¥88.50 (+4.5%)
-                </div>
+            ) : (
+              <div 
+                onClick={() => safeNavigate('investments')}
+                className={`p-3 rounded-2xl bg-white/50 dark:bg-slate-900/40 border border-dashed border-amber-200 dark:border-amber-900/40 flex items-center justify-between text-slate-500 transition ${
+                  isEditing ? 'cursor-default' : 'hover:text-amber-600 cursor-pointer'
+                }`}
+              >
+                <span className="text-[11px]">暂无持仓资产，点击添加券商/基金/股票持仓</span>
+                <Plus className="w-4 h-4 text-amber-500" />
               </div>
-            </div>
+            )}
           </div>
         );
 
@@ -657,20 +713,39 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
               </button>
             </div>
 
-            <div 
-              onClick={() => safeNavigate('analytics')}
-              className={`p-3 rounded-2xl bg-white/70 dark:bg-slate-900/60 border border-teal-200/50 dark:border-teal-900/40 space-y-1.5 transition ${
-                isEditing ? 'cursor-default' : 'hover:border-teal-400 cursor-pointer active:scale-[0.99]'
-              }`}
-            >
-              <div className="flex items-center justify-between text-[11px]">
-                <span className="text-slate-700 dark:text-slate-300 font-bold">🍱 餐饮美食 (48%)</span>
-                <span className="font-mono text-slate-500">¥{formatAmount(162.61)}</span>
+            {topCategories.length > 0 && totalCatExpenses > 0 ? (
+              <div 
+                onClick={() => safeNavigate('analytics')}
+                className={`p-3 rounded-2xl bg-white/70 dark:bg-slate-900/60 border border-teal-200/50 dark:border-teal-900/40 space-y-2 transition ${
+                  isEditing ? 'cursor-default' : 'hover:border-teal-400 cursor-pointer active:scale-[0.99]'
+                }`}
+              >
+                {topCategories.map(([cat, amount]) => {
+                  const pct = Math.round((amount / totalCatExpenses) * 100);
+                  return (
+                    <div key={cat} className="space-y-1">
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="text-slate-700 dark:text-slate-300 font-bold">{cat} ({pct}%)</span>
+                        <span className="font-mono text-slate-500">¥{formatAmount(amount)}</span>
+                      </div>
+                      <div className="w-full h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                        <div className="h-full bg-gradient-to-r from-teal-500 to-emerald-500 rounded-full" style={{ width: `${pct}%` }} />
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-              <div className="w-full h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-                <div className="h-full bg-rose-500 rounded-full" style={{ width: '48%' }} />
+            ) : (
+              <div 
+                onClick={() => safeNavigate('analytics')}
+                className={`p-3 rounded-2xl bg-white/50 dark:bg-slate-900/40 border border-dashed border-teal-200 dark:border-teal-900/40 flex items-center justify-between text-slate-500 transition ${
+                  isEditing ? 'cursor-default' : 'hover:text-teal-600 cursor-pointer'
+                }`}
+              >
+                <span className="text-[11px]">本月暂无日常消费，记一笔账后即可查看分类透视</span>
+                <Plus className="w-4 h-4 text-teal-500" />
               </div>
-            </div>
+            )}
           </div>
         );
 
