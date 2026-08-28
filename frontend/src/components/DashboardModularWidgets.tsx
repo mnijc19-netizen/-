@@ -38,10 +38,16 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
   const [modalOpen, setModalOpen] = useState(false);
   const [activeDragIdx, setActiveDragIdx] = useState<number | null>(null);
 
-  // Long press refs to strictly distinguish scrolling from long-pressing
+  // Long press refs to strictly distinguish scrolling from deliberate long-press
   const pressTimerRef = useRef<any>(null);
   const touchStartPos = useRef<{ x: number; y: number } | null>(null);
   const isLongPressActive = useRef(false);
+
+  // Unified Safe Navigation Handler: Strictly BLOCKED when in edit mode!
+  const safeNavigate = (page: string) => {
+    if (isEditing || isLongPressActive.current) return;
+    onNavigateTo(page);
+  };
 
   // Save changes
   const updateWidgets = (newItems: DashboardWidgetConfig[]) => {
@@ -98,7 +104,7 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
     }, 150);
   };
 
-  // 2. Mobile Touch Drag-and-Drop Reordering
+  // 2. Buttery Smooth Mobile Touch Drag-and-Drop Reordering
   const currentDragIdxRef = useRef<number | null>(null);
 
   const handleGripTouchStart = (e: React.TouchEvent, index: number) => {
@@ -148,7 +154,7 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
           updateWidgets(newWidgets);
 
           if (typeof navigator !== 'undefined' && navigator.vibrate) {
-            navigator.vibrate(20);
+            navigator.vibrate(25);
           }
         }
       }
@@ -247,8 +253,12 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
               </div>
               <button
                 type="button"
-                onClick={() => onNavigateTo('planner')}
-                className="text-[11px] font-bold text-rose-600 dark:text-rose-400 hover:underline flex items-center gap-0.5"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  safeNavigate('planner');
+                }}
+                disabled={isEditing}
+                className="text-[11px] font-bold text-rose-600 dark:text-rose-400 hover:underline flex items-center gap-0.5 disabled:opacity-40 disabled:pointer-events-none"
               >
                 <span>资金规划大厅</span>
                 <ChevronRight className="w-3 h-3" />
@@ -260,12 +270,10 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
                 {activeDebts.map((d) => (
                   <div 
                     key={d.id} 
-                    onClick={() => {
-                      if (!isEditing && !isLongPressActive.current) {
-                        onNavigateTo('planner');
-                      }
-                    }}
-                    className="p-3 rounded-2xl bg-white/70 dark:bg-slate-900/60 border border-rose-200/50 dark:border-rose-900/40 flex items-center justify-between shadow-xs hover:border-rose-400 transition cursor-pointer"
+                    onClick={() => safeNavigate('planner')}
+                    className={`p-3 rounded-2xl bg-white/70 dark:bg-slate-900/60 border border-rose-200/50 dark:border-rose-900/40 flex items-center justify-between shadow-xs transition ${
+                      isEditing ? 'cursor-default' : 'hover:border-rose-400 cursor-pointer active:scale-[0.99]'
+                    }`}
                   >
                     <div className="space-y-0.5">
                       <div className="flex items-center gap-1.5">
@@ -298,12 +306,10 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
               </div>
             ) : (
               <div 
-                onClick={() => {
-                  if (!isEditing && !isLongPressActive.current) {
-                    onNavigateTo('planner');
-                  }
-                }}
-                className="p-3 rounded-2xl bg-white/50 dark:bg-slate-900/40 border border-dashed border-rose-200 dark:border-rose-900/40 flex items-center justify-between text-slate-500 hover:text-rose-600 transition cursor-pointer"
+                onClick={() => safeNavigate('planner')}
+                className={`p-3 rounded-2xl bg-white/50 dark:bg-slate-900/40 border border-dashed border-rose-200 dark:border-rose-900/40 flex items-center justify-between text-slate-500 transition ${
+                  isEditing ? 'cursor-default' : 'hover:text-rose-600 cursor-pointer'
+                }`}
               >
                 <span className="text-[11px]">暂无待还分期负债，点击一键添加白条/花呗/月供</span>
                 <Plus className="w-4 h-4 text-rose-500" />
@@ -326,8 +332,12 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
               </div>
               <button
                 type="button"
-                onClick={() => onNavigateTo('budgets')}
-                className="text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-0.5"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  safeNavigate('budgets');
+                }}
+                disabled={isEditing}
+                className="text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-0.5 disabled:opacity-40 disabled:pointer-events-none"
               >
                 <span>预算管理</span>
                 <ChevronRight className="w-3 h-3" />
@@ -335,12 +345,10 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
             </div>
 
             <div 
-              onClick={() => {
-                if (!isEditing && !isLongPressActive.current) {
-                  onNavigateTo('budgets');
-                }
-              }}
-              className="p-3 rounded-2xl bg-white/70 dark:bg-slate-900/60 border border-blue-200/50 dark:border-blue-900/40 space-y-2 cursor-pointer hover:border-blue-400 transition"
+              onClick={() => safeNavigate('budgets')}
+              className={`p-3 rounded-2xl bg-white/70 dark:bg-slate-900/60 border border-blue-200/50 dark:border-blue-900/40 space-y-2 transition ${
+                isEditing ? 'cursor-default' : 'hover:border-blue-400 cursor-pointer active:scale-[0.99]'
+              }`}
             >
               <div className="flex items-center justify-between text-xs">
                 <div className="font-bold text-slate-800 dark:text-slate-200">
@@ -379,8 +387,12 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
               </div>
               <button
                 type="button"
-                onClick={() => onNavigateTo('goals')}
-                className="text-[11px] font-bold text-purple-600 dark:text-purple-400 hover:underline flex items-center gap-0.5"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  safeNavigate('goals');
+                }}
+                disabled={isEditing}
+                className="text-[11px] font-bold text-purple-600 dark:text-purple-400 hover:underline flex items-center gap-0.5 disabled:opacity-40 disabled:pointer-events-none"
               >
                 <span>心愿大厅</span>
                 <ChevronRight className="w-3 h-3" />
@@ -389,12 +401,10 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
 
             {primaryGoal ? (
               <div 
-                onClick={() => {
-                  if (!isEditing && !isLongPressActive.current) {
-                    onNavigateTo('goals');
-                  }
-                }}
-                className="p-3 rounded-2xl bg-white/70 dark:bg-slate-900/60 border border-purple-200/50 dark:border-purple-900/40 space-y-2 cursor-pointer hover:border-purple-400 transition"
+                onClick={() => safeNavigate('goals')}
+                className={`p-3 rounded-2xl bg-white/70 dark:bg-slate-900/60 border border-purple-200/50 dark:border-purple-900/40 space-y-2 transition ${
+                  isEditing ? 'cursor-default' : 'hover:border-purple-400 cursor-pointer active:scale-[0.99]'
+                }`}
               >
                 <div className="flex items-center justify-between text-xs">
                   <div className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
@@ -418,12 +428,10 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
               </div>
             ) : (
               <div 
-                onClick={() => {
-                  if (!isEditing && !isLongPressActive.current) {
-                    onNavigateTo('goals');
-                  }
-                }}
-                className="p-3 rounded-2xl bg-white/50 dark:bg-slate-900/40 border border-dashed border-purple-200 dark:border-purple-900/40 flex items-center justify-between text-slate-500 hover:text-purple-600 transition cursor-pointer"
+                onClick={() => safeNavigate('goals')}
+                className={`p-3 rounded-2xl bg-white/50 dark:bg-slate-900/40 border border-dashed border-purple-200 dark:border-purple-900/40 flex items-center justify-between text-slate-500 transition ${
+                  isEditing ? 'cursor-default' : 'hover:text-purple-600 cursor-pointer'
+                }`}
               >
                 <span className="text-[11px]">暂无存钱心愿，点击设立第 1 个心愿单（如换电脑/备用金）</span>
                 <Plus className="w-4 h-4 text-purple-500" />
@@ -446,8 +454,12 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
               </div>
               <button
                 type="button"
-                onClick={() => onNavigateTo('planner')}
-                className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-0.5"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  safeNavigate('planner');
+                }}
+                disabled={isEditing}
+                className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-0.5 disabled:opacity-40 disabled:pointer-events-none"
               >
                 <span>规划大厅</span>
                 <ChevronRight className="w-3 h-3" />
@@ -455,12 +467,10 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
             </div>
 
             <div 
-              onClick={() => {
-                if (!isEditing && !isLongPressActive.current) {
-                  onNavigateTo('planner');
-                }
-              }}
-              className="p-3 rounded-2xl bg-white/70 dark:bg-slate-900/60 border border-emerald-200/50 dark:border-emerald-900/40 grid grid-cols-3 gap-2 text-center cursor-pointer hover:border-emerald-400 transition"
+              onClick={() => safeNavigate('planner')}
+              className={`p-3 rounded-2xl bg-white/70 dark:bg-slate-900/60 border border-emerald-200/50 dark:border-emerald-900/40 grid grid-cols-3 gap-2 text-center transition ${
+                isEditing ? 'cursor-default' : 'hover:border-emerald-400 cursor-pointer active:scale-[0.99]'
+              }`}
             >
               <div className="space-y-0.5">
                 <div className="text-[10px] text-slate-400">预计月入</div>
@@ -500,8 +510,12 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
               </div>
               <button
                 type="button"
-                onClick={() => onNavigateTo('investments')}
-                className="text-[11px] font-bold text-amber-600 dark:text-amber-400 hover:underline flex items-center gap-0.5"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  safeNavigate('investments');
+                }}
+                disabled={isEditing}
+                className="text-[11px] font-bold text-amber-600 dark:text-amber-400 hover:underline flex items-center gap-0.5 disabled:opacity-40 disabled:pointer-events-none"
               >
                 <span>持仓明细</span>
                 <ChevronRight className="w-3 h-3" />
@@ -509,12 +523,10 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
             </div>
 
             <div 
-              onClick={() => {
-                if (!isEditing && !isLongPressActive.current) {
-                  onNavigateTo('investments');
-                }
-              }}
-              className="p-3 rounded-2xl bg-white/70 dark:bg-slate-900/60 border border-amber-200/50 dark:border-amber-900/40 flex items-center justify-between cursor-pointer hover:border-amber-400 transition"
+              onClick={() => safeNavigate('investments')}
+              className={`p-3 rounded-2xl bg-white/70 dark:bg-slate-900/60 border border-amber-200/50 dark:border-amber-900/40 flex items-center justify-between transition ${
+                isEditing ? 'cursor-default' : 'hover:border-amber-400 cursor-pointer active:scale-[0.99]'
+              }`}
             >
               <div className="space-y-0.5">
                 <div className="text-xs font-bold text-slate-800 dark:text-slate-200">
@@ -550,8 +562,12 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
               </div>
               <button
                 type="button"
-                onClick={() => onNavigateTo('analytics')}
-                className="text-[11px] font-bold text-teal-600 dark:text-teal-400 hover:underline flex items-center gap-0.5"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  safeNavigate('analytics');
+                }}
+                disabled={isEditing}
+                className="text-[11px] font-bold text-teal-600 dark:text-teal-400 hover:underline flex items-center gap-0.5 disabled:opacity-40 disabled:pointer-events-none"
               >
                 <span>查看图表</span>
                 <ChevronRight className="w-3 h-3" />
@@ -559,12 +575,10 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
             </div>
 
             <div 
-              onClick={() => {
-                if (!isEditing && !isLongPressActive.current) {
-                  onNavigateTo('analytics');
-                }
-              }}
-              className="p-3 rounded-2xl bg-white/70 dark:bg-slate-900/60 border border-teal-200/50 dark:border-teal-900/40 space-y-1.5 cursor-pointer hover:border-teal-400 transition"
+              onClick={() => safeNavigate('analytics')}
+              className={`p-3 rounded-2xl bg-white/70 dark:bg-slate-900/60 border border-teal-200/50 dark:border-teal-900/40 space-y-1.5 transition ${
+                isEditing ? 'cursor-default' : 'hover:border-teal-400 cursor-pointer active:scale-[0.99]'
+              }`}
             >
               <div className="flex items-center justify-between text-[11px]">
                 <span className="text-slate-700 dark:text-slate-300 font-bold">🍱 餐饮美食 (48%)</span>
@@ -611,8 +625,8 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
             ✨ 首页智能财务看板
           </span>
           {isEditing ? (
-            <span className="px-2 py-0.5 rounded-full bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 text-[10px] font-bold animate-pulse">
-              按住手柄拖动 / 点击箭头调序
+            <span className="px-2.5 py-0.5 rounded-full bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 text-[10px] font-bold animate-pulse flex items-center gap-1">
+              <Sparkles className="w-2.5 h-2.5" /> 拖动手柄实时调序 · 点击已暂停
             </span>
           ) : (
             <span className="text-[10px] text-slate-400 hidden sm:inline">长按或点右侧设置调序</span>
@@ -650,7 +664,7 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
         </div>
       </div>
 
-      {/* Render Enabled Horizontal Widgets */}
+      {/* Render Enabled Horizontal Widgets with Fluid Spring Transition */}
       <div className="space-y-3">
         {enabledWidgets.map((item, idx) => {
           const isCurrentDrag = activeDragIdx === idx;
@@ -662,15 +676,18 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
               onTouchStart={(e) => handleCardTouchStart(e, idx)}
               onTouchMove={handleCardTouchMove}
               onTouchEnd={handleCardTouchEnd}
-              className={`p-4 rounded-3xl border shadow-sm relative transition-all duration-150 select-none ${getWidgetBgClass(item.id)} ${
+              style={{
+                transition: 'transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.25s ease, opacity 0.2s ease'
+              }}
+              className={`p-4 rounded-3xl border shadow-sm relative select-none ${getWidgetBgClass(item.id)} ${
                 isEditing 
                   ? 'ring-2 ring-indigo-500/40 bg-white/95 dark:bg-slate-900/95 shadow-md' 
                   : ''
-              } ${isCurrentDrag ? 'scale-[1.02] shadow-xl ring-2 ring-indigo-600 bg-white dark:bg-slate-800 z-20 opacity-95' : ''}`}
+              } ${isCurrentDrag ? 'scale-[1.03] shadow-2xl ring-4 ring-indigo-600/90 bg-white dark:bg-slate-800 z-30 opacity-95 -translate-y-1' : ''}`}
             >
               {/* Top Edit Controls */}
               {isEditing && (
-                <div className="absolute -top-2.5 -right-2 z-10 flex items-center gap-1">
+                <div className="absolute -top-2.5 -right-2 z-10 flex items-center gap-1 animate-in zoom-in-75 duration-200">
                   <button
                     type="button"
                     onClick={(e) => {
@@ -686,9 +703,11 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
               )}
 
               {/* Widget Inner Content */}
-              {renderWidgetContent(item.id)}
+              <div className={isEditing ? 'pointer-events-none opacity-90' : ''}>
+                {renderWidgetContent(item.id)}
+              </div>
 
-              {/* Edit Mode Reorder Bar */}
+              {/* Edit Mode Reorder Bar with Fluid Touch Grip Handle */}
               {isEditing && (
                 <div className="flex items-center justify-between pt-2.5 mt-2.5 border-t border-slate-200/60 dark:border-slate-700/60">
                   {/* Dedicated Touch Drag Grip Handle */}
@@ -696,10 +715,14 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
                     onTouchStart={(e) => handleGripTouchStart(e, idx)}
                     onTouchMove={handleGripTouchMove}
                     onTouchEnd={handleGripTouchEnd}
-                    className="flex items-center gap-1.5 py-1.5 px-3 rounded-xl bg-slate-200/90 dark:bg-slate-700/90 text-slate-700 dark:text-slate-200 active:bg-indigo-600 active:text-white transition cursor-grab active:cursor-grabbing select-none touch-none"
+                    className={`flex items-center gap-2 py-2 px-3.5 rounded-2xl transition-all select-none touch-none shadow-xs ${
+                      isCurrentDrag 
+                        ? 'bg-indigo-600 text-white scale-105 shadow-md' 
+                        : 'bg-slate-200/90 dark:bg-slate-700/90 text-slate-700 dark:text-slate-200 active:bg-indigo-600 active:text-white'
+                    }`}
                   >
-                    <GripVertical className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />
-                    <span className="text-[11px] font-bold">按住拖动调序</span>
+                    <GripVertical className={`w-4 h-4 ${isCurrentDrag ? 'text-white' : 'text-indigo-500 dark:text-indigo-400'}`} />
+                    <span className="text-[11px] font-bold">按住拖动换位</span>
                   </div>
 
                   {/* 1-Tap Touch Reorder Buttons */}
@@ -711,7 +734,7 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
                         e.stopPropagation();
                         moveWidget(idx, 'up');
                       }}
-                      className="py-1.5 px-3 rounded-xl bg-slate-200/90 dark:bg-slate-700/90 text-slate-700 dark:text-slate-200 hover:bg-indigo-500 hover:text-white disabled:opacity-20 disabled:pointer-events-none active:scale-95 transition flex items-center gap-1 text-[11px] font-bold shadow-xs"
+                      className="py-2 px-3 rounded-2xl bg-slate-200/90 dark:bg-slate-700/90 text-slate-700 dark:text-slate-200 hover:bg-indigo-500 hover:text-white disabled:opacity-20 disabled:pointer-events-none active:scale-95 transition flex items-center gap-1 text-[11px] font-bold shadow-xs"
                       title="上移"
                     >
                       <ArrowUp className="w-3.5 h-3.5 stroke-[2.5]" /> 上移
@@ -723,7 +746,7 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
                         e.stopPropagation();
                         moveWidget(idx, 'down');
                       }}
-                      className="py-1.5 px-3 rounded-xl bg-slate-200/90 dark:bg-slate-700/90 text-slate-700 dark:text-slate-200 hover:bg-indigo-500 hover:text-white disabled:opacity-20 disabled:pointer-events-none active:scale-95 transition flex items-center gap-1 text-[11px] font-bold shadow-xs"
+                      className="py-2 px-3 rounded-2xl bg-slate-200/90 dark:bg-slate-700/90 text-slate-700 dark:text-slate-200 hover:bg-indigo-500 hover:text-white disabled:opacity-20 disabled:pointer-events-none active:scale-95 transition flex items-center gap-1 text-[11px] font-bold shadow-xs"
                       title="下移"
                     >
                       <ArrowDown className="w-3.5 h-3.5 stroke-[2.5]" /> 下移
