@@ -24,7 +24,8 @@ import {
   Wallet,
   TrendingDown,
   Camera,
-  ArrowRight
+  ArrowRight,
+  ShieldCheck
 } from 'lucide-react';
 import { 
   DashboardWidgetConfig, 
@@ -52,23 +53,55 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
   const [modalOpen, setModalOpen] = useState(false);
   const [activeDragIdx, setActiveDragIdx] = useState<number | null>(null);
 
-  // Privacy State: Customizable Default Gaussian blur!
-  const [debtsDefaultBlur, setDebtsDefaultBlur] = useState<boolean>(() => localStore.getDebtsDefaultBlur());
-  const [debtsPrivacyRevealed, setDebtsPrivacyRevealed] = useState<boolean>(() => !localStore.getDebtsDefaultBlur());
+  // 🔒 Universal Per-Card Privacy Revealed State
+  const [revealedMap, setRevealedMap] = useState<Record<string, boolean>>(() => {
+    const initMap: Record<string, boolean> = {};
+    const currentWidgets = localStore.getDashboardWidgets();
+    for (const w of currentWidgets) {
+      initMap[w.id] = !w.blurByDefault;
+    }
+    return initMap;
+  });
 
   // Sync with global privacy mode toggle
   useEffect(() => {
     if (privacyMode) {
-      setDebtsPrivacyRevealed(false);
+      setRevealedMap({});
     }
   }, [privacyMode]);
 
-  // Long press refs to strictly distinguish scrolling from deliberate long-press
+  const isWidgetRevealed = (id: string) => {
+    if (privacyMode) return false;
+    return !!revealedMap[id];
+  };
+
+  const toggleWidgetReveal = (id: string) => {
+    if (isEditing || isLongPressActive.current) return;
+    haptic.toggle();
+    setRevealedMap(prev => ({
+      ...prev,
+      [id]: !prev[id]
+    }));
+  };
+
+  const toggleWidgetBlurByDefault = (id: string) => {
+    haptic.toggle();
+    const newItems = widgets.map(w => 
+      w.id === id ? { ...w, blurByDefault: !w.blurByDefault } : w
+    );
+    updateWidgets(newItems);
+    setRevealedMap(prev => ({
+      ...prev,
+      [id]: !newItems.find(w => w.id === id)?.blurByDefault
+    }));
+  };
+
+  // Long press refs
   const pressTimerRef = useRef<any>(null);
   const touchStartPos = useRef<{ x: number; y: number } | null>(null);
   const isLongPressActive = useRef(false);
 
-  // Unified Safe Navigation Handler: Strictly BLOCKED when in edit mode!
+  // Unified Safe Navigation Handler
   const safeNavigate = (page: string) => {
     if (isEditing || isLongPressActive.current) return;
     haptic.selection();
@@ -217,6 +250,11 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
   const handleReset = () => {
     haptic.warning();
     updateWidgets(DEFAULT_DASHBOARD_WIDGETS);
+    const defMap: Record<string, boolean> = {};
+    for (const w of DEFAULT_DASHBOARD_WIDGETS) {
+      defMap[w.id] = !w.blurByDefault;
+    }
+    setRevealedMap(defMap);
   };
 
   // Helper amount formatter
@@ -224,7 +262,7 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
     return (val || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
 
-  // 100% Real Dynamic Data Sources from LocalStore (Zero fake hardcoded mock numbers)
+  // 100% Real Dynamic Data Sources from LocalStore
   const debts = localStore.getDebts();
   const activeDebts = debts.filter(d => (d.remaining_principal || 0) > 0);
   const budgets = localStore.getBudgets();
@@ -276,11 +314,13 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
 
   // Render specific widget content
   const renderWidgetContent = (type: string) => {
+    const revealed = isWidgetRevealed(type);
+
     switch (type) {
       case 'debts':
         return (
           <div className="space-y-2.5">
-            {/* Header: Clean title with no cluttered buttons */}
+            {/* Header */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <div className="w-6 h-6 rounded-lg bg-rose-500/15 text-rose-600 dark:text-rose-400 flex items-center justify-center font-bold">
@@ -315,12 +355,7 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
                 {activeDebts.map((d) => (
                   <div 
                     key={d.id} 
-                    onClick={() => {
-                      if (!isEditing) {
-                        haptic.toggle();
-                        setDebtsPrivacyRevealed(!debtsPrivacyRevealed);
-                      }
-                    }}
+                    onClick={() => toggleWidgetReveal('debts')}
                     className={`p-3 rounded-2xl bg-white/70 dark:bg-slate-900/60 border border-rose-200/50 dark:border-rose-900/40 flex items-center justify-between shadow-xs transition relative overflow-hidden select-none ${
                       isEditing ? 'cursor-default' : 'hover:border-rose-400 cursor-pointer active:scale-[0.99]'
                     }`}
@@ -339,26 +374,24 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
                         )}
                       </div>
 
-                      {/* Gaussian Blurred Details: Tap card to toggle blur/unblur */}
                       <div 
                         style={{
-                          filter: debtsPrivacyRevealed ? 'none' : 'blur(5.5px)',
+                          filter: revealed ? 'none' : 'blur(5.5px)',
                           transition: 'filter 0.35s ease, opacity 0.35s ease'
                         }}
-                        className={`text-[10px] text-slate-400 select-none ${!debtsPrivacyRevealed ? 'opacity-80' : 'opacity-100'}`}
+                        className={`text-[10px] text-slate-400 select-none ${!revealed ? 'opacity-80' : 'opacity-100'}`}
                       >
                         还款日: 每月{d.repay_day || 4}日 · 总待还: ¥{formatAmount(d.remaining_principal || 0)}
                       </div>
                     </div>
 
-                    {/* Gaussian Blurred Amount: Tap card to toggle blur/unblur */}
                     <div className="text-right">
                       <div 
                         style={{
-                          filter: debtsPrivacyRevealed ? 'none' : 'blur(6.5px)',
+                          filter: revealed ? 'none' : 'blur(6.5px)',
                           transition: 'filter 0.35s ease, opacity 0.35s ease'
                         }}
-                        className={`text-xs font-mono font-bold text-rose-600 dark:text-rose-400 select-none ${!debtsPrivacyRevealed ? 'opacity-85' : 'opacity-100'}`}
+                        className={`text-xs font-mono font-bold text-rose-600 dark:text-rose-400 select-none ${!revealed ? 'opacity-85' : 'opacity-100'}`}
                       >
                         ¥{formatAmount(d.monthly_payment || 0)}
                       </div>
@@ -411,12 +444,18 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
 
             {totalBudget > 0 ? (
               <div 
-                onClick={() => safeNavigate('budgets')}
-                className={`p-3 rounded-2xl bg-white/70 dark:bg-slate-900/60 border border-blue-200/50 dark:border-blue-900/40 space-y-2 transition ${
+                onClick={() => toggleWidgetReveal('budgets')}
+                className={`p-3 rounded-2xl bg-white/70 dark:bg-slate-900/60 border border-blue-200/50 dark:border-blue-900/40 space-y-2 transition select-none ${
                   isEditing ? 'cursor-default' : 'hover:border-blue-400 cursor-pointer active:scale-[0.99]'
                 }`}
               >
-                <div className="flex items-center justify-between text-xs">
+                <div 
+                  style={{
+                    filter: revealed ? 'none' : 'blur(6px)',
+                    transition: 'filter 0.35s ease, opacity 0.35s ease'
+                  }}
+                  className={`flex items-center justify-between text-xs ${!revealed ? 'opacity-85' : 'opacity-100'}`}
+                >
                   <div className="font-bold text-slate-800 dark:text-slate-200">
                     已用 <span className="font-mono text-blue-600 dark:text-blue-400 font-bold">¥{formatAmount(currentMonthExpenses)}</span>
                     <span className="text-slate-400 font-normal text-[10px] ml-1">/ 预算 ¥{formatAmount(totalBudget)}</span>
@@ -478,12 +517,18 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
 
             {primaryGoal ? (
               <div 
-                onClick={() => safeNavigate('goals')}
-                className={`p-3 rounded-2xl bg-white/70 dark:bg-slate-900/60 border border-purple-200/50 dark:border-purple-900/40 space-y-2 transition ${
+                onClick={() => toggleWidgetReveal('goals')}
+                className={`p-3 rounded-2xl bg-white/70 dark:bg-slate-900/60 border border-purple-200/50 dark:border-purple-900/40 space-y-2 transition select-none ${
                   isEditing ? 'cursor-default' : 'hover:border-purple-400 cursor-pointer active:scale-[0.99]'
                 }`}
               >
-                <div className="flex items-center justify-between text-xs">
+                <div 
+                  style={{
+                    filter: revealed ? 'none' : 'blur(6px)',
+                    transition: 'filter 0.35s ease, opacity 0.35s ease'
+                  }}
+                  className={`flex items-center justify-between text-xs ${!revealed ? 'opacity-85' : 'opacity-100'}`}
+                >
                   <div className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
                     <span>🌟 {primaryGoal.name}</span>
                     <span className="text-[9px] px-1.5 py-0.2 rounded bg-purple-100 dark:bg-purple-950 text-purple-600 dark:text-purple-400 font-bold">
@@ -545,24 +590,42 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
 
             {hasCashflowData ? (
               <div 
-                onClick={() => safeNavigate('planner')}
-                className={`p-3 rounded-2xl bg-white/70 dark:bg-slate-900/60 border border-emerald-200/50 dark:border-emerald-900/40 grid grid-cols-3 gap-2 text-center transition ${
+                onClick={() => toggleWidgetReveal('planner')}
+                className={`p-3 rounded-2xl bg-white/70 dark:bg-slate-900/60 border border-emerald-200/50 dark:border-emerald-900/40 grid grid-cols-3 gap-2 text-center transition select-none ${
                   isEditing ? 'cursor-default' : 'hover:border-emerald-400 cursor-pointer active:scale-[0.99]'
                 }`}
               >
-                <div className="space-y-0.5">
+                <div 
+                  style={{
+                    filter: revealed ? 'none' : 'blur(5.5px)',
+                    transition: 'filter 0.35s ease, opacity 0.35s ease'
+                  }}
+                  className={`space-y-0.5 ${!revealed ? 'opacity-85' : 'opacity-100'}`}
+                >
                   <div className="text-[10px] text-slate-400">预计月入</div>
                   <div className="text-xs font-mono font-bold text-slate-800 dark:text-slate-200">
                     ¥{formatAmount(cashflowPlan.totalIncome || cashflowPlan.recordedIncome)}
                   </div>
                 </div>
-                <div className="space-y-0.5 border-x border-slate-100 dark:border-slate-800">
+                <div 
+                  style={{
+                    filter: revealed ? 'none' : 'blur(5.5px)',
+                    transition: 'filter 0.35s ease, opacity 0.35s ease'
+                  }}
+                  className={`space-y-0.5 border-x border-slate-100 dark:border-slate-800 ${!revealed ? 'opacity-85' : 'opacity-100'}`}
+                >
                   <div className="text-[10px] text-slate-400">刚性支出+待还</div>
                   <div className="text-xs font-mono font-bold text-rose-500">
                     -¥{formatAmount(cashflowPlan.thisMonthDueAmount + (cashflowPlan.livingExpensesSpent || currentMonthExpenses))}
                   </div>
                 </div>
-                <div className="space-y-0.5">
+                <div 
+                  style={{
+                    filter: revealed ? 'none' : 'blur(5.5px)',
+                    transition: 'filter 0.35s ease, opacity 0.35s ease'
+                  }}
+                  className={`space-y-0.5 ${!revealed ? 'opacity-85' : 'opacity-100'}`}
+                >
                   <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold flex items-center justify-center gap-0.5">
                     <Sparkles className="w-2.5 h-2.5" /> 自由现金流
                   </div>
@@ -613,8 +676,8 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
 
             {investments.length > 0 && totalInvMarket > 0 ? (
               <div 
-                onClick={() => safeNavigate('investments')}
-                className={`p-3 rounded-2xl bg-white/70 dark:bg-slate-900/60 border border-amber-200/50 dark:border-amber-900/40 flex items-center justify-between transition ${
+                onClick={() => toggleWidgetReveal('investments')}
+                className={`p-3 rounded-2xl bg-white/70 dark:bg-slate-900/60 border border-amber-200/50 dark:border-amber-900/40 flex items-center justify-between transition select-none ${
                   isEditing ? 'cursor-default' : 'hover:border-amber-400 cursor-pointer active:scale-[0.99]'
                 }`}
               >
@@ -626,7 +689,13 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
                     共 {investments.length} 个持仓标的
                   </div>
                 </div>
-                <div className="text-right">
+                <div 
+                  style={{
+                    filter: revealed ? 'none' : 'blur(6.5px)',
+                    transition: 'filter 0.35s ease, opacity 0.35s ease'
+                  }}
+                  className={`text-right ${!revealed ? 'opacity-85' : 'opacity-100'}`}
+                >
                   <div className="text-xs font-mono font-bold text-amber-600 dark:text-amber-400">
                     ¥{formatAmount(totalInvMarket)}
                   </div>
@@ -677,25 +746,33 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
 
             {topCategories.length > 0 && totalCatExpenses > 0 ? (
               <div 
-                onClick={() => safeNavigate('analytics')}
-                className={`p-3 rounded-2xl bg-white/70 dark:bg-slate-900/60 border border-teal-200/50 dark:border-teal-900/40 space-y-2 transition ${
+                onClick={() => toggleWidgetReveal('analytics')}
+                className={`p-3 rounded-2xl bg-white/70 dark:bg-slate-900/60 border border-teal-200/50 dark:border-teal-900/40 space-y-2 transition select-none ${
                   isEditing ? 'cursor-default' : 'hover:border-teal-400 cursor-pointer active:scale-[0.99]'
                 }`}
               >
-                {topCategories.map(([cat, amount]) => {
-                  const pct = Math.round((amount / totalCatExpenses) * 100);
-                  return (
-                    <div key={cat} className="space-y-1">
-                      <div className="flex items-center justify-between text-[11px]">
-                        <span className="text-slate-700 dark:text-slate-300 font-bold">{cat} ({pct}%)</span>
-                        <span className="font-mono text-slate-500">¥{formatAmount(amount)}</span>
+                <div 
+                  style={{
+                    filter: revealed ? 'none' : 'blur(5.5px)',
+                    transition: 'filter 0.35s ease, opacity 0.35s ease'
+                  }}
+                  className={`space-y-2 ${!revealed ? 'opacity-85' : 'opacity-100'}`}
+                >
+                  {topCategories.map(([cat, amount]) => {
+                    const pct = Math.round((amount / totalCatExpenses) * 100);
+                    return (
+                      <div key={cat} className="space-y-1">
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="text-slate-700 dark:text-slate-300 font-bold">{cat} ({pct}%)</span>
+                          <span className="font-mono text-slate-500">¥{formatAmount(amount)}</span>
+                        </div>
+                        <div className="w-full h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                          <div className="h-full bg-gradient-to-r from-teal-500 to-emerald-500 rounded-full" style={{ width: `${pct}%` }} />
+                        </div>
                       </div>
-                      <div className="w-full h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-                        <div className="h-full bg-gradient-to-r from-teal-500 to-emerald-500 rounded-full" style={{ width: `${pct}%` }} />
-                      </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
             ) : (
               <div 
@@ -779,47 +856,55 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
               </div>
             ) : (
               <div 
-                onClick={() => safeNavigate('transactions')}
-                className={`p-3 rounded-2xl bg-white/70 dark:bg-slate-900/60 border border-slate-200/60 dark:border-slate-800/60 divide-y divide-slate-100 dark:divide-slate-800/80 transition ${
+                onClick={() => toggleWidgetReveal('transactions')}
+                className={`p-3 rounded-2xl bg-white/70 dark:bg-slate-900/60 border border-slate-200/60 dark:border-slate-800/60 divide-y divide-slate-100 dark:divide-slate-800/80 transition select-none ${
                   isEditing ? 'cursor-default' : 'hover:border-slate-400 cursor-pointer active:scale-[0.99]'
                 }`}
               >
-                {recentTransactions.map(tx => (
-                  <div key={tx.id} className="py-2.5 first:pt-0 last:pb-0 flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 text-xs ${
-                        tx.category_name === '余额校准'
-                          ? 'bg-amber-100 dark:bg-amber-950 text-amber-600'
-                          : tx.type === 'income' 
-                            ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-600' 
-                            : 'bg-rose-100 dark:bg-rose-950 text-rose-600'
-                      }`}>
-                        {tx.category_name === '余额校准' ? <Wallet className="w-4 h-4" /> : tx.type === 'income' ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="text-xs font-bold text-slate-900 dark:text-white truncate">
-                          {tx.merchant || tx.category_name || '日常消费'}
+                <div 
+                  style={{
+                    filter: revealed ? 'none' : 'blur(5px)',
+                    transition: 'filter 0.35s ease, opacity 0.35s ease'
+                  }}
+                  className={`divide-y divide-slate-100 dark:divide-slate-800/80 ${!revealed ? 'opacity-85' : 'opacity-100'}`}
+                >
+                  {recentTransactions.map(tx => (
+                    <div key={tx.id} className="py-2.5 first:pt-0 last:pb-0 flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 text-xs ${
+                          tx.category_name === '余额校准'
+                            ? 'bg-amber-100 dark:bg-amber-950 text-amber-600'
+                            : tx.type === 'income' 
+                              ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-600' 
+                              : 'bg-rose-100 dark:bg-rose-950 text-rose-600'
+                        }`}>
+                          {tx.category_name === '余额校准' ? <Wallet className="w-4 h-4" /> : tx.type === 'income' ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
                         </div>
-                        <div className="text-[10px] text-slate-400 truncate">
-                          {tx.date.substring(5, 16)} • {tx.account_name || '默认账户'}
+                        <div className="min-w-0">
+                          <div className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                            {tx.merchant || tx.category_name || '日常消费'}
+                          </div>
+                          <div className="text-[10px] text-slate-400 truncate">
+                            {tx.date.substring(5, 16)} • {tx.account_name || '默认账户'}
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    <div className={`text-xs font-bold font-mono flex-shrink-0 ${
-                      tx.category_name === '余额校准' 
-                        ? 'text-amber-600 dark:text-amber-400'
-                        : tx.type === 'income' 
-                          ? 'text-emerald-500' 
-                          : 'text-slate-900 dark:text-white'
-                    }`}>
-                      {privacyMode 
-                        ? '••••' 
-                        : `${tx.type === 'income' ? '+' : '-'}¥${tx.amount.toFixed(2)}`
-                      }
+                      <div className={`text-xs font-bold font-mono flex-shrink-0 ${
+                        tx.category_name === '余额校准' 
+                          ? 'text-amber-600 dark:text-amber-400'
+                          : tx.type === 'income' 
+                            ? 'text-emerald-500' 
+                            : 'text-slate-900 dark:text-white'
+                      }`}>
+                        {privacyMode 
+                          ? '••••' 
+                          : `${tx.type === 'income' ? '+' : '-'}¥${tx.amount.toFixed(2)}`
+                        }
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             )}
           </div>
@@ -940,7 +1025,7 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
                       toggleWidgetEnabled(item.id);
                     }}
                     className="w-6 h-6 rounded-full bg-rose-500 text-white flex items-center justify-center shadow-md hover:scale-110 active:scale-90 transition"
-                    title="从首页隐藏此看板"
+                    title="从首页隐藏此卡片"
                   >
                     <X className="w-3.5 h-3.5 stroke-[3]" />
                   </button>
@@ -1016,7 +1101,7 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
             <div className="w-7 h-7 rounded-xl bg-indigo-500/15 flex items-center justify-center font-bold">
               <Plus className="w-4 h-4" />
             </div>
-            <span className="text-xs font-bold">添加隐藏看板 (+{hiddenWidgets.length})</span>
+            <span className="text-xs font-bold">添加隐藏卡片 (+{hiddenWidgets.length})</span>
           </button>
         )}
       </div>
@@ -1024,7 +1109,7 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
       {/* Customization Modal */}
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md animate-in fade-in duration-200">
-          <div className="w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-200">
+          <div className="w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[88vh] animate-in zoom-in-95 duration-200">
             {/* Header */}
             <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -1036,7 +1121,7 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
                     自定义首页卡片
                   </h3>
                   <p className="text-[10px] text-slate-400">
-                    勾选需要在首页展示的横版信息卡片并调整顺序
+                    自由勾选显隐、排序，并可为任意卡片独立设置默认高斯模糊
                   </p>
                 </div>
               </div>
@@ -1046,7 +1131,7 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
                   haptic.selection();
                   setModalOpen(false);
                 }}
-                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:bg-slate-800 transition"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1055,23 +1140,28 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
             {/* List */}
             <div className="p-4 overflow-y-auto space-y-2 flex-1 divide-y divide-slate-100 dark:divide-slate-800">
               {widgets.map((item, idx) => (
-                <div key={item.id} className="pt-2 first:pt-0 flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="text-xs font-bold text-slate-900 dark:text-white truncate">
-                      {item.title}
+                <div key={item.id} className="pt-2.5 first:pt-0 flex items-center justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <div className="text-xs font-bold text-slate-900 dark:text-white truncate flex items-center gap-1.5">
+                      <span>{item.title}</span>
+                      {item.blurByDefault && (
+                        <span className="text-[9px] font-mono font-bold px-1.5 py-0.2 rounded bg-rose-500/15 text-rose-600 dark:text-rose-400">
+                          默认模糊
+                        </span>
+                      )}
                     </div>
                     <div className="text-[10px] text-slate-400 truncate">
                       {item.subtitle}
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    {/* Move Up/Down */}
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    {/* Up/Down */}
                     <button
                       type="button"
                       disabled={idx === 0}
                       onClick={() => moveWidget(idx, 'up')}
-                      className="p-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-indigo-500 hover:text-white disabled:opacity-20 disabled:pointer-events-none transition"
+                      className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-indigo-500 hover:text-white disabled:opacity-20 disabled:pointer-events-none transition active:scale-95"
                       title="向上移动"
                     >
                       <ArrowUp className="w-3.5 h-3.5" />
@@ -1080,19 +1170,35 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
                       type="button"
                       disabled={idx === widgets.length - 1}
                       onClick={() => moveWidget(idx, 'down')}
-                      className="p-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-indigo-500 hover:text-white disabled:opacity-20 disabled:pointer-events-none transition"
+                      className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-indigo-500 hover:text-white disabled:opacity-20 disabled:pointer-events-none transition active:scale-95"
                       title="向下移动"
                     >
                       <ArrowDown className="w-3.5 h-3.5" />
                     </button>
 
-                    {/* Toggle Switch */}
+                    {/* Per-Card Privacy Blur Toggle Button */}
+                    <button
+                      type="button"
+                      onClick={() => toggleWidgetBlurByDefault(item.id)}
+                      className={`py-1 px-2 rounded-xl text-[10px] font-bold flex items-center gap-1 transition active:scale-90 ${
+                        item.blurByDefault 
+                          ? 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900/50 shadow-2xs' 
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
+                      }`}
+                      title={item.blurByDefault ? '当前：默认高斯模糊（点击改为默认明文）' : '当前：默认清晰明文（点击改为默认高斯模糊）'}
+                    >
+                      {item.blurByDefault ? <Lock className="w-3 h-3 text-rose-500" /> : <EyeOff className="w-3 h-3 text-slate-400" />}
+                      <span>{item.blurByDefault ? '模糊' : '明文'}</span>
+                    </button>
+
+                    {/* Show/Hide Toggle Switch */}
                     <button
                       type="button"
                       onClick={() => toggleWidgetEnabled(item.id)}
                       className={`w-11 h-6 rounded-full transition-colors relative flex items-center p-0.5 ${
                         item.enabled ? 'bg-indigo-600' : 'bg-slate-300 dark:bg-slate-700'
                       }`}
+                      title={item.enabled ? '在首页显示' : '在首页隐藏'}
                     >
                       <div className={`w-5 h-5 rounded-full bg-white shadow-md transform transition-transform ${
                         item.enabled ? 'translate-x-5' : 'translate-x-0'
@@ -1101,37 +1207,6 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
                   </div>
                 </div>
               ))}
-            </div>
-
-            {/* 🔒 Privacy Configuration Option */}
-            <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <div className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-                  <Lock className="w-3.5 h-3.5 text-rose-500" />
-                  <span>分期卡片默认高斯模糊</span>
-                </div>
-                <div className="text-[10px] text-slate-400 mt-0.5">
-                  开启后进入网站默认遮蔽分期金额，点按卡片可随时解密/再遮挡
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => {
-                  haptic.toggle();
-                  const next = !debtsDefaultBlur;
-                  setDebtsDefaultBlur(next);
-                  localStore.saveDebtsDefaultBlur(next);
-                  setDebtsPrivacyRevealed(!next);
-                }}
-                className={`w-11 h-6 rounded-full transition-colors relative flex items-center p-0.5 flex-shrink-0 ${
-                  debtsDefaultBlur ? 'bg-rose-600' : 'bg-slate-300 dark:bg-slate-700'
-                }`}
-              >
-                <div className={`w-5 h-5 rounded-full bg-white shadow-md transform transition-transform ${
-                  debtsDefaultBlur ? 'translate-x-5' : 'translate-x-0'
-                }`} />
-              </button>
             </div>
 
             {/* Footer */}

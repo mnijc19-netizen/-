@@ -137,16 +137,17 @@ export interface DashboardWidgetConfig {
   title: string;
   subtitle: string;
   enabled: boolean;
+  blurByDefault: boolean;
 }
 
 export const DEFAULT_DASHBOARD_WIDGETS: DashboardWidgetConfig[] = [
-  { id: 'debts', title: '💳 分期待还', subtitle: '白条/花呗/信用卡待还与分期', enabled: true },
-  { id: 'budgets', title: '📊 本月预算', subtitle: '日常消费限额与超支预警', enabled: true },
-  { id: 'goals', title: '🎯 存钱目标', subtitle: '心愿单与备用金达成率', enabled: true },
-  { id: 'transactions', title: '📝 最新明细', subtitle: '最近入账与消费流水列表', enabled: true },
-  { id: 'planner', title: '📅 资金规划', subtitle: '工资/刚性支出/自由现金流', enabled: false },
-  { id: 'investments', title: '💰 投资理财', subtitle: '股票/基金持仓浮动盈亏', enabled: false },
-  { id: 'analytics', title: '📈 支出分类', subtitle: '本月消费构成比例透视', enabled: false }
+  { id: 'debts', title: '💳 分期待还', subtitle: '白条/花呗/信用卡待还与分期', enabled: true, blurByDefault: true },
+  { id: 'budgets', title: '📊 本月预算', subtitle: '日常消费限额与超支预警', enabled: true, blurByDefault: false },
+  { id: 'goals', title: '🎯 存钱目标', subtitle: '心愿单与备用金达成率', enabled: true, blurByDefault: false },
+  { id: 'transactions', title: '📝 最新明细', subtitle: '最近入账与消费流水列表', enabled: true, blurByDefault: false },
+  { id: 'planner', title: '📅 资金规划', subtitle: '工资/刚性支出/自由现金流', enabled: false, blurByDefault: true },
+  { id: 'investments', title: '💰 投资理财', subtitle: '股票/基金持仓浮动盈亏', enabled: false, blurByDefault: true },
+  { id: 'analytics', title: '📈 支出分类', subtitle: '本月消费构成比例透视', enabled: false, blurByDefault: false }
 ];
 
 export interface AiConfig {
@@ -470,14 +471,15 @@ export const localStore = {
     const defMap = new Map(DEFAULT_DASHBOARD_WIDGETS.map(d => [d.id, d]));
     const existingIds = new Set(raw.map(r => r.id));
     
-    // Update titles and subtitles to clean versions while preserving user's enabled and order
+    // Update titles and subtitles to clean versions while preserving user's enabled, order, and blurByDefault
     const merged: DashboardWidgetConfig[] = raw.map(r => {
       const def = defMap.get(r.id);
       return {
         id: r.id,
         title: def ? def.title : r.title,
         subtitle: def ? def.subtitle : r.subtitle,
-        enabled: r.enabled
+        enabled: r.enabled,
+        blurByDefault: typeof r.blurByDefault === 'boolean' ? r.blurByDefault : (def ? def.blurByDefault : false)
       };
     });
 
