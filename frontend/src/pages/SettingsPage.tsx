@@ -824,25 +824,25 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
           </div>
         </div>
 
-        {/* ☁️ Private Cloud Sync (WebDAV / 坚果云) */}
+        {/* ☁️ Private Cloud Sync (GitHub Gist 专属私有云) */}
         <div className="p-4 rounded-2xl bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/40 dark:to-indigo-950/40 border border-blue-200 dark:border-blue-800 space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Cloud className="w-4 h-4 text-blue-600 dark:text-blue-400" />
               <div className="font-bold text-xs text-blue-900 dark:text-blue-200">
-                ☁️ 私有云同步 (WebDAV / 坚果云)
+                私有云数据同步 (GitHub Gist 云端)
               </div>
             </div>
             <button
               type="button"
               onClick={() => setWebDavModalOpen(true)}
-              className="px-2.5 py-1 rounded-xl bg-blue-600 text-white text-[10px] font-bold shadow-sm hover:bg-blue-500 transition active:scale-95 flex items-center gap-1"
+              className="px-2.5 py-1 rounded-xl bg-indigo-600 text-white text-[10px] font-bold shadow-sm hover:bg-indigo-500 transition active:scale-95 flex items-center gap-1"
             >
-              <Server className="w-3 h-3" /> 配置云盘
+              <Server className="w-3 h-3" /> 配置云同步
             </button>
           </div>
-          <p className="text-[11px] text-blue-800/80 dark:text-blue-300">
-            支持坚果云、NextCloud 等任意 WebDAV 云盘，数据本地打包上传，实现跨设备安全漫游。
+          <p className="text-[11px] text-blue-800/80 dark:text-blue-300 leading-relaxed">
+            100% 官方 CORS 极速通畅 · 永久免费 · 完美支持 iPhone 快捷指令与多端数据秒级自动漫游。
           </p>
         </div>
       </div>
@@ -1019,7 +1019,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                     极智私有云同步信箱
                   </h3>
                   <p className="text-[11px] text-slate-400">
-                    支持 GitHub Gist (官方CORS) 与 WebDAV (坚果云)
+                    GitHub Gist (官方 CORS 推荐) · 永久免费 · 秒级读写
                   </p>
                 </div>
               </div>
@@ -1054,7 +1054,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                     : 'border-transparent text-slate-400 hover:text-slate-600'
                 }`}
               >
-                ☁️ 坚果云 WebDAV (传统)
+                ☁️ 传统 WebDAV (备用)
               </button>
             </div>
 
