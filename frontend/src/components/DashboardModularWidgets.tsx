@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   CreditCard, 
   PieChart, 
@@ -36,11 +36,12 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
   const [widgets, setWidgets] = useState<DashboardWidgetConfig[]>(() => localStore.getDashboardWidgets());
   const [isEditing, setIsEditing] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
-  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [activeDragIdx, setActiveDragIdx] = useState<number | null>(null);
 
-  // Long press timer
+  // Long press refs to strictly distinguish scrolling from long-pressing
   const pressTimerRef = useRef<any>(null);
-  const isLongPressing = useRef(false);
+  const touchStartPos = useRef<{ x: number; y: number } | null>(null);
+  const isLongPressActive = useRef(false);
 
   // Save changes
   const updateWidgets = (newItems: DashboardWidgetConfig[]) => {
@@ -48,38 +49,142 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
     localStore.saveDashboardWidgets(newItems);
   };
 
-  // Start Long Press
-  const handleTouchStart = (index: number) => {
-    isLongPressing.current = false;
+  // 1. Strict Scroll-Safe Long Press Handlers
+  const handleCardTouchStart = (e: React.TouchEvent, index: number) => {
+    if (isEditing) return; // In edit mode, touch is for dragging/buttons
+    const touch = e.touches[0];
+    touchStartPos.current = { x: touch.clientX, y: touch.clientY };
+    isLongPressActive.current = false;
+
+    if (pressTimerRef.current) {
+      clearTimeout(pressTimerRef.current);
+    }
+
+    // 700ms duration for deliberate long press
     pressTimerRef.current = setTimeout(() => {
-      isLongPressing.current = true;
+      isLongPressActive.current = true;
       setIsEditing(true);
       if (typeof navigator !== 'undefined' && navigator.vibrate) {
-        navigator.vibrate(50);
+        navigator.vibrate(60);
       }
-    }, 450);
+    }, 700);
   };
 
-  const handleTouchEnd = () => {
+  const handleCardTouchMove = (e: React.TouchEvent) => {
+    if (isEditing) return;
+    if (!touchStartPos.current) return;
+    
+    const touch = e.touches[0];
+    const dx = Math.abs(touch.clientX - touchStartPos.current.x);
+    const dy = Math.abs(touch.clientY - touchStartPos.current.y);
+
+    // If user moved finger more than 8px (i.e. scrolling the page), cancel long-press immediately!
+    if (dx > 8 || dy > 8) {
+      if (pressTimerRef.current) {
+        clearTimeout(pressTimerRef.current);
+        pressTimerRef.current = null;
+      }
+    }
+  };
+
+  const handleCardTouchEnd = () => {
     if (pressTimerRef.current) {
       clearTimeout(pressTimerRef.current);
       pressTimerRef.current = null;
     }
+    touchStartPos.current = null;
+    setTimeout(() => {
+      isLongPressActive.current = false;
+    }, 150);
   };
 
-  // Move item up / down
+  // 2. Mobile Touch Drag-and-Drop Reordering
+  const currentDragIdxRef = useRef<number | null>(null);
+
+  const handleGripTouchStart = (e: React.TouchEvent, index: number) => {
+    e.stopPropagation();
+    currentDragIdxRef.current = index;
+    setActiveDragIdx(index);
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      navigator.vibrate(40);
+    }
+  };
+
+  const handleGripTouchMove = (e: React.TouchEvent) => {
+    if (currentDragIdxRef.current === null) return;
+    e.preventDefault(); // Prevent scrolling while actively dragging the grip handle
+
+    const touch = e.touches[0];
+    const elemUnderTouch = document.elementFromPoint(touch.clientX, touch.clientY);
+    if (!elemUnderTouch) return;
+
+    const targetCard = elemUnderTouch.closest('[data-widget-index]');
+    if (!targetCard) return;
+
+    const targetIdxStr = targetCard.getAttribute('data-widget-index');
+    if (targetIdxStr === null) return;
+
+    const targetIdx = parseInt(targetIdxStr, 10);
+    const fromIdx = currentDragIdxRef.current;
+
+    if (!isNaN(targetIdx) && targetIdx !== fromIdx && fromIdx !== null) {
+      const enabledList = widgets.filter(w => w.enabled);
+      if (fromIdx >= 0 && fromIdx < enabledList.length && targetIdx >= 0 && targetIdx < enabledList.length) {
+        // Swap enabled items in the overall widgets array
+        const enabledItemA = enabledList[fromIdx];
+        const enabledItemB = enabledList[targetIdx];
+
+        const idxA = widgets.findIndex(w => w.id === enabledItemA.id);
+        const idxB = widgets.findIndex(w => w.id === enabledItemB.id);
+
+        if (idxA !== -1 && idxB !== -1) {
+          const newWidgets = [...widgets];
+          const temp = newWidgets[idxA];
+          newWidgets[idxA] = newWidgets[idxB];
+          newWidgets[idxB] = temp;
+
+          currentDragIdxRef.current = targetIdx;
+          setActiveDragIdx(targetIdx);
+          updateWidgets(newWidgets);
+
+          if (typeof navigator !== 'undefined' && navigator.vibrate) {
+            navigator.vibrate(20);
+          }
+        }
+      }
+    }
+  };
+
+  const handleGripTouchEnd = () => {
+    currentDragIdxRef.current = null;
+    setActiveDragIdx(null);
+  };
+
+  // 3. Move item up / down via button
   const moveWidget = (index: number, direction: 'up' | 'down') => {
-    const targetIndex = direction === 'up' ? index - 1 : index + 1;
-    if (targetIndex < 0 || targetIndex >= widgets.length) return;
+    const enabledList = widgets.filter(w => w.enabled);
+    const targetIdx = direction === 'up' ? index - 1 : index + 1;
+    if (targetIdx < 0 || targetIdx >= enabledList.length) return;
 
-    const newItems = [...widgets];
-    const temp = newItems[index];
-    newItems[index] = newItems[targetIndex];
-    newItems[targetIndex] = temp;
-    updateWidgets(newItems);
+    const itemA = enabledList[index];
+    const itemB = enabledList[targetIdx];
+
+    const idxA = widgets.findIndex(w => w.id === itemA.id);
+    const idxB = widgets.findIndex(w => w.id === itemB.id);
+
+    if (idxA !== -1 && idxB !== -1) {
+      const newWidgets = [...widgets];
+      const temp = newWidgets[idxA];
+      newWidgets[idxA] = newWidgets[idxB];
+      newWidgets[idxB] = temp;
+      updateWidgets(newWidgets);
+      if (typeof navigator !== 'undefined' && navigator.vibrate) {
+        navigator.vibrate(30);
+      }
+    }
   };
 
-  // Toggle enable
+  // 4. Toggle enable
   const toggleWidgetEnabled = (id: string) => {
     const newItems = widgets.map(w => 
       w.id === id ? { ...w, enabled: !w.enabled } : w
@@ -87,31 +192,9 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
     updateWidgets(newItems);
   };
 
-  // Reset to default
+  // 5. Reset to default
   const handleReset = () => {
     updateWidgets(DEFAULT_DASHBOARD_WIDGETS);
-  };
-
-  // Drag & drop
-  const handleDragStart = (e: React.DragEvent, index: number) => {
-    setDraggedIndex(index);
-    e.dataTransfer.effectAllowed = 'move';
-  };
-
-  const handleDragOver = (e: React.DragEvent, index: number) => {
-    e.preventDefault();
-    if (draggedIndex === null || draggedIndex === index) return;
-
-    const newItems = [...widgets];
-    const draggedItem = newItems[draggedIndex];
-    newItems.splice(draggedIndex, 1);
-    newItems.splice(index, 0, draggedItem);
-    setDraggedIndex(index);
-    updateWidgets(newItems);
-  };
-
-  const handleDragEnd = () => {
-    setDraggedIndex(null);
   };
 
   // Data sources
@@ -177,7 +260,11 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
                 {activeDebts.map((d) => (
                   <div 
                     key={d.id} 
-                    onClick={() => onNavigateTo('planner')}
+                    onClick={() => {
+                      if (!isEditing && !isLongPressActive.current) {
+                        onNavigateTo('planner');
+                      }
+                    }}
                     className="p-3 rounded-2xl bg-white/70 dark:bg-slate-900/60 border border-rose-200/50 dark:border-rose-900/40 flex items-center justify-between shadow-xs hover:border-rose-400 transition cursor-pointer"
                   >
                     <div className="space-y-0.5">
@@ -211,7 +298,11 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
               </div>
             ) : (
               <div 
-                onClick={() => onNavigateTo('planner')}
+                onClick={() => {
+                  if (!isEditing && !isLongPressActive.current) {
+                    onNavigateTo('planner');
+                  }
+                }}
                 className="p-3 rounded-2xl bg-white/50 dark:bg-slate-900/40 border border-dashed border-rose-200 dark:border-rose-900/40 flex items-center justify-between text-slate-500 hover:text-rose-600 transition cursor-pointer"
               >
                 <span className="text-[11px]">暂无待还分期负债，点击一键添加白条/花呗/月供</span>
@@ -244,7 +335,11 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
             </div>
 
             <div 
-              onClick={() => onNavigateTo('budgets')}
+              onClick={() => {
+                if (!isEditing && !isLongPressActive.current) {
+                  onNavigateTo('budgets');
+                }
+              }}
               className="p-3 rounded-2xl bg-white/70 dark:bg-slate-900/60 border border-blue-200/50 dark:border-blue-900/40 space-y-2 cursor-pointer hover:border-blue-400 transition"
             >
               <div className="flex items-center justify-between text-xs">
@@ -294,7 +389,11 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
 
             {primaryGoal ? (
               <div 
-                onClick={() => onNavigateTo('goals')}
+                onClick={() => {
+                  if (!isEditing && !isLongPressActive.current) {
+                    onNavigateTo('goals');
+                  }
+                }}
                 className="p-3 rounded-2xl bg-white/70 dark:bg-slate-900/60 border border-purple-200/50 dark:border-purple-900/40 space-y-2 cursor-pointer hover:border-purple-400 transition"
               >
                 <div className="flex items-center justify-between text-xs">
@@ -319,7 +418,11 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
               </div>
             ) : (
               <div 
-                onClick={() => onNavigateTo('goals')}
+                onClick={() => {
+                  if (!isEditing && !isLongPressActive.current) {
+                    onNavigateTo('goals');
+                  }
+                }}
                 className="p-3 rounded-2xl bg-white/50 dark:bg-slate-900/40 border border-dashed border-purple-200 dark:border-purple-900/40 flex items-center justify-between text-slate-500 hover:text-purple-600 transition cursor-pointer"
               >
                 <span className="text-[11px]">暂无存钱心愿，点击设立第 1 个心愿单（如换电脑/备用金）</span>
@@ -352,7 +455,11 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
             </div>
 
             <div 
-              onClick={() => onNavigateTo('planner')}
+              onClick={() => {
+                if (!isEditing && !isLongPressActive.current) {
+                  onNavigateTo('planner');
+                }
+              }}
               className="p-3 rounded-2xl bg-white/70 dark:bg-slate-900/60 border border-emerald-200/50 dark:border-emerald-900/40 grid grid-cols-3 gap-2 text-center cursor-pointer hover:border-emerald-400 transition"
             >
               <div className="space-y-0.5">
@@ -402,7 +509,11 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
             </div>
 
             <div 
-              onClick={() => onNavigateTo('investments')}
+              onClick={() => {
+                if (!isEditing && !isLongPressActive.current) {
+                  onNavigateTo('investments');
+                }
+              }}
               className="p-3 rounded-2xl bg-white/70 dark:bg-slate-900/60 border border-amber-200/50 dark:border-amber-900/40 flex items-center justify-between cursor-pointer hover:border-amber-400 transition"
             >
               <div className="space-y-0.5">
@@ -448,7 +559,11 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
             </div>
 
             <div 
-              onClick={() => onNavigateTo('analytics')}
+              onClick={() => {
+                if (!isEditing && !isLongPressActive.current) {
+                  onNavigateTo('analytics');
+                }
+              }}
               className="p-3 rounded-2xl bg-white/70 dark:bg-slate-900/60 border border-teal-200/50 dark:border-teal-900/40 space-y-1.5 cursor-pointer hover:border-teal-400 transition"
             >
               <div className="flex items-center justify-between text-[11px]">
@@ -497,10 +612,10 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
           </span>
           {isEditing ? (
             <span className="px-2 py-0.5 rounded-full bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 text-[10px] font-bold animate-pulse">
-              长按拖拽 / 点箭头调序
+              按住手柄拖动 / 点击箭头调序
             </span>
           ) : (
-            <span className="text-[10px] text-slate-400 hidden sm:inline">长按卡片可调顺序与隐藏</span>
+            <span className="text-[10px] text-slate-400 hidden sm:inline">长按或点右侧设置调序</span>
           )}
         </div>
 
@@ -509,16 +624,16 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
             <button
               type="button"
               onClick={() => setIsEditing(false)}
-              className="px-3 py-1 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold flex items-center gap-1 shadow-sm active:scale-95 transition"
+              className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1 shadow-md shadow-emerald-600/20 active:scale-95 transition"
             >
-              <Check className="w-3.5 h-3.5" /> 完成
+              <Check className="w-3.5 h-3.5 stroke-[3]" /> 完成
             </button>
           ) : (
             <>
               <button
                 type="button"
                 onClick={() => setModalOpen(true)}
-                className="text-[11px] text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 flex items-center gap-1 py-0.5 px-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+                className="text-[11px] text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 flex items-center gap-1 py-1 px-2.5 rounded-xl bg-slate-100/80 dark:bg-slate-800/80 hover:bg-slate-200 dark:hover:bg-slate-700 transition"
               >
                 <Settings className="w-3 h-3" />
                 <span>自定义</span>
@@ -526,7 +641,7 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
               <button
                 type="button"
                 onClick={() => setIsEditing(true)}
-                className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline py-0.5 px-1.5"
+                className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline py-1 px-2"
               >
                 排序
               </button>
@@ -537,81 +652,88 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
 
       {/* Render Enabled Horizontal Widgets */}
       <div className="space-y-3">
-        {enabledWidgets.map((item, idx) => (
-          <div
-            key={item.id}
-            draggable={isEditing}
-            onDragStart={(e) => handleDragStart(e, idx)}
-            onDragOver={(e) => handleDragOver(e, idx)}
-            onDragEnd={handleDragEnd}
-            onTouchStart={() => handleTouchStart(idx)}
-            onTouchEnd={handleTouchEnd}
-            onMouseDown={() => handleTouchStart(idx)}
-            onMouseUp={handleTouchEnd}
-            className={`p-4 rounded-3xl border shadow-sm relative transition select-none ${getWidgetBgClass(item.id)} ${
-              isEditing 
-                ? 'cursor-grab active:cursor-grabbing ring-2 ring-indigo-500/40 bg-white/95 dark:bg-slate-900/95 shadow-lg animate-in zoom-in-98 duration-150' 
-                : ''
-            }`}
-          >
-            {/* Top Edit Controls */}
-            {isEditing && (
-              <div className="absolute -top-2 -right-2 z-10 flex items-center gap-1">
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    toggleWidgetEnabled(item.id);
-                  }}
-                  className="w-6 h-6 rounded-full bg-rose-500 text-white flex items-center justify-center shadow-md hover:scale-110 active:scale-95 transition"
-                  title="从首页隐藏此看板"
-                >
-                  <X className="w-3.5 h-3.5 stroke-[3]" />
-                </button>
-              </div>
-            )}
+        {enabledWidgets.map((item, idx) => {
+          const isCurrentDrag = activeDragIdx === idx;
 
-            {/* Widget Inner Content */}
-            {renderWidgetContent(item.id)}
-
-            {/* Edit Mode Reorder Buttons */}
-            {isEditing && (
-              <div className="flex items-center justify-between pt-2 mt-2 border-t border-slate-200/50 dark:border-slate-700/50">
-                <div className="flex items-center gap-1 text-[10px] text-slate-400">
-                  <GripVertical className="w-3.5 h-3.5" />
-                  <span>按住卡片可拖拽调序</span>
-                </div>
-
-                <div className="flex items-center gap-1.5">
+          return (
+            <div
+              key={item.id}
+              data-widget-index={idx}
+              onTouchStart={(e) => handleCardTouchStart(e, idx)}
+              onTouchMove={handleCardTouchMove}
+              onTouchEnd={handleCardTouchEnd}
+              className={`p-4 rounded-3xl border shadow-sm relative transition-all duration-150 select-none ${getWidgetBgClass(item.id)} ${
+                isEditing 
+                  ? 'ring-2 ring-indigo-500/40 bg-white/95 dark:bg-slate-900/95 shadow-md' 
+                  : ''
+              } ${isCurrentDrag ? 'scale-[1.02] shadow-xl ring-2 ring-indigo-600 bg-white dark:bg-slate-800 z-20 opacity-95' : ''}`}
+            >
+              {/* Top Edit Controls */}
+              {isEditing && (
+                <div className="absolute -top-2.5 -right-2 z-10 flex items-center gap-1">
                   <button
                     type="button"
-                    disabled={idx === 0}
                     onClick={(e) => {
                       e.stopPropagation();
-                      moveWidget(idx, 'up');
+                      toggleWidgetEnabled(item.id);
                     }}
-                    className="p-1 px-2 rounded-lg bg-slate-200/80 dark:bg-slate-700/80 text-slate-700 dark:text-slate-200 hover:bg-indigo-500 hover:text-white disabled:opacity-30 disabled:pointer-events-none transition flex items-center gap-1 text-[10px] font-bold"
-                    title="上移"
+                    className="w-6 h-6 rounded-full bg-rose-500 text-white flex items-center justify-center shadow-md hover:scale-110 active:scale-90 transition"
+                    title="从首页隐藏此看板"
                   >
-                    <ArrowUp className="w-3 h-3" /> 上移
-                  </button>
-                  <button
-                    type="button"
-                    disabled={idx === enabledWidgets.length - 1}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      moveWidget(idx, 'down');
-                    }}
-                    className="p-1 px-2 rounded-lg bg-slate-200/80 dark:bg-slate-700/80 text-slate-700 dark:text-slate-200 hover:bg-indigo-500 hover:text-white disabled:opacity-30 disabled:pointer-events-none transition flex items-center gap-1 text-[10px] font-bold"
-                    title="下移"
-                  >
-                    <ArrowDown className="w-3 h-3" /> 下移
+                    <X className="w-3.5 h-3.5 stroke-[3]" />
                   </button>
                 </div>
-              </div>
-            )}
-          </div>
-        ))}
+              )}
+
+              {/* Widget Inner Content */}
+              {renderWidgetContent(item.id)}
+
+              {/* Edit Mode Reorder Bar */}
+              {isEditing && (
+                <div className="flex items-center justify-between pt-2.5 mt-2.5 border-t border-slate-200/60 dark:border-slate-700/60">
+                  {/* Dedicated Touch Drag Grip Handle */}
+                  <div
+                    onTouchStart={(e) => handleGripTouchStart(e, idx)}
+                    onTouchMove={handleGripTouchMove}
+                    onTouchEnd={handleGripTouchEnd}
+                    className="flex items-center gap-1.5 py-1.5 px-3 rounded-xl bg-slate-200/90 dark:bg-slate-700/90 text-slate-700 dark:text-slate-200 active:bg-indigo-600 active:text-white transition cursor-grab active:cursor-grabbing select-none touch-none"
+                  >
+                    <GripVertical className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />
+                    <span className="text-[11px] font-bold">按住拖动调序</span>
+                  </div>
+
+                  {/* 1-Tap Touch Reorder Buttons */}
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      disabled={idx === 0}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        moveWidget(idx, 'up');
+                      }}
+                      className="py-1.5 px-3 rounded-xl bg-slate-200/90 dark:bg-slate-700/90 text-slate-700 dark:text-slate-200 hover:bg-indigo-500 hover:text-white disabled:opacity-20 disabled:pointer-events-none active:scale-95 transition flex items-center gap-1 text-[11px] font-bold shadow-xs"
+                      title="上移"
+                    >
+                      <ArrowUp className="w-3.5 h-3.5 stroke-[2.5]" /> 上移
+                    </button>
+                    <button
+                      type="button"
+                      disabled={idx === enabledWidgets.length - 1}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        moveWidget(idx, 'down');
+                      }}
+                      className="py-1.5 px-3 rounded-xl bg-slate-200/90 dark:bg-slate-700/90 text-slate-700 dark:text-slate-200 hover:bg-indigo-500 hover:text-white disabled:opacity-20 disabled:pointer-events-none active:scale-95 transition flex items-center gap-1 text-[11px] font-bold shadow-xs"
+                      title="下移"
+                    >
+                      <ArrowDown className="w-3.5 h-3.5 stroke-[2.5]" /> 下移
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
 
         {/* Add more widgets button in edit mode */}
         {isEditing && hiddenWidgets.length > 0 && (
