@@ -16,7 +16,10 @@ import {
   ChevronRight, 
   GripVertical,
   CheckCircle2,
-  Sparkles
+  Sparkles,
+  Eye,
+  EyeOff,
+  Lock
 } from 'lucide-react';
 import { 
   DashboardWidgetConfig, 
@@ -38,6 +41,16 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
   const [modalOpen, setModalOpen] = useState(false);
   const [activeDragIdx, setActiveDragIdx] = useState<number | null>(null);
 
+  // Privacy State: Default Gaussian blur on load for maximum confidentiality!
+  const [debtsPrivacyRevealed, setDebtsPrivacyRevealed] = useState(false);
+
+  // Sync with global privacy mode toggle
+  useEffect(() => {
+    if (privacyMode) {
+      setDebtsPrivacyRevealed(false);
+    }
+  }, [privacyMode]);
+
   // Long press refs to strictly distinguish scrolling from deliberate long-press
   const pressTimerRef = useRef<any>(null);
   const touchStartPos = useRef<{ x: number; y: number } | null>(null);
@@ -57,7 +70,7 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
 
   // 1. Strict Scroll-Safe Long Press Handlers
   const handleCardTouchStart = (e: React.TouchEvent, index: number) => {
-    if (isEditing) return; // In edit mode, touch is for dragging/buttons
+    if (isEditing) return;
     const touch = e.touches[0];
     touchStartPos.current = { x: touch.clientX, y: touch.clientY };
     isLongPressActive.current = false;
@@ -66,7 +79,6 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
       clearTimeout(pressTimerRef.current);
     }
 
-    // 700ms duration for deliberate long press
     pressTimerRef.current = setTimeout(() => {
       isLongPressActive.current = true;
       setIsEditing(true);
@@ -84,7 +96,6 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
     const dx = Math.abs(touch.clientX - touchStartPos.current.x);
     const dy = Math.abs(touch.clientY - touchStartPos.current.y);
 
-    // If user moved finger more than 8px (i.e. scrolling the page), cancel long-press immediately!
     if (dx > 8 || dy > 8) {
       if (pressTimerRef.current) {
         clearTimeout(pressTimerRef.current);
@@ -118,7 +129,7 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
 
   const handleGripTouchMove = (e: React.TouchEvent) => {
     if (currentDragIdxRef.current === null) return;
-    e.preventDefault(); // Prevent scrolling while actively dragging the grip handle
+    e.preventDefault();
 
     const touch = e.touches[0];
     const elemUnderTouch = document.elementFromPoint(touch.clientX, touch.clientY);
@@ -136,7 +147,6 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
     if (!isNaN(targetIdx) && targetIdx !== fromIdx && fromIdx !== null) {
       const enabledList = widgets.filter(w => w.enabled);
       if (fromIdx >= 0 && fromIdx < enabledList.length && targetIdx >= 0 && targetIdx < enabledList.length) {
-        // Swap enabled items in the overall widgets array
         const enabledItemA = enabledList[fromIdx];
         const enabledItemB = enabledList[targetIdx];
 
@@ -211,9 +221,8 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
   const investments = localStore.getInvestments();
   const transactions = localStore.getTransactions();
 
-  // Helper amount formatter
+  // Helper amount formatter (returns clean number string)
   const formatAmount = (val: number) => {
-    if (privacyMode) return '••••';
     return val.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
 
@@ -242,15 +251,48 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
       case 'debts':
         return (
           <div className="space-y-2.5">
+            {/* Header: Title + Privacy Eye Toggle + Hall link */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <div className="w-6 h-6 rounded-lg bg-rose-500/15 text-rose-600 dark:text-rose-400 flex items-center justify-center font-bold">
                   <CreditCard className="w-3.5 h-3.5" />
                 </div>
-                <span className="text-xs font-bold text-slate-900 dark:text-white">
-                  💳 本期待还分期智能看板 {activeDebts.length > 0 ? `(${activeDebts.length}笔)` : ''}
+                <span className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                  <span>💳 本期待还分期智能看板</span>
+                  {activeDebts.length > 0 && (
+                    <span className="text-[10px] text-slate-400 font-normal">
+                      ({activeDebts.length}笔)
+                    </span>
+                  )}
                 </span>
+
+                {/* Gaussian Blur Privacy Toggle Eye */}
+                {!isEditing && activeDebts.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDebtsPrivacyRevealed(!debtsPrivacyRevealed);
+                      if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(30);
+                    }}
+                    className="py-0.5 px-2 rounded-lg bg-white/80 dark:bg-slate-800/80 border border-slate-200/60 dark:border-slate-700/60 text-[10px] font-bold text-slate-600 dark:text-slate-300 hover:text-rose-600 dark:hover:text-rose-400 transition flex items-center gap-1 shadow-2xs"
+                    title={debtsPrivacyRevealed ? '点击高斯模糊保护隐私' : '点击解锁显示分期详情'}
+                  >
+                    {debtsPrivacyRevealed ? (
+                      <>
+                        <Eye className="w-3 h-3 text-rose-500" />
+                        <span className="text-[9px]">已解锁</span>
+                      </>
+                    ) : (
+                      <>
+                        <EyeOff className="w-3 h-3 text-slate-400" />
+                        <span className="text-[9px]">点此解锁</span>
+                      </>
+                    )}
+                  </button>
+                )}
               </div>
+
               <button
                 type="button"
                 onClick={(e) => {
@@ -266,12 +308,25 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
             </div>
 
             {activeDebts.length > 0 ? (
-              <div className="space-y-2">
+              <div 
+                onClick={() => {
+                  // If blurred, tapping anywhere unlocks it smoothly!
+                  if (!isEditing && !debtsPrivacyRevealed) {
+                    setDebtsPrivacyRevealed(true);
+                    if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(30);
+                  }
+                }}
+                className="space-y-2 relative"
+              >
                 {activeDebts.map((d) => (
                   <div 
                     key={d.id} 
-                    onClick={() => safeNavigate('planner')}
-                    className={`p-3 rounded-2xl bg-white/70 dark:bg-slate-900/60 border border-rose-200/50 dark:border-rose-900/40 flex items-center justify-between shadow-xs transition ${
+                    onClick={() => {
+                      if (debtsPrivacyRevealed) {
+                        safeNavigate('planner');
+                      }
+                    }}
+                    className={`p-3 rounded-2xl bg-white/70 dark:bg-slate-900/60 border border-rose-200/50 dark:border-rose-900/40 flex items-center justify-between shadow-xs transition relative overflow-hidden ${
                       isEditing ? 'cursor-default' : 'hover:border-rose-400 cursor-pointer active:scale-[0.99]'
                     }`}
                   >
@@ -288,19 +343,43 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
                           </span>
                         )}
                       </div>
-                      <div className="text-[10px] text-slate-400">
+
+                      {/* Gaussian Blurred Sub-details */}
+                      <div 
+                        style={{
+                          filter: debtsPrivacyRevealed ? 'none' : 'blur(5.5px)',
+                          transition: 'filter 0.35s ease, opacity 0.35s ease'
+                        }}
+                        className={`text-[10px] text-slate-400 select-none ${!debtsPrivacyRevealed ? 'opacity-80' : 'opacity-100'}`}
+                      >
                         还款日: 每月{d.repay_day || 4}日 · 总待还: ¥{formatAmount(d.remaining_principal || 0)}
                       </div>
                     </div>
 
+                    {/* Gaussian Blurred Amount */}
                     <div className="text-right">
-                      <div className="text-xs font-mono font-bold text-rose-600 dark:text-rose-400">
+                      <div 
+                        style={{
+                          filter: debtsPrivacyRevealed ? 'none' : 'blur(6.5px)',
+                          transition: 'filter 0.35s ease, opacity 0.35s ease'
+                        }}
+                        className={`text-xs font-mono font-bold text-rose-600 dark:text-rose-400 select-none ${!debtsPrivacyRevealed ? 'opacity-85' : 'opacity-100'}`}
+                      >
                         ¥{formatAmount(d.monthly_payment || 268.02)}
                       </div>
                       <div className="text-[9px] text-slate-400">
                         {d.is_repaid_this_month ? '当期已结清' : '当期应还'}
                       </div>
                     </div>
+
+                    {/* Subtle Frosted Unlock Hint Overlay when Blurred */}
+                    {!debtsPrivacyRevealed && !isEditing && (
+                      <div className="absolute inset-0 bg-slate-900/5 dark:bg-white/5 flex items-center justify-center pointer-events-none">
+                        <span className="text-[10px] font-bold text-rose-600 dark:text-rose-400 bg-white/90 dark:bg-slate-900/90 px-2 py-0.5 rounded-full shadow-xs border border-rose-200/60 dark:border-rose-900/60 flex items-center gap-1 backdrop-blur-xs">
+                          <Lock className="w-2.5 h-2.5" /> 点击空白处解锁
+                        </span>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
