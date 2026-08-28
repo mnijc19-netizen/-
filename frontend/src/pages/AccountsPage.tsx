@@ -171,23 +171,41 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({
         </div>
 
         {/* Feature Action Buttons */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
           {/* AI Batch Balance Multi-Image Onboarding */}
           <button
             type="button"
             onClick={() => setBatchOcrOpen(true)}
             className="p-3 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white flex items-center justify-between text-left shadow-lg shadow-purple-500/20 active:scale-98 transition group"
           >
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-8 h-8 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center flex-shrink-0">
-                <Images className="w-4 h-4 text-white" />
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="w-7 h-7 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center flex-shrink-0">
+                <Images className="w-3.5 h-3.5 text-white" />
               </div>
               <div className="min-w-0">
-                <div className="text-xs font-bold truncate">📸 AI 批量识余额开账</div>
-                <div className="text-[10px] text-purple-100 truncate">多张截图一键建账</div>
+                <div className="text-[11px] font-bold truncate">📸 批量识余额</div>
+                <div className="text-[9px] text-purple-100 truncate">多图一键建账</div>
               </div>
             </div>
-            <Sparkles className="w-4 h-4 text-purple-200 group-hover:scale-110 transition flex-shrink-0" />
+            <Sparkles className="w-3.5 h-3.5 text-purple-200 group-hover:scale-110 transition flex-shrink-0" />
+          </button>
+
+          {/* Debt & Installments Hall */}
+          <button
+            type="button"
+            onClick={() => onNavigate && onNavigate('planner')}
+            className="p-3 rounded-2xl bg-gradient-to-r from-rose-600 to-amber-600 hover:from-rose-500 hover:to-amber-500 text-white flex items-center justify-between text-left shadow-lg shadow-rose-500/20 active:scale-98 transition group"
+          >
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="w-7 h-7 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center flex-shrink-0">
+                <CreditCard className="w-3.5 h-3.5 text-white" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-[11px] font-bold truncate">💳 分期还款大厅</div>
+                <div className="text-[9px] text-rose-100 truncate">白条/花呗/月供</div>
+              </div>
+            </div>
+            <ArrowRight className="w-3.5 h-3.5 text-rose-200 group-hover:translate-x-0.5 transition flex-shrink-0" />
           </button>
 
           {/* Add Account Directly */}
@@ -196,13 +214,13 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({
             onClick={openAddModal}
             className="p-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white flex items-center justify-between text-left shadow-lg shadow-emerald-500/20 active:scale-98 transition group"
           >
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-8 h-8 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center flex-shrink-0">
-                <Plus className="w-4 h-4 text-white" />
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="w-7 h-7 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center flex-shrink-0">
+                <Plus className="w-3.5 h-3.5 text-white" />
               </div>
               <div className="min-w-0">
-                <div className="text-xs font-bold truncate">➕ 手动新增资产/账户</div>
-                <div className="text-[10px] text-emerald-100 truncate">添加银行卡/钱包/基金</div>
+                <div className="text-[11px] font-bold truncate">➕ 新增真实卡/账户</div>
+                <div className="text-[9px] text-emerald-100 truncate">银行卡/基金/现金</div>
               </div>
             </div>
           </button>
@@ -213,13 +231,13 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({
             onClick={onOpenQuickTx}
             className="p-3 rounded-2xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 flex items-center justify-between text-left border border-slate-200 dark:border-slate-700 active:scale-98 transition"
           >
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-8 h-8 rounded-xl bg-slate-200 dark:bg-slate-700 flex items-center justify-center flex-shrink-0">
-                <ArrowRightLeft className="w-4 h-4 text-slate-600 dark:text-slate-300" />
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="w-7 h-7 rounded-xl bg-slate-200 dark:bg-slate-700 flex items-center justify-center flex-shrink-0">
+                <ArrowRightLeft className="w-3.5 h-3.5 text-slate-600 dark:text-slate-300" />
               </div>
               <div className="min-w-0">
-                <div className="text-xs font-bold truncate">🔄 账户间互转</div>
-                <div className="text-[10px] text-slate-400 truncate">记录还款与提现调拨</div>
+                <div className="text-[11px] font-bold truncate">🔄 账户间互转</div>
+                <div className="text-[9px] text-slate-400 truncate">记录还款与提现调拨</div>
               </div>
             </div>
           </button>

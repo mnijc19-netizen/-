@@ -11,7 +11,8 @@ import {
   ChevronRight,
   TrendingDown,
   TrendingUp,
-  ArrowRightLeft
+  ArrowRightLeft,
+  CreditCard
 } from 'lucide-react';
 
 interface UniversalQuickAddModalProps {
@@ -23,6 +24,7 @@ interface UniversalQuickAddModalProps {
   onSelectBatchBalance: () => void;
   onSelectSnapshot: () => void;
   onClipboardIngest: () => void;
+  onSelectPlanner?: () => void;
 }
 
 export const UniversalQuickAddModal: React.FC<UniversalQuickAddModalProps> = ({
@@ -33,7 +35,8 @@ export const UniversalQuickAddModal: React.FC<UniversalQuickAddModalProps> = ({
   onSelectSmartParser,
   onSelectBatchBalance,
   onSelectSnapshot,
-  onClipboardIngest
+  onClipboardIngest,
+  onSelectPlanner
 }) => {
   if (!isOpen) return null;
 
@@ -175,6 +178,34 @@ export const UniversalQuickAddModal: React.FC<UniversalQuickAddModalProps> = ({
             </div>
           </button>
         </div>
+
+        {/* Mode 5: Debt & Installment Planning Direct Hub */}
+        {onSelectPlanner && (
+          <div className="p-4 pt-0">
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onSelectPlanner();
+              }}
+              className="w-full p-3 rounded-2xl bg-gradient-to-r from-rose-500/10 via-amber-500/10 to-indigo-500/10 border border-rose-200/60 dark:border-rose-800/40 text-left hover:border-rose-400 active:scale-98 transition flex items-center justify-between group"
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-8 h-8 rounded-xl bg-rose-500/15 text-rose-600 dark:text-rose-400 flex items-center justify-center flex-shrink-0">
+                  <CreditCard className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                    <span>💳 负债与分期还款规划</span>
+                    <span className="text-[9px] px-1.5 py-0.2 rounded bg-rose-500/15 text-rose-600 font-bold">白条/花呗/月供</span>
+                  </div>
+                  <div className="text-[10px] text-slate-400">查看各期还款进度与自由资金流</div>
+                </div>
+              </div>
+              <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-rose-500 group-hover:translate-x-0.5 transition" />
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

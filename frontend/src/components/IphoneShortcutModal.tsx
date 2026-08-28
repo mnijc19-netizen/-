@@ -30,13 +30,15 @@ export const IphoneShortcutModal: React.FC<IphoneShortcutModalProps> = ({ isOpen
 
   const baseShortcutUrl = `https://mnijc19-netizen.github.io/-/?text=`;
 
-  const sampleVisionPrompt = `你是一个顶级专业财务记账 AI。请直接分析截图像素并识别以下 3 类场景之一：
-1.【日常收支】买东西/扫码支付/转账流水：
-输出 {"action":"transaction","type":"expense|income","amount":14.05,"merchant":"商户名称","category":"餐饮美食|日用百货|交通出行|医疗健康|生活服务","channel":"微信支付|支付宝|招商银行等"}
-2.【账户余额】银行卡、零钱通、支付宝或券商总资产余额截图：
+  const sampleVisionPrompt = `你是一个顶级专业财务记账 AI。请直接分析截图像素并识别以下 4 类场景之一：
+1.【日常收支】买东西/扫码支付/外卖/转账流水：
+输出 {"action":"transaction","type":"expense|income","amount":14.05,"merchant":"商户名称","category":"餐饮美食|日用百货|交通出行|医疗健康|生活服务","channel":"微信支付|支付宝|银行卡等"}
+2.【账户余额】银行卡、微信零钱、支付宝或券商总资产余额截图：
 输出 {"action":"account_balance","account_name":"招商银行|微信零钱|支付宝|工商银行等","amount":15820.00}
 3.【待还分期】白条、花呗、月付或还款日待还账单：
 输出 {"action":"debt_schedule","type":"debt","amount":2691.41,"merchant":"京东白条|蚂蚁花呗|美团月付","category":"信贷分期","installments":3,"monthly_payment":804.05,"repay_day":4}
+4.【还款成功/已还当期】白条、花呗、信用卡分期还款成功凭证：
+输出 {"action":"repayment","type":"repayment","amount":1083.31,"merchant":"京东白条还款|蚂蚁花呗还款","category":"金融还款","channel":"微信支付|招商银行等"}
 严格只返回单个纯 JSON 对象（禁止 markdown 与任何多余文字）。`;
 
   const sampleJsonTemplate = `[

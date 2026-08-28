@@ -14,9 +14,12 @@ import {
   Camera,
   Plus,
   Bot,
-  RotateCcw
+  RotateCcw,
+  CreditCard,
+  CheckCircle2
 } from 'lucide-react';
 import { DashboardAnalytics, Transaction, Account } from '../types';
+import { localStore } from '../services/localStore';
 
 interface DashboardProps {
   analytics: DashboardAnalytics | null;
@@ -191,6 +194,75 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </button>
         </div>
       )}
+
+      {/* Active Debts & Repayment Board (Always visible on Dashboard when debts exist) */}
+      {(() => {
+        const activeDebts = localStore.getDebts().filter(d => (d.remaining_principal || 0) > 0);
+        if (activeDebts.length === 0) return null;
+
+        return (
+          <div className="p-4 rounded-3xl bg-gradient-to-br from-rose-500/10 via-amber-500/10 to-indigo-500/10 border border-rose-200/70 dark:border-rose-800/50 shadow-sm space-y-2.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-lg bg-rose-500/15 text-rose-600 dark:text-rose-400 flex items-center justify-center font-bold">
+                  <CreditCard className="w-3.5 h-3.5" />
+                </div>
+                <span className="text-xs font-bold text-slate-900 dark:text-white">
+                  💳 本期待还分期智能看板 ({activeDebts.length}笔)
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => onNavigateTo('planner')}
+                className="text-[11px] font-bold text-rose-600 dark:text-rose-400 hover:underline flex items-center gap-0.5"
+              >
+                <span>资金规划大厅</span>
+                <ChevronRight className="w-3 h-3" />
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              {activeDebts.map(debt => (
+                <div 
+                  key={debt.id} 
+                  onClick={() => onNavigateTo('planner')}
+                  className="p-3 rounded-2xl bg-white/90 dark:bg-slate-800/90 border border-slate-200/60 dark:border-slate-700/60 flex items-center justify-between gap-3 cursor-pointer hover:border-rose-400 transition"
+                >
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                        {debt.name}
+                      </span>
+                      <span className="px-1.5 py-0.2 rounded-md bg-rose-100 dark:bg-rose-950 text-rose-600 dark:text-rose-300 text-[9px] font-bold">
+                        第 {debt.current_installment || 1}/{debt.total_installments || 1} 期
+                      </span>
+                      {debt.is_repaid_this_month && (
+                        <span className="px-1.5 py-0.2 rounded-md bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-300 text-[9px] font-bold flex items-center gap-0.5">
+                          <CheckCircle2 className="w-2.5 h-2.5" /> 本月已还
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-[10px] text-slate-400 flex items-center gap-2 mt-0.5">
+                      <span>还款日: 每月{debt.repay_day || 4}日</span>
+                      <span>•</span>
+                      <span>总待还: ¥{Number(debt.remaining_principal || 0).toFixed(2)}</span>
+                    </div>
+                  </div>
+
+                  <div className="text-right flex-shrink-0">
+                    <div className="text-xs font-black font-mono text-rose-600 dark:text-rose-400">
+                      ¥{(debt.monthly_payment || (debt.remaining_principal / (debt.total_installments || 1))).toFixed(2)}
+                    </div>
+                    <div className="text-[9px] text-slate-400">
+                      {debt.is_repaid_this_month ? '当期已结清' : '当期应还'}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* 2. Recent Transactions Ledger (Clean, immediate and uncluttered) */}
       <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-3">

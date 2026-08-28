@@ -570,6 +570,7 @@ export function App() {
         onSelectBatchBalance={() => setBatchBalanceOcrOpen(true)}
         onSelectSnapshot={() => setSnapshotOpen(true)}
         onClipboardIngest={handleClipboardIngest}
+        onSelectPlanner={() => setCurrentPage('planner')}
       />
 
       {/* Onboarding Guide Modal */}

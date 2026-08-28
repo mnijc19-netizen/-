@@ -286,11 +286,79 @@ export const githubGistSync = {
       }
 
       const combinedContent = `${item.type || ''} ${merchant} ${catName} ${channel} ${rawText} ${item.note || ''}`;
+      
+      // 💳 Special Branch 1: Debt Repayment Settlement (还款确认与分期结清推进)
+      const isRepayment = item.action === 'repayment' || item.type === 'repayment' ||
+        /还款成功|已还款|还款凭证|当期已还清|白条还款|花呗还款|信用卡还款|已还本金|分期还款成功|还款\s*¥?[\d,.]+/i.test(combinedContent) ||
+        (/还款/.test(combinedContent) && /扣款|支付|成功|已结清|当期/.test(combinedContent));
+
+      if (isRepayment) {
+        let debtPlatform = 'baitiao';
+        let debtName = '京东白条';
+        if (/花呗/.test(combinedContent)) { debtPlatform = 'huabei'; debtName = '蚂蚁花呗'; }
+        else if (/美团/.test(combinedContent)) { debtPlatform = 'meituan_pay'; debtName = '美团月付'; }
+        else if (/抖音/.test(combinedContent)) { debtPlatform = 'douyin_pay'; debtName = '抖音月付'; }
+        else if (/信用卡/.test(combinedContent)) { debtPlatform = 'credit_card'; debtName = '信用卡分期'; }
+        else if (/房贷/.test(combinedContent)) { debtPlatform = 'mortgage'; debtName = '房贷按揭'; }
+        else if (/车贷/.test(combinedContent)) { debtPlatform = 'car_loan'; debtName = '车贷分期'; }
+
+        try {
+          const existingDebts = localStore.getDebts();
+          const targetDebt = existingDebts.find(d => d.name === debtName || d.type === debtPlatform);
+          let currentInst = 1;
+          let totalInst = 3;
+          let remainingAmt = 0;
+
+          if (targetDebt) {
+            currentInst = targetDebt.current_installment;
+            totalInst = targetDebt.total_installments;
+            remainingAmt = Math.max(0, targetDebt.remaining_principal - numAmt);
+            const nextInst = Math.min(totalInst, currentInst + 1);
+
+            await api.updateDebt(targetDebt.id, {
+              remaining_principal: remainingAmt,
+              current_installment: nextInst,
+              is_repaid_this_month: true
+            });
+
+            // Update liability account balance
+            let liabAcc = accounts.find(a => a.type === debtPlatform || a.name.includes(debtName));
+            if (liabAcc) {
+              liabAcc.balance = remainingAmt;
+              localStore.saveAccounts(accounts);
+            }
+          }
+
+          // Record repayment transaction
+          await api.createTransaction({
+            type: 'repayment',
+            amount: numAmt,
+            account_id: targetAccountId,
+            category_name: '金融还款',
+            date: dateStr,
+            merchant: `${debtName}还款`,
+            note: `第${currentInst}/${totalInst}期还款确认 (扣减负债 ¥${numAmt})`,
+            source: 'shortcut'
+          });
+
+          ingestedList.push({
+            merchant: `🎉 ${debtName}第${currentInst}期还款成功`,
+            amount: numAmt,
+            category: '金融还款',
+            date: dateStr,
+            isRepayment: true
+          });
+        } catch (repErr: any) {
+          errors.push(`还款入账[${idx}]: ${repErr.message || '写入失败'}`);
+        }
+        continue;
+      }
+
       const isDebt = item.type === 'debt' || 
         /待还账单|全部待还|剩余待还|分期还款|提前结清|月待还|已出账|还款日/i.test(combinedContent) ||
         (/白条|花呗|借呗|月付|分付|信用卡|房贷|车贷/.test(combinedContent) && /待还|欠款|账单|本金/.test(combinedContent));
 
-      // 💳 Special Branch: Debt & Installments Auto-Routing (DO NOT DEDUCT CASH)
+      // 💳 Special Branch 2: Debt & Installments Auto-Routing (DO NOT DEDUCT CASH)
       if (isDebt) {
         let debtPlatform = 'baitiao';
         let debtName = '京东白条';
@@ -514,11 +582,29 @@ export const githubGistSync = {
     }
 
     if (ingestedList.length > 0) {
-      const summary = ingestedList.map(i => `${i.merchant} ¥${i.amount}`).join('、');
+      const isRepay = ingestedList.some(i => i.isRepayment);
+      const isDebtItem = ingestedList.some(i => i.category === '信贷分期');
+      const isBalanceItem = ingestedList.some(i => i.category === '余额校准');
+
+      let bannerMsg = '';
+      if (isRepay) {
+        const item = ingestedList.find(i => i.isRepayment);
+        bannerMsg = `🎉 已确认完成还款：${item?.merchant || ''}！已自动推进分期并扣减待还本金`;
+      } else if (isDebtItem) {
+        const item = ingestedList.find(i => i.category === '信贷分期');
+        bannerMsg = `💳 已成功同步分期计划：${item?.merchant || ''}！已建档至负债大厅`;
+      } else if (isBalanceItem) {
+        const item = ingestedList.find(i => i.category === '余额校准');
+        bannerMsg = `🏦 已成功校准账户余额：${item?.merchant || ''}！`;
+      } else {
+        const summary = ingestedList.map(i => `${i.merchant} ¥${i.amount}`).join('、');
+        bannerMsg = `⚡ 已自动入账 ${ingestedList.length} 笔日常消费：${summary}`;
+      }
+
       return {
         count: ingestedList.length,
         items: ingestedList,
-        message: `✅ 成功入账 ${ingestedList.length} 笔：${summary}`
+        message: bannerMsg
       };
     }
 
