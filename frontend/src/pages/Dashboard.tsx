@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { DashboardAnalytics, Transaction, Account } from '../types';
 import { localStore } from '../services/localStore';
+import { DashboardShortcutsGrid } from '../components/DashboardShortcutsGrid';
 
 interface DashboardProps {
   analytics: DashboardAnalytics | null;
@@ -264,7 +265,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
         );
       })()}
 
-      {/* 2. Recent Transactions Ledger (Clean, immediate and uncluttered) */}
+      {/* 2. Customizable Financial Shortcuts Grid (Support Long Press Reorder & Visibility Customization) */}
+      <DashboardShortcutsGrid onNavigate={onNavigateTo} />
+
+      {/* 3. Recent Transactions Ledger (Clean, immediate and uncluttered) */}
       <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-3">
         <div className="flex items-center justify-between">
           <span className="text-xs font-bold text-slate-900 dark:text-white">

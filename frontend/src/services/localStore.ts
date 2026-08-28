@@ -13,6 +13,123 @@ import {
 } from '../types';
 import { dbStore } from './dbStore';
 
+export interface DashboardShortcutItem {
+  id: string;
+  title: string;
+  desc: string;
+  iconName: string;
+  page: string;
+  bgClass: string;
+  iconBgClass: string;
+  iconColorClass: string;
+  badge?: string;
+  enabled: boolean;
+}
+
+export const DEFAULT_DASHBOARD_SHORTCUTS: DashboardShortcutItem[] = [
+  {
+    id: 'planner',
+    title: '📅 月度资金规划',
+    desc: '工资/分期应还/自由资金',
+    iconName: 'Calendar',
+    page: 'planner',
+    bgClass: 'bg-emerald-50/60 dark:bg-emerald-950/30 border-emerald-100 dark:border-emerald-900/40 hover:border-emerald-400',
+    iconBgClass: 'bg-emerald-500/15',
+    iconColorClass: 'text-emerald-600 dark:text-emerald-400',
+    badge: '常用',
+    enabled: true
+  },
+  {
+    id: 'budgets',
+    title: '📊 月度预算',
+    desc: '餐饮/日常限额预警',
+    iconName: 'PieChart',
+    page: 'budgets',
+    bgClass: 'bg-blue-50/60 dark:bg-blue-950/30 border-blue-100 dark:border-blue-900/40 hover:border-blue-400',
+    iconBgClass: 'bg-blue-500/15',
+    iconColorClass: 'text-blue-600 dark:text-blue-400',
+    enabled: true
+  },
+  {
+    id: 'goals',
+    title: '🎯 存钱目标',
+    desc: '心愿单与备用金计划',
+    iconName: 'Target',
+    page: 'goals',
+    bgClass: 'bg-purple-50/60 dark:bg-purple-950/30 border-purple-100 dark:border-purple-900/40 hover:border-purple-400',
+    iconBgClass: 'bg-purple-500/15',
+    iconColorClass: 'text-purple-600 dark:text-purple-400',
+    enabled: true
+  },
+  {
+    id: 'debts',
+    title: '💳 负债与分期',
+    desc: '雪球/雪崩还债规划',
+    iconName: 'CreditCard',
+    page: 'debts',
+    bgClass: 'bg-rose-50/60 dark:bg-rose-950/30 border-rose-100 dark:border-rose-900/40 hover:border-rose-400',
+    iconBgClass: 'bg-rose-500/15',
+    iconColorClass: 'text-rose-600 dark:text-rose-400',
+    badge: '重要',
+    enabled: true
+  },
+  {
+    id: 'investments',
+    title: '💰 投资持仓',
+    desc: '股票基金浮动盈亏',
+    iconName: 'TrendingUp',
+    page: 'investments',
+    bgClass: 'bg-amber-50/60 dark:bg-amber-950/30 border-amber-100 dark:border-amber-900/40 hover:border-amber-400',
+    iconBgClass: 'bg-amber-500/15',
+    iconColorClass: 'text-amber-600 dark:text-amber-400',
+    enabled: true
+  },
+  {
+    id: 'analytics',
+    title: '📈 财务图表',
+    desc: '桑基流向与收支透视',
+    iconName: 'BarChart3',
+    page: 'analytics',
+    bgClass: 'bg-teal-50/60 dark:bg-teal-950/30 border-teal-100 dark:border-teal-900/40 hover:border-teal-400',
+    iconBgClass: 'bg-teal-500/15',
+    iconColorClass: 'text-teal-600 dark:text-teal-400',
+    enabled: true
+  },
+  {
+    id: 'parser',
+    title: '🤖 智能文本识别',
+    desc: '自然语言与短信自动记',
+    iconName: 'Bot',
+    page: 'parser',
+    bgClass: 'bg-indigo-50/60 dark:bg-indigo-950/30 border-indigo-100 dark:border-indigo-900/40 hover:border-indigo-400',
+    iconBgClass: 'bg-indigo-500/15',
+    iconColorClass: 'text-indigo-600 dark:text-indigo-400',
+    enabled: true
+  },
+  {
+    id: 'recurring',
+    title: '🔄 周期固定记账',
+    desc: '每月固定房租与订阅',
+    iconName: 'Repeat',
+    page: 'recurring',
+    bgClass: 'bg-cyan-50/60 dark:bg-cyan-950/30 border-cyan-100 dark:border-cyan-900/40 hover:border-cyan-400',
+    iconBgClass: 'bg-cyan-500/15',
+    iconColorClass: 'text-cyan-600 dark:text-cyan-400',
+    enabled: false
+  },
+  {
+    id: 'snapshots',
+    title: '📸 资产历史快照',
+    desc: '净资产历史走势曲线',
+    iconName: 'Camera',
+    page: 'snapshots',
+    bgClass: 'bg-violet-50/60 dark:bg-violet-950/30 border-violet-100 dark:border-violet-900/40 hover:border-violet-400',
+    iconBgClass: 'bg-violet-500/15',
+    iconColorClass: 'text-violet-600 dark:text-violet-400',
+    enabled: false
+  }
+];
+
 export interface AiConfig {
   enabled: boolean;
   provider: string;
@@ -64,7 +181,8 @@ export const STORAGE_KEYS = {
   AI_CONFIG: 'smartwealth_ai_config_v1',
   LIQUID_GLASS: 'smartwealth_liquid_glass_v1',
   ONBOARDING_COMPLETED: 'smartwealth_onboarding_completed_v1',
-  WEBDAV_CONFIG: 'smartwealth_webdav_config_v1'
+  WEBDAV_CONFIG: 'smartwealth_webdav_config_v1',
+  DASHBOARD_SHORTCUTS: 'smartwealth_dashboard_shortcuts_v2'
 };
 
 // Initialize preload of all keys into memory cache
@@ -298,6 +416,24 @@ export const localStore = {
   },
   saveWebDavConfig(cfg: { url: string; user: string; pass: string; autoSync: boolean }) {
     dbStore.set(STORAGE_KEYS.WEBDAV_CONFIG, cfg);
+  },
+
+  getDashboardShortcuts(): DashboardShortcutItem[] {
+    const raw = dbStore.getSync<DashboardShortcutItem[]>(STORAGE_KEYS.DASHBOARD_SHORTCUTS, DEFAULT_DASHBOARD_SHORTCUTS);
+    if (!raw || raw.length === 0) return DEFAULT_DASHBOARD_SHORTCUTS;
+    
+    // Merge any missing default shortcuts seamlessly
+    const existingIds = new Set(raw.map(r => r.id));
+    const merged = [...raw];
+    for (const def of DEFAULT_DASHBOARD_SHORTCUTS) {
+      if (!existingIds.has(def.id)) {
+        merged.push(def);
+      }
+    }
+    return merged;
+  },
+  saveDashboardShortcuts(shortcuts: DashboardShortcutItem[]) {
+    dbStore.set(STORAGE_KEYS.DASHBOARD_SHORTCUTS, shortcuts);
   },
 
   clearAllData: () => {
