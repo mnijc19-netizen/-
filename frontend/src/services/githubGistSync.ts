@@ -343,6 +343,87 @@ export const githubGistSync = {
         continue;
       }
 
+      // 🏦 Branch 2: Account Balance Calibration Auto-Routing (DO NOT CREATE EXPENSE)
+      const isBalance = item.action === 'account_balance' || item.type === 'balance' || item.type === 'account_balance' ||
+        (/账户余额|当前余额|可用余额|卡内余额|总资产|余额\(元\)|零钱\(元\)|资产总览/i.test(combinedContent) &&
+        !/支付成功|付款成功|消费|支出|账单详情|已出账/i.test(combinedContent));
+
+      if (isBalance) {
+        let accName = item.account_name || item.account || item.merchant || '';
+        if (!accName || /快捷指令|余额|截图/i.test(accName)) {
+          if (/微信|零钱/.test(combinedContent)) accName = '微信零钱';
+          else if (/支付宝|余额宝/.test(combinedContent)) accName = '支付宝';
+          else if (/招商/.test(combinedContent)) accName = '招商银行储蓄卡';
+          else if (/工商|工行/.test(combinedContent)) accName = '工商银行储蓄卡';
+          else if (/建设|建行/.test(combinedContent)) accName = '建设银行储蓄卡';
+          else if (/农业|农行/.test(combinedContent)) accName = '农业银行储蓄卡';
+          else if (/交通|交行/.test(combinedContent)) accName = '交通银行储蓄卡';
+          else if (/平安/.test(combinedContent)) accName = '平安银行储蓄卡';
+          else if (/浦发/.test(combinedContent)) accName = '浦发银行储蓄卡';
+          else if (/中信/.test(combinedContent)) accName = '中信银行储蓄卡';
+          else if (/民生/.test(combinedContent)) accName = '民生银行储蓄卡';
+          else if (/光大/.test(combinedContent)) accName = '光大银行储蓄卡';
+          else if (/华泰|证券|股票|券商/.test(combinedContent)) accName = '华泰证券持仓';
+          else {
+            const rawMatch = rawText.match(/([^\s\n\d]{2,10}(?:银行|钱包|零钱|账户|证券))/);
+            accName = rawMatch ? rawMatch[1] : (item.channel || '主资产账户');
+          }
+        }
+
+        try {
+          let targetAcc = accounts.find(a => 
+            a.name === accName || 
+            (accName.length >= 2 && a.name.includes(accName)) || 
+            (a.name.length >= 2 && accName.includes(a.name))
+          );
+
+          if (targetAcc) {
+            const oldBal = targetAcc.balance;
+            targetAcc.balance = numAmt;
+            localStore.saveAccounts(accounts);
+            
+            // Record calibration log for auditability
+            const diff = numAmt - oldBal;
+            if (Math.abs(diff) > 0.001) {
+              await api.createTransaction({
+                type: diff > 0 ? 'income' : 'expense',
+                amount: Math.abs(diff),
+                account_id: targetAcc.id,
+                category_name: '余额校准',
+                date: dateStr,
+                merchant: `${targetAcc.name}余额校准`,
+                note: `快捷指令/AI 识别开账校准 (原¥${oldBal.toFixed(2)} -> 现¥${numAmt.toFixed(2)})`,
+                source: 'balance_adjust'
+              });
+            }
+          } else {
+            // Automatically open new account for new unseen platforms
+            const newAccType = /证券|股票|基金|持仓/.test(accName) ? 'investment' :
+              /银行|卡/.test(accName) ? 'bank' :
+              /白条|花呗|借呗|月付|贷|信用卡/.test(accName) ? 'credit' : 'wallet';
+
+            const created = await api.createAccount({
+              name: accName,
+              type: newAccType as any,
+              balance: numAmt,
+              currency: 'CNY',
+              note: '由 AI 视觉识别/快捷指令自动开立'
+            });
+            accounts.push(created);
+          }
+
+          ingestedList.push({
+            merchant: `🏦 【${accName}】余额对账`,
+            amount: numAmt,
+            category: '余额校准',
+            date: dateStr
+          });
+        } catch (accErr: any) {
+          errors.push(`余额对账[${idx}]: ${accErr.message || '更新失败'}`);
+        }
+        continue;
+      }
+
       catName = catName || '日常消费';
       merchant = merchant || '快捷指令入账';
 
