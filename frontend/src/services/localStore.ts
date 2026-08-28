@@ -149,8 +149,9 @@ export const localStore = {
     const remainingTxs: Transaction[] = [];
 
     for (const tx of txs) {
+      const merchantStr = tx.merchant || '';
       const isMistakenDebt = Math.abs(tx.amount - 2691.41) < 0.01 && 
-        (tx.merchant === '快捷指令入账' || tx.merchant.includes('白条') || tx.category_name === '餐饮美食' || tx.category_name === '日常消费');
+        (merchantStr === '快捷指令入账' || merchantStr.includes('白条') || tx.category_name === '餐饮美食' || tx.category_name === '日常消费');
       
       if (isMistakenDebt) {
         modified = true;
