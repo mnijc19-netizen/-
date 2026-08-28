@@ -1,0 +1,18 @@
+﻿# SmartWealth Pro · Cursor & AI Agent IDE Rules
+
+# 1. 架构分层遵守
+- 严格单向洋葱架构：UI (Layer 4) -> Store (Layer 3) -> Engine (Layer 2) -> Schema (Layer 1) -> Constitution (Layer 0)
+- 严禁在 UI 组件内编写复式记账平衡、现金流折现或投资盈亏等核心业务计算公式。
+
+# 2. 单一权威入口
+- 资产调额对账入口唯一：`AccountBalanceAdjustModal`
+- 快捷记账统一入口：`UniversalQuickAddModal` / `api.createTransaction`
+- 负债与分期还款统一入口：`repaymentScheduler.ts`
+
+# 3. 拟人化实测与防退化门禁
+- 任何核心改动必须保证 `npm test`（`ci_self_check.js` + `live_human_simulation.js`）100% 通过。
+- 涉及手机端体验时，必须检查：触控区域大小 (>=44px)、iOS 安全区适配 (`env(safe-area-inset-bottom)`)、AI 流式打字时不与用户向上滑动手势抢焦点。
+
+# 4. 零硬编码与防幻觉
+- 严禁在 AI System Prompt 中硬编码具体的测试假数字（如 2691.41、278.22），杜绝模型被假数据污染产生幻觉。
+- 遇到需求分叉或不确定性，必须主动向用户发起结构化提问（提供 A/B 选项与 Recommended 推荐），严禁盲猜盲改。
