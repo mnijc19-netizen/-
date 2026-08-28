@@ -1,4 +1,3 @@
-import React from 'react';
 import { 
   LayoutDashboard, 
   WalletCards, 
@@ -7,6 +6,7 @@ import {
   Settings
 } from 'lucide-react';
 import { PageId } from './Sidebar';
+import { haptic } from '../services/haptic';
 
 interface MobileBottomNavProps {
   currentPage: PageId;
@@ -22,12 +22,21 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
   onSelectPage,
   onOpenQuickTx
 }) => {
+  const handleTabClick = (page: PageId) => {
+    haptic.selection();
+    onSelectPage(page);
+  };
+
+  const handlePlusClick = () => {
+    haptic.impact();
+    onOpenQuickTx();
+  };
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-30 bg-white/96 dark:bg-slate-900/96 backdrop-blur-2xl border-t border-slate-200/90 dark:border-slate-800/90 px-3 py-2 flex items-center justify-around max-w-md mx-auto shadow-[0_-8px_30px_rgba(0,0,0,0.08)] dark:shadow-[0_-8px_30px_rgba(0,0,0,0.5)] pb-[calc(0.6rem+env(safe-area-inset-bottom,20px))]">
       {/* Tab 1: Home */}
       <button
         type="button"
-        onClick={() => onSelectPage('dashboard')}
+        onClick={() => handleTabClick('dashboard')}
         className={`flex flex-col items-center justify-center py-1 px-3 rounded-xl transition ${
           currentPage === 'dashboard' ? 'text-emerald-500 font-bold' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
         }`}
@@ -39,7 +48,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
       {/* Tab 2: Assets / Accounts */}
       <button
         type="button"
-        onClick={() => onSelectPage('accounts')}
+        onClick={() => handleTabClick('accounts')}
         className={`flex flex-col items-center justify-center py-1 px-3 rounded-xl transition ${
           currentPage === 'accounts' ? 'text-emerald-500 font-bold' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
         }`}
@@ -51,7 +60,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
       {/* Central Prominent Floating '+' Button -> Direct Universal Add Transaction Modal */}
       <button
         type="button"
-        onClick={onOpenQuickTx}
+        onClick={handlePlusClick}
         aria-label="记一笔"
         className="-mt-5 w-12 h-12 rounded-full bg-gradient-to-tr from-emerald-600 to-teal-500 text-white flex items-center justify-center shadow-lg shadow-emerald-500/30 hover:scale-105 active:scale-95 transition"
       >
@@ -61,7 +70,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
       {/* Tab 4: Transactions */}
       <button
         type="button"
-        onClick={() => onSelectPage('transactions')}
+        onClick={() => handleTabClick('transactions')}
         className={`flex flex-col items-center justify-center py-1 px-3 rounded-xl transition ${
           currentPage === 'transactions' ? 'text-emerald-500 font-bold' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
         }`}
@@ -73,7 +82,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
       {/* Tab 5: Settings / More */}
       <button
         type="button"
-        onClick={() => onSelectPage('settings')}
+        onClick={() => handleTabClick('settings')}
         className={`flex flex-col items-center justify-center py-1 px-3 rounded-xl transition ${
           currentPage === 'settings' ? 'text-emerald-500 font-bold' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
         }`}

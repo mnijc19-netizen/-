@@ -21,6 +21,7 @@ import {
 import { DashboardAnalytics, Transaction, Account } from '../types';
 import { localStore } from '../services/localStore';
 import { DashboardModularWidgets } from '../components/DashboardModularWidgets';
+import { haptic } from '../services/haptic';
 
 interface DashboardProps {
   analytics: DashboardAnalytics | null;
@@ -96,7 +97,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </span>
             <button
               type="button"
-              onClick={onTogglePrivacy}
+              onClick={() => {
+                haptic.toggle();
+                onTogglePrivacy();
+              }}
               className="p-1 rounded-lg text-emerald-200 hover:text-white hover:bg-white/15 transition active:scale-95 flex items-center gap-1"
               title={privacyMode ? '点击显示资产金额' : '点击隐藏私密金额'}
             >

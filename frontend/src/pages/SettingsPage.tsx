@@ -33,11 +33,13 @@ import {
   CloudUpload,
   Server,
   Lock,
-  LockOpen
+  LockOpen,
+  Smartphone
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { api } from '../api/client';
 import { RecurringRule, Account, Category } from '../types';
+import { haptic } from '../services/haptic';
 import { getBeijingDateString } from '../utils/dateUtils';
 import { localStore, AiConfig, DEFAULT_AI_CONFIG } from '../services/localStore';
 import { AI_PROVIDERS, testAiConnection, AiTestResult } from '../services/aiParser';
@@ -82,6 +84,14 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   const [unlockModalOpen, setUnlockModalOpen] = useState(false);
   const [unlockPassword, setUnlockPassword] = useState('');
   const [unlockError, setUnlockError] = useState('');
+
+  // 📳 Haptic Feedback State
+  const [hapticFeedback, setHapticFeedback] = useState<boolean>(() => haptic.isHapticEnabled());
+
+  const handleToggleHaptic = (enabled: boolean) => {
+    setHapticFeedback(enabled);
+    haptic.setHapticEnabled(enabled);
+  };
 
   // 🧪 Laboratory AI Config State
   const [aiConfig, setAiConfig] = useState<AiConfig>(() => localStore.getAiConfig());
@@ -395,6 +405,38 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
             className="sr-only peer"
           />
           <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-cyan-600"></div>
+        </label>
+      </div>
+
+      {/* 📳 Haptic Feedback Switch (全域触感反馈震动引擎) */}
+      <div className="p-4 sm:p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex items-center justify-between transition">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-violet-500 to-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-500/20 flex-shrink-0">
+            <Smartphone className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
+                📳 手机触感反馈 (Haptic Engine)
+              </h3>
+              <span className="text-[8px] font-mono font-bold px-1.5 py-0.2 rounded bg-indigo-500/15 text-indigo-600 dark:text-indigo-400">
+                震动
+              </span>
+            </div>
+            <p className="text-[10px] text-slate-400 mt-0.5">
+              点击开关、切换标签与操作按钮时触发舒适的微震动反馈 (支持移动端)
+            </p>
+          </div>
+        </div>
+
+        <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
+          <input 
+            type="checkbox" 
+            checked={hapticFeedback}
+            onChange={(e) => handleToggleHaptic(e.target.checked)}
+            className="sr-only peer"
+          />
+          <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600"></div>
         </label>
       </div>
 

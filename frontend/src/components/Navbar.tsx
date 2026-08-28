@@ -1,4 +1,3 @@
-import React from 'react';
 import { 
   Sun, 
   Moon, 
@@ -6,6 +5,7 @@ import {
   RotateCcw
 } from 'lucide-react';
 import { DashboardAnalytics } from '../types';
+import { haptic } from '../services/haptic';
 
 interface NavbarProps {
   analytics: DashboardAnalytics | null;
@@ -24,6 +24,15 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenAiChat,
   onReload
 }) => {
+  const handleToggleDark = () => {
+    haptic.toggle();
+    onToggleDarkMode();
+  };
+
+  const handleOpenAi = () => {
+    haptic.impact();
+    onOpenAiChat?.();
+  };
   return (
     <header className="sticky top-0 z-40 bg-white/85 dark:bg-slate-900/85 backdrop-blur-xl border-b border-slate-200/60 dark:border-slate-800/60 px-4 py-2.5 flex items-center justify-between max-w-lg mx-auto w-full pt-[calc(0.5rem+env(safe-area-inset-top))]">
       {/* Brand & Net Worth Pill */}
@@ -55,8 +64,8 @@ export const Navbar: React.FC<NavbarProps> = ({
         {/* Dark Mode toggle */}
         <button
           type="button"
-          onClick={onToggleDarkMode}
-          className="p-2 rounded-2xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+          onClick={handleToggleDark}
+          className="p-2 rounded-2xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition active:scale-95"
           title="切换深浅主题"
         >
           {darkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-600" />}
@@ -65,7 +74,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         {/* Unified AI Financial Copilot Capsule */}
         <button
           type="button"
-          onClick={onOpenAiChat}
+          onClick={handleOpenAi}
           className="px-3 py-1.5 rounded-2xl bg-gradient-to-r from-purple-600 via-indigo-600 to-pink-600 text-white hover:opacity-95 shadow-md shadow-indigo-500/20 transition active:scale-95 flex items-center gap-1.5 text-xs font-bold"
           title="💬 斌斌 AI 智能对话管家"
         >

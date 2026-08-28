@@ -26,6 +26,7 @@ import {
   DEFAULT_DASHBOARD_WIDGETS, 
   localStore 
 } from '../services/localStore';
+import { haptic } from '../services/haptic';
 
 interface DashboardModularWidgetsProps {
   privacyMode: boolean;
@@ -59,6 +60,7 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
   // Unified Safe Navigation Handler: Strictly BLOCKED when in edit mode!
   const safeNavigate = (page: string) => {
     if (isEditing || isLongPressActive.current) return;
+    haptic.selection();
     onNavigateTo(page);
   };
 
@@ -82,9 +84,7 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
     pressTimerRef.current = setTimeout(() => {
       isLongPressActive.current = true;
       setIsEditing(true);
-      if (typeof navigator !== 'undefined' && navigator.vibrate) {
-        navigator.vibrate(60);
-      }
+      haptic.impact();
     }, 700);
   };
 
@@ -122,9 +122,7 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
     e.stopPropagation();
     currentDragIdxRef.current = index;
     setActiveDragIdx(index);
-    if (typeof navigator !== 'undefined' && navigator.vibrate) {
-      navigator.vibrate(40);
-    }
+    haptic.impact();
   };
 
   const handleGripTouchMove = (e: React.TouchEvent) => {
@@ -162,10 +160,7 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
           currentDragIdxRef.current = targetIdx;
           setActiveDragIdx(targetIdx);
           updateWidgets(newWidgets);
-
-          if (typeof navigator !== 'undefined' && navigator.vibrate) {
-            navigator.vibrate(25);
-          }
+          haptic.selection();
         }
       }
     }
@@ -194,14 +189,13 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
       newWidgets[idxA] = newWidgets[idxB];
       newWidgets[idxB] = temp;
       updateWidgets(newWidgets);
-      if (typeof navigator !== 'undefined' && navigator.vibrate) {
-        navigator.vibrate(30);
-      }
+      haptic.selection();
     }
   };
 
-  // 4. Toggle enable
+  // 4. Toggle enable (Switch)
   const toggleWidgetEnabled = (id: string) => {
+    haptic.toggle();
     const newItems = widgets.map(w => 
       w.id === id ? { ...w, enabled: !w.enabled } : w
     );
@@ -210,6 +204,7 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
 
   // 5. Reset to default
   const handleReset = () => {
+    haptic.warning();
     updateWidgets(DEFAULT_DASHBOARD_WIDGETS);
   };
 
@@ -272,10 +267,10 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
+                      haptic.toggle();
                       setDebtsPrivacyRevealed(!debtsPrivacyRevealed);
-                      if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(30);
                     }}
-                    className="py-0.5 px-2 rounded-lg bg-white/80 dark:bg-slate-800/80 border border-slate-200/60 dark:border-slate-700/60 text-[10px] font-bold text-slate-600 dark:text-slate-300 hover:text-rose-600 dark:hover:text-rose-400 transition flex items-center gap-1 shadow-2xs"
+                    className="py-0.5 px-2 rounded-lg bg-white/80 dark:bg-slate-800/80 border border-slate-200/60 dark:border-slate-700/60 text-[10px] font-bold text-slate-600 dark:text-slate-300 hover:text-rose-600 dark:hover:text-rose-400 transition flex items-center gap-1 shadow-2xs active:scale-95"
                     title={debtsPrivacyRevealed ? '点击高斯模糊保护隐私' : '点击解锁显示分期详情'}
                   >
                     {debtsPrivacyRevealed ? (
@@ -310,10 +305,9 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
             {activeDebts.length > 0 ? (
               <div 
                 onClick={() => {
-                  // If blurred, tapping anywhere unlocks it smoothly!
                   if (!isEditing && !debtsPrivacyRevealed) {
+                    haptic.toggle();
                     setDebtsPrivacyRevealed(true);
-                    if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(30);
                   }
                 }}
                 className="space-y-2 relative"
@@ -716,7 +710,10 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
           {isEditing ? (
             <button
               type="button"
-              onClick={() => setIsEditing(false)}
+              onClick={() => {
+                haptic.success();
+                setIsEditing(false);
+              }}
               className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1 shadow-md shadow-emerald-600/20 active:scale-95 transition"
             >
               <Check className="w-3.5 h-3.5 stroke-[3]" /> 完成
@@ -725,7 +722,10 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
             <>
               <button
                 type="button"
-                onClick={() => setModalOpen(true)}
+                onClick={() => {
+                  haptic.selection();
+                  setModalOpen(true);
+                }}
                 className="text-[11px] text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 flex items-center gap-1 py-1 px-2.5 rounded-xl bg-slate-100/80 dark:bg-slate-800/80 hover:bg-slate-200 dark:hover:bg-slate-700 transition"
               >
                 <Settings className="w-3 h-3" />
@@ -733,7 +733,10 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
               </button>
               <button
                 type="button"
-                onClick={() => setIsEditing(true)}
+                onClick={() => {
+                  haptic.selection();
+                  setIsEditing(true);
+                }}
                 className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline py-1 px-2"
               >
                 排序
@@ -841,7 +844,10 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
         {isEditing && hiddenWidgets.length > 0 && (
           <button
             type="button"
-            onClick={() => setModalOpen(true)}
+            onClick={() => {
+              haptic.selection();
+              setModalOpen(true);
+            }}
             className="w-full p-4 rounded-3xl border-2 border-dashed border-indigo-300 dark:border-indigo-800 bg-indigo-50/30 dark:bg-indigo-950/20 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50/60 dark:hover:bg-indigo-950/40 flex items-center justify-center gap-2 transition active:scale-95"
           >
             <div className="w-7 h-7 rounded-xl bg-indigo-500/15 flex items-center justify-center font-bold">
@@ -873,7 +879,10 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
               </div>
               <button
                 type="button"
-                onClick={() => setModalOpen(false)}
+                onClick={() => {
+                  haptic.selection();
+                  setModalOpen(false);
+                }}
                 className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
               >
                 <X className="w-5 h-5" />
@@ -944,7 +953,10 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
 
               <button
                 type="button"
-                onClick={() => setModalOpen(false)}
+                onClick={() => {
+                  haptic.success();
+                  setModalOpen(false);
+                }}
                 className="px-4 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-md shadow-indigo-500/20 active:scale-95 transition"
               >
                 保存设置
