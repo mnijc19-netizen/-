@@ -71,7 +71,7 @@ export const OnboardingGuideModal: React.FC<OnboardingGuideModalProps> = ({
     {
       step: 3,
       title: '📱 iPhone 硬件级一键秒记',
-      desc: '支持 iPhone 操作按钮 (Action Button) 或轻点背面双击，付完款长按侧键 0 步自动存入账本。',
+      desc: '免注册 GitHub，分配 6 位专属码。长按侧键后台静默识图入云，几天几十笔打开网页一键全导入！',
       icon: Smartphone,
       color: 'from-emerald-500 to-teal-600',
       actionText: '查看配置教程',

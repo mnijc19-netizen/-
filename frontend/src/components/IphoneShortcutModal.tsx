@@ -26,6 +26,15 @@ interface IphoneShortcutModalProps {
 }
 
 export const IphoneShortcutModal: React.FC<IphoneShortcutModalProps> = ({ isOpen, onClose }) => {
+  // Auto-create 6-digit sync inbox on open if not created yet
+  React.useEffect(() => {
+    if (isOpen) {
+      const cfg = cloudCodeSync.getConfig();
+      if (!cfg.inboxId) {
+        cloudCodeSync.createOrBindInbox();
+      }
+    }
+  }, [isOpen]);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'cloud_code' | 'silent_ai' | 'easy_url' | 'pwa'>('cloud_code');
 
