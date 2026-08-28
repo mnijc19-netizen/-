@@ -7,15 +7,17 @@ import {
   Check, 
   X, 
   MessageSquare, 
-  Fingerprint,
-  Camera,
-  CheckCircle2,
-  ArrowRight,
-  Code,
-  Cloud,
-  BellRing,
-  HelpCircle
+  CheckCircle2, 
+  ArrowRight, 
+  Cloud, 
+  ExternalLink,
+  ShieldCheck,
+  Layers,
+  HelpCircle,
+  Download
 } from 'lucide-react';
+import { githubGistSync } from '../services/githubGistSync';
+import { haptic } from '../services/haptic';
 
 interface IphoneShortcutModalProps {
   isOpen: boolean;
@@ -23,43 +25,42 @@ interface IphoneShortcutModalProps {
 }
 
 export const IphoneShortcutModal: React.FC<IphoneShortcutModalProps> = ({ isOpen, onClose }) => {
-  const [copiedUrl, setCopiedUrl] = useState(false);
-  const [copiedJson, setCopiedJson] = useState(false);
-  const [copiedVisionPrompt, setCopiedVisionPrompt] = useState(false);
-  const [activeTab, setActiveTab] = useState<'silent_cloud' | 'pwa_guide' | 'sms'>('silent_cloud');
+  const [copiedType, setCopiedType] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'easy_url' | 'silent_cloud' | 'pwa_guide'>('easy_url');
 
-  const baseShortcutUrl = `https://mnijc19-netizen.github.io/-/?text=`;
+  // Load current user's actual Gist credentials
+  const gistConfig = githubGistSync.getConfig();
+  const userToken = gistConfig.token || (typeof window !== 'undefined' ? localStorage.getItem('smartwealth_gist_token_v1') || '' : '');
+  const userGistId = gistConfig.gistId || '19112eef901e903254dedab4765f135b';
+  const gistApiUrl = `https://api.github.com/gists/${userGistId}`;
 
-  const sampleVisionPrompt = `你是一个顶级专业财务记账 AI。请直接分析截图像素并识别以下 4 类场景之一：
-1.【日常收支】买东西/扫码支付/外卖/转账流水：
-输出 {"action":"transaction","type":"expense|income","amount":14.05,"merchant":"商户名称","category":"餐饮美食|日用百货|交通出行|医疗健康|生活服务","channel":"微信支付|支付宝|银行卡等"}
-2.【账户余额】银行卡、微信零钱、支付宝或券商总资产余额截图：
-输出 {"action":"account_balance","account_name":"招商银行|微信零钱|支付宝|工商银行等","amount":15820.00}
-3.【待还分期】白条、花呗、月付或还款日待还账单：
-输出 {"action":"debt_schedule","type":"debt","amount":2691.41,"merchant":"京东白条|蚂蚁花呗|美团月付","category":"信贷分期","installments":3,"monthly_payment":804.05,"repay_day":4}
-4.【还款成功/已还当期】白条、花呗、信用卡分期还款成功凭证：
-输出 {"action":"repayment","type":"repayment","amount":1083.31,"merchant":"京东白条还款|蚂蚁花呗还款","category":"金融还款","channel":"微信支付|招商银行等"}
-严格只返回单个纯 JSON 对象（禁止 markdown 与任何多余文字）。`;
+  const simpleIngestUrl = 'https://mnijc19-netizen.github.io/-/?text=';
 
-  const sampleJsonTemplate = `[
-  {
-    "merchant": "沙县小吃",
-    "amount": 20.00,
-    "category": "餐饮美食",
-    "type": "expense",
-    "note": "iOS 快捷指令静默记账"
-  }
-]`;
+  // Pre-compiled full configuration text with user's real credentials (ZERO manual editing required)
+  const fullSilentConfigText = `【斌斌钱包 · iPhone 快捷指令专属配置】
+1. 动作 1：添加「截屏」
+2. 动作 2：添加「从图像中提取文本」
+3. 动作 3：添加「获取 URL 的内容」
+   - URL 地址：${gistApiUrl}
+   - 请求方法：PATCH
+   - 头部 (Headers)：
+     Authorization : token ${userToken}
+     User-Agent : iOS-Shortcut
+     Content-Type : application/json
+   - 请求体 (Request Body - JSON)：
+     files ➔ smartwealth_inbox.json ➔ content ➔ [{"raw_text":"[图像中的文本]"}]
+4. 动作 4：添加「提供触感反馈」（成功）`;
 
-  const handleCopy = (text: string, type: 'url' | 'json') => {
+  const handleCopy = (text: string, typeKey: string) => {
+    haptic.selection();
     navigator.clipboard.writeText(text);
-    if (type === 'url') {
-      setCopiedUrl(true);
-      setTimeout(() => setCopiedUrl(false), 2000);
-    } else {
-      setCopiedJson(true);
-      setTimeout(() => setCopiedJson(false), 2000);
-    }
+    setCopiedType(typeKey);
+    setTimeout(() => setCopiedType(null), 2500);
+  };
+
+  const handleOpenShortcutsApp = () => {
+    haptic.impact();
+    window.location.href = 'shortcuts://';
   };
 
   if (!isOpen) return null;
@@ -68,28 +69,28 @@ export const IphoneShortcutModal: React.FC<IphoneShortcutModalProps> = ({ isOpen
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3.5 sm:p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200">
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[85vh] my-auto">
         {/* Header */}
-        <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-gradient-to-r from-blue-600/10 via-purple-600/10 to-transparent">
+        <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-gradient-to-r from-indigo-600/10 via-purple-600/10 to-transparent">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-purple-500/20 text-purple-600 dark:text-purple-400 flex items-center justify-center">
+            <div className="w-9 h-9 rounded-2xl bg-gradient-to-tr from-indigo-500 to-purple-600 text-white flex items-center justify-center shadow-md shadow-indigo-500/20">
               <Zap className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center gap-1.5">
-                <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                  iPhone 极速记账与桌面 App
+                <h3 className="text-base font-black text-slate-900 dark:text-white">
+                  iPhone 极速记账与快捷指令
                 </h3>
-                <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 font-bold border border-emerald-500/30 flex items-center gap-0.5">
-                  <Sparkles className="w-2.5 h-2.5" /> 终极方案
-                </span>
               </div>
               <p className="text-[11px] text-slate-400">
-                侧键截图静默云记账 + 桌面 100% 全屏沉浸
+                一键直达 · 免复杂配置 · 100% 可用
               </p>
             </div>
           </div>
           <button 
-            onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1.5 rounded-lg"
+            onClick={() => {
+              haptic.selection();
+              onClose();
+            }}
+            className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1.5 rounded-lg transition"
           >
             <X className="w-5 h-5" />
           </button>
@@ -99,187 +100,199 @@ export const IphoneShortcutModal: React.FC<IphoneShortcutModalProps> = ({ isOpen
         <div className="grid grid-cols-3 p-1 bg-slate-100 dark:bg-slate-800/80 m-4 mb-0 rounded-2xl text-xs gap-1">
           <button
             type="button"
-            onClick={() => setActiveTab('silent_cloud')}
+            onClick={() => {
+              haptic.selection();
+              setActiveTab('easy_url');
+            }}
             className={`py-2 rounded-xl font-bold transition flex items-center justify-center gap-1 ${
-              activeTab === 'silent_cloud' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-500'
+              activeTab === 'easy_url' ? 'bg-white dark:bg-slate-700 text-emerald-600 dark:text-emerald-400 shadow-sm' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
             }`}
           >
-            <Cloud className="w-3.5 h-3.5" /> ⚡ 侧键静默记账
+            <Sparkles className="w-3.5 h-3.5" /> ⚡ 极速免配置
           </button>
           <button
             type="button"
-            onClick={() => setActiveTab('pwa_guide')}
+            onClick={() => {
+              haptic.selection();
+              setActiveTab('silent_cloud');
+            }}
             className={`py-2 rounded-xl font-bold transition flex items-center justify-center gap-1 ${
-              activeTab === 'pwa_guide' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-500'
+              activeTab === 'silent_cloud' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
             }`}
           >
-            <Smartphone className="w-3.5 h-3.5" /> 📲 桌面全屏 App
+            <Cloud className="w-3.5 h-3.5" /> ☁️ 静默云同步
           </button>
           <button
             type="button"
-            onClick={() => setActiveTab('sms')}
+            onClick={() => {
+              haptic.selection();
+              setActiveTab('pwa_guide');
+            }}
             className={`py-2 rounded-xl font-bold transition flex items-center justify-center gap-1 ${
-              activeTab === 'sms' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-500'
+              activeTab === 'pwa_guide' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
             }`}
           >
-            <MessageSquare className="w-3.5 h-3.5" /> ✉️ 短信自动记
+            <Smartphone className="w-3.5 h-3.5" /> 📲 桌面全屏
           </button>
         </div>
 
-        {/* Step Guide Content */}
+        {/* Content */}
         <div className="p-5 overflow-y-auto space-y-4 flex-1 text-xs">
-          {/* Method 1: Silent Cloud Ingest (The Ultimate Solution) */}
-          {activeTab === 'silent_cloud' && (
+          {/* Method 1: Ultra Simple 2-Step (Zero Token, Zero Gist, 100% Reliable) */}
+          {activeTab === 'easy_url' && (
             <div className="space-y-3.5">
-              <div className="p-3.5 rounded-2xl bg-gradient-to-br from-indigo-500/10 via-purple-500/10 to-emerald-500/10 border border-indigo-200 dark:border-indigo-800 space-y-1.5">
-                <div className="font-bold flex items-center gap-1.5 text-xs text-indigo-900 dark:text-indigo-200">
-                  <Sparkles className="w-4 h-4 text-indigo-500" />
-                  终极 AI 视觉记账：灵动岛当场播报金额 + 桌面无缝秒同步
+              {/* Highlight Hero Card */}
+              <div className="p-4 rounded-3xl bg-gradient-to-br from-emerald-500/15 via-teal-500/10 to-indigo-500/10 border border-emerald-300 dark:border-emerald-800 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-black text-xs text-emerald-900 dark:text-emerald-200 flex items-center gap-1.5">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                    官方推荐 · 0 门槛 2 步极速方案
+                  </span>
+                  <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-emerald-500 text-white shadow-2xs">
+                    免填密钥 · 即配即用
+                  </span>
                 </div>
                 <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
-                  截屏后<strong>AI 视觉大模型 0.8 秒自动识破日报干扰</strong>，精准提取商户与金额，<strong>灵动岛当场震动播报</strong>，并存入云端队列（几天不打开也不会丢）！
+                  截屏后手机<strong>自动识字并秒开网页 AI 智能记账</strong>，零门槛、零 Token 授权，任何人 10 秒搞定！
                 </p>
+                <div className="pt-1 flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleOpenShortcutsApp}
+                    className="flex-1 py-2 px-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-md shadow-emerald-500/20 active:scale-95 transition"
+                  >
+                    <Zap className="w-3.5 h-3.5" />
+                    <span>一键打开快捷指令 App</span>
+                  </button>
+                </div>
               </div>
 
-              {/* Verified Visual Pipeline */}
-              <div className="space-y-2">
-                <div className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5 pb-1">
-                  <Zap className="w-4 h-4 text-indigo-500" />
-                  快捷指令 4 个动作清单（已预置授权与防超时）：
+              {/* 2 Simple Steps */}
+              <div className="space-y-2.5">
+                <div className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5 pb-0.5">
+                  <span>只需添加 2 个动作：</span>
                 </div>
 
                 {/* Step 1 */}
                 <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
-                    <span className="w-5 h-5 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-center leading-5 font-mono text-[10px] font-bold">1</span>
+                    <span className="w-6 h-6 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-center leading-6 font-mono text-[11px] font-bold">1</span>
                     <div>
-                      <div className="font-bold text-slate-800 dark:text-slate-200">截屏</div>
-                      <div className="text-[10px] text-slate-400">搜索并添加动作「截屏」</div>
+                      <div className="font-bold text-slate-800 dark:text-slate-200">截屏 ➔ 从 [截屏] 中提取文本</div>
+                      <div className="text-[10px] text-slate-400">搜索添加系统自带的 OCR 识字动作</div>
                     </div>
                   </div>
-                  <span className="text-[10px] px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-mono">系统</span>
+                  <span className="text-[10px] px-2 py-0.5 rounded bg-blue-100 dark:bg-blue-950 text-blue-600 dark:text-blue-300 font-mono">自带 OCR</span>
                 </div>
 
                 {/* Step 2 */}
-                <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <span className="w-5 h-5 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-center leading-5 font-mono text-[10px] font-bold">2</span>
-                    <div>
-                      <div className="font-bold text-slate-800 dark:text-slate-200">从 [截屏] 中提取文本</div>
-                      <div className="text-[10px] text-slate-400">搜索添加「从图像中提取文本」</div>
+                <div className="p-3.5 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <span className="w-6 h-6 rounded-full bg-emerald-600 text-white text-center leading-6 font-mono text-[11px] font-bold">2</span>
+                      <div>
+                        <div className="font-bold text-emerald-900 dark:text-emerald-200">打开 URL（自动入账）</div>
+                        <div className="text-[10px] text-slate-500 dark:text-slate-400">搜索添加「打开 URL」，填入下方链接：</div>
+                      </div>
                     </div>
-                  </div>
-                  <span className="text-[10px] px-2 py-0.5 rounded bg-blue-100 dark:bg-blue-950 text-blue-600 dark:text-blue-300 font-mono">OCR 提取</span>
-                </div>
-
-                {/* Step 3: Get Contents of URL (Write to GitHub Gist) */}
-                <div className="p-3.5 rounded-2xl bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 space-y-2.5">
-                  <div className="flex items-center gap-2.5">
-                    <span className="w-5 h-5 rounded-full bg-indigo-600 text-white text-center leading-5 font-mono text-[10px] font-bold">3</span>
-                    <div>
-                      <div className="font-bold text-indigo-900 dark:text-indigo-200">获取 URL 的内容 (写入 GitHub Gist)</div>
-                      <div className="text-[10px] text-slate-400">方法选 <strong>PATCH</strong>（100% 官方 CORS 通行）</div>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleCopy(`${simpleIngestUrl}[图像中的文本]`, 'url')}
+                      className="px-2.5 py-1 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[10px] flex items-center gap-1 active:scale-95 transition shadow-2xs"
+                    >
+                      {copiedType === 'url' ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                      <span>{copiedType === 'url' ? '已复制' : '一键复制 URL'}</span>
+                    </button>
                   </div>
 
-                  {/* URL */}
-                  <div className="space-y-1">
-                    <div className="flex items-center justify-between text-[10px] text-slate-500 font-bold">
-                      <span>URL 地址：</span>
-                      <button
-                        type="button"
-                        onClick={() => handleCopy('https://api.github.com/gists/19112eef901e903254dedab4765f135b', 'url')}
-                        className="text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-0.5"
-                      >
-                        {copiedUrl ? <Check className="w-2.5 h-2.5" /> : <Copy className="w-2.5 h-2.5" />}
-                        {copiedUrl ? '已复制' : '复制专属 Gist URL'}
-                      </button>
-                    </div>
-                    <div className="p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono text-[9px] text-purple-600 dark:text-purple-400 break-all">
-                      https://api.github.com/gists/19112eef901e903254dedab4765f135b
-                    </div>
+                  <div className="p-2 rounded-xl bg-white dark:bg-slate-900 border border-emerald-200 dark:border-emerald-900/60 font-mono text-[9px] text-emerald-700 dark:text-emerald-300 break-all select-all">
+                    {`${simpleIngestUrl}[图像中的文本]`}
                   </div>
-
-                  {/* Headers */}
-                  <div className="space-y-1">
-                    <div className="text-[10px] text-slate-500 font-bold">头部 (Headers) 添加 3 行：</div>
-                    <div className="p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono text-[9px] text-slate-700 dark:text-slate-300 space-y-1">
-                      <div>① <code>Authorization</code> : <code>token ghp_你的Token</code></div>
-                      <div>② <code>User-Agent</code> : <code>iOS-Shortcut</code></div>
-                      <div>③ <code>Content-Type</code> : <code>application/json</code></div>
-                    </div>
-                  </div>
-
-                  {/* Request Body */}
-                  <div className="space-y-1">
-                    <div className="text-[10px] text-slate-500 font-bold">请求体 (Request Body)：</div>
-                    <div className="p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono text-[9px] text-slate-600 dark:text-slate-300">
-                      类型选 <strong>JSON</strong> ➔ 键填 <code>files</code> ➔ 字典 <code>smartwealth_inbox.json</code> ➔ <code>content</code> ➔ <code>{'[{"raw_text":"[图像中的文本]"}]'}</code>
-                    </div>
-                  </div>
-
-                  {/* Upgraded Vision AI Prompt (Expense + Debt) */}
-                  <div className="p-2.5 rounded-xl bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800 space-y-1.5 mt-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-bold text-purple-900 dark:text-purple-200 flex items-center gap-1">
-                        <Sparkles className="w-3 h-3 text-purple-600" />
-                        智谱 GLM-4V 视觉提示词 (支持日常消费与分期负债分流)：
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          navigator.clipboard.writeText(sampleVisionPrompt);
-                          setCopiedVisionPrompt(true);
-                          setTimeout(() => setCopiedVisionPrompt(false), 2000);
-                        }}
-                        className="text-[10px] font-bold text-purple-600 dark:text-purple-400 hover:underline flex items-center gap-0.5"
-                      >
-                        {copiedVisionPrompt ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-                        {copiedVisionPrompt ? '已复制' : '一键复制提示词'}
-                      </button>
-                    </div>
-                    <div className="p-2 rounded bg-white dark:bg-slate-900 border border-purple-100 dark:border-purple-900 font-mono text-[8.5px] text-slate-600 dark:text-slate-300 whitespace-pre-wrap leading-relaxed max-h-24 overflow-y-auto">
-                      {sampleVisionPrompt}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Step 4: Haptic Feedback / Dynamic Island */}
-                <div className="p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <span className="w-5 h-5 rounded-full bg-emerald-600 text-white text-center leading-5 font-mono text-[10px] font-bold">4</span>
-                    <div>
-                      <div className="font-bold text-emerald-900 dark:text-emerald-200">提供触感反馈 / 灵动岛</div>
-                      <div className="text-[10px] text-slate-500 dark:text-slate-400">添加「提供触感反馈」，类型选「成功」</div>
-                    </div>
-                  </div>
-                  <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 font-mono">震动收尾</span>
                 </div>
               </div>
 
-              {/* Hardware Binding */}
-              <div className="p-3.5 rounded-2xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 space-y-1.5">
-                <div className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
-                  <Smartphone className="w-4 h-4 text-slate-600 dark:text-slate-400" />
-                  绑定到侧边操作按钮 (Action Button) / 轻点背面
+              {/* Hardware Binding Tips */}
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 space-y-1.5">
+                <div className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                  <Smartphone className="w-3.5 h-3.5 text-indigo-500" />
+                  绑定 iPhone 侧键 / 轻点背面（秒级呼出）：
                 </div>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 pl-6 leading-relaxed">
-                  在 iPhone「设置」➔「操作按钮」中选择此快捷指令即可。付款后按一下侧边键，1 秒完成！
+                <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-relaxed pl-5">
+                  前往 iPhone「设置」➔「操作按钮」或「辅助功能」➔「触控」➔「轻点背面」，选择刚才创建的快捷指令即可！
                 </p>
               </div>
             </div>
           )}
 
-          {/* Method 2: PWA Fullscreen App Guide */}
+          {/* Method 2: Silent Cloud Sync with Auto-Injected Real Credentials */}
+          {activeTab === 'silent_cloud' && (
+            <div className="space-y-3.5">
+              <div className="p-4 rounded-3xl bg-indigo-50/80 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-black text-xs text-indigo-900 dark:text-indigo-200 flex items-center gap-1.5">
+                    <Cloud className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                    已为你自动注入专属 Token 与 Gist 链接
+                  </span>
+                  <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-indigo-500 text-white shadow-2xs">
+                    0 手动修改
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
+                  后台静默写入云端信箱，灵动岛震动播报。<strong>下方已全部填入你的真实密钥，点击直接一键复制全部配置！</strong>
+                </p>
+
+                <div className="pt-1 flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleCopy(fullSilentConfigText, 'full_config')}
+                    className="flex-1 py-2 px-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-md shadow-indigo-500/20 active:scale-95 transition"
+                  >
+                    {copiedType === 'full_config' ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                    <span>{copiedType === 'full_config' ? '✨ 专属配置已全部复制！' : '✨ 一键复制我的专属完整配置'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleOpenShortcutsApp}
+                    className="py-2 px-3 rounded-2xl bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold text-xs flex items-center gap-1 active:scale-95 transition"
+                    title="打开快捷指令"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    <span>打开 App</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Ready-to-use Parameter Inspection Card */}
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 space-y-2">
+                <div className="font-bold text-slate-800 dark:text-slate-200 text-xs">
+                  你的专属参数明细（已就绪）：
+                </div>
+
+                <div className="space-y-1.5 font-mono text-[9.5px]">
+                  <div className="p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 space-y-1">
+                    <div className="text-slate-400 font-sans font-bold text-[10px]">1. 专属 Gist 接口 URL (PATCH)：</div>
+                    <div className="text-purple-600 dark:text-purple-400 break-all select-all">{gistApiUrl}</div>
+                  </div>
+
+                  <div className="p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 space-y-1">
+                    <div className="text-slate-400 font-sans font-bold text-[10px]">2. 专属授权 Header (Authorization)：</div>
+                    <div className="text-emerald-600 dark:text-emerald-400 break-all select-all">token {userToken}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Method 3: PWA Fullscreen App Guide */}
           {activeTab === 'pwa_guide' && (
             <div className="space-y-3.5">
               <div className="p-3.5 rounded-2xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 text-blue-900 dark:text-blue-200 space-y-1">
                 <div className="font-bold flex items-center gap-1.5 text-xs">
                   <Smartphone className="w-4 h-4 text-blue-500" />
-                  如何安装 100% 全屏沉浸的桌面 App
+                  安装 100% 全屏沉浸的桌面 App
                 </div>
                 <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
-                  通过 Safari 的 WebApp 规范，彻底移除底部网址栏，变成跟 App Store 原生应用一模一样的体验！
+                  通过 Safari WebApp 规范，彻底移除底部网址栏，变成跟 App Store 原生应用一模一样的体验！
                 </p>
               </div>
 
@@ -310,48 +323,20 @@ export const IphoneShortcutModal: React.FC<IphoneShortcutModalProps> = ({ isOpen
               </div>
             </div>
           )}
-
-          {/* Method 3: SMS Automation */}
-          {activeTab === 'sms' && (
-            <div className="space-y-3.5">
-              <div className="p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200 space-y-1">
-                <div className="font-bold flex items-center gap-1.5">
-                  <MessageSquare className="w-4 h-4 text-emerald-500" />
-                  收到银行扣款短信【0步全自动入账】
-                </div>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
-                  银行短信一到达，手机后台自动完成记账，无需打开任何界面！
-                </p>
-              </div>
-
-              <div className="space-y-2 text-[11px] text-slate-600 dark:text-slate-300">
-                <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 space-y-1.5">
-                  <ol className="list-decimal list-inside space-y-1.5 text-slate-500 dark:text-slate-400">
-                    <li>打开「快捷指令」App 底部的 <strong>「自动化」</strong> 标签。</li>
-                    <li>点击右上角 <strong>「+」</strong>，选择 <strong>「信息」</strong>。</li>
-                    <li>内容包含中填入 <strong>「支出」或「消费」或「银行」</strong>，勾选 <strong>「立即运行」</strong>。</li>
-                    <li>动作添加 <strong>「打开 URL」</strong>，填入：<br />
-                      <code className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold break-all">
-                        {baseShortcutUrl}[快捷指令输入]
-                      </code>
-                    </li>
-                  </ol>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Footer */}
-        {/* Footer */}
         <div className="p-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/50">
           <span className="text-[10px] text-slate-400">
-            坚果云免费同步 + 桌面全屏沉浸
+            支持 iPhone 侧边操作按钮与双击背面
           </span>
           <button
             type="button"
-            onClick={onClose}
-            className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-md active:scale-95"
+            onClick={() => {
+              haptic.selection();
+              onClose();
+            }}
+            className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-md active:scale-95 transition"
           >
             完成
           </button>
