@@ -252,17 +252,44 @@ export const BudgetsPage: React.FC<BudgetsPageProps> = ({ budgets, categories, o
                 />
               </div>
 
-              <div>
-                <label className="text-slate-500 block mb-1">预警阈值比例 (如 0.8 为 80%)</label>
-                <input
-                  type="number"
-                  step="0.05"
-                  min="0.1"
-                  max="1.0"
-                  value={threshold}
-                  onChange={(e) => setThreshold(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
-                />
+              <div className="space-y-2 pt-1">
+                <div className="flex items-center justify-between">
+                  <label className="text-slate-700 dark:text-slate-300 font-bold">
+                    超支预警线 (消费达到多少时提醒)
+                  </label>
+                  <span className="font-mono font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded-lg border border-amber-200 dark:border-amber-900/50 text-[11px]">
+                    已用达 {Math.round(parseFloat(threshold || '0.8') * 100)}% 提醒
+                  </span>
+                </div>
+
+                {/* 4 Quick Preset Chips */}
+                <div className="grid grid-cols-4 gap-1.5">
+                  {[
+                    { label: '70% 提前', val: '0.7' },
+                    { label: '80% 推荐', val: '0.8' },
+                    { label: '90% 临界', val: '0.9' },
+                    { label: '100% 满额', val: '1.0' }
+                  ].map(p => {
+                    const isSelected = Math.abs(parseFloat(threshold || '0.8') - parseFloat(p.val)) < 0.01;
+                    return (
+                      <button
+                        key={p.val}
+                        type="button"
+                        onClick={() => setThreshold(p.val)}
+                        className={`py-2 px-1 rounded-xl text-[11px] font-bold border transition text-center active:scale-95 ${
+                          isSelected
+                            ? 'bg-amber-500 text-white border-amber-500 shadow-xs'
+                            : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-amber-400'
+                        }`}
+                      >
+                        {p.label}
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="text-[10px] text-slate-400">
+                  当月累计消费达到预算的 {Math.round(parseFloat(threshold || '0.8') * 100)}% 时，系统将在首页自动标黄预警
+                </p>
               </div>
 
               <div className="pt-3 flex justify-end gap-2">

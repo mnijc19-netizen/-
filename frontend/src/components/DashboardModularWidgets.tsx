@@ -215,8 +215,8 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
     setActiveDragIdx(null);
   };
 
-  // 3. Move item up / down via button
-  const moveWidget = (index: number, direction: 'up' | 'down') => {
+  // 3. Move item up / down via button in Homepage Inline Edit Mode
+  const moveEnabledWidget = (index: number, direction: 'up' | 'down') => {
     const enabledList = widgets.filter(w => w.enabled);
     const targetIdx = direction === 'up' ? index - 1 : index + 1;
     if (targetIdx < 0 || targetIdx >= enabledList.length) return;
@@ -235,6 +235,19 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
       updateWidgets(newWidgets);
       haptic.selection();
     }
+  };
+
+  // 3.1 Move item up / down within Full Widgets List in Modal
+  const moveWidgetInList = (index: number, direction: 'up' | 'down') => {
+    const targetIdx = direction === 'up' ? index - 1 : index + 1;
+    if (targetIdx < 0 || targetIdx >= widgets.length) return;
+
+    const newWidgets = [...widgets];
+    const temp = newWidgets[index];
+    newWidgets[index] = newWidgets[targetIdx];
+    newWidgets[targetIdx] = temp;
+    updateWidgets(newWidgets);
+    haptic.selection();
   };
 
   // 4. Toggle enable (Switch)
@@ -1062,7 +1075,7 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
                       disabled={idx === 0}
                       onClick={(e) => {
                         e.stopPropagation();
-                        moveWidget(idx, 'up');
+                        moveEnabledWidget(idx, 'up');
                       }}
                       className="py-2 px-3 rounded-2xl bg-slate-200/90 dark:bg-slate-700/90 text-slate-700 dark:text-slate-200 hover:bg-indigo-500 hover:text-white disabled:opacity-20 disabled:pointer-events-none active:scale-95 transition flex items-center gap-1 text-[11px] font-bold shadow-xs"
                       title="上移"
@@ -1074,7 +1087,7 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
                       disabled={idx === enabledWidgets.length - 1}
                       onClick={(e) => {
                         e.stopPropagation();
-                        moveWidget(idx, 'down');
+                        moveEnabledWidget(idx, 'down');
                       }}
                       className="py-2 px-3 rounded-2xl bg-slate-200/90 dark:bg-slate-700/90 text-slate-700 dark:text-slate-200 hover:bg-indigo-500 hover:text-white disabled:opacity-20 disabled:pointer-events-none active:scale-95 transition flex items-center gap-1 text-[11px] font-bold shadow-xs"
                       title="下移"
@@ -1137,72 +1150,101 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
               </button>
             </div>
 
-            {/* List */}
-            <div className="p-4 overflow-y-auto space-y-2 flex-1 divide-y divide-slate-100 dark:divide-slate-800">
+            {/* List: Responsive 2-tier cards, no squeezing or overflow! */}
+            <div className="p-4 overflow-y-auto space-y-2.5 flex-1">
               {widgets.map((item, idx) => (
-                <div key={item.id} className="pt-2.5 first:pt-0 flex items-center justify-between gap-2">
-                  <div className="min-w-0 flex-1">
-                    <div className="text-xs font-bold text-slate-900 dark:text-white truncate flex items-center gap-1.5">
-                      <span>{item.title}</span>
-                      {item.blurByDefault && (
-                        <span className="text-[9px] font-mono font-bold px-1.5 py-0.2 rounded bg-rose-500/15 text-rose-600 dark:text-rose-400">
-                          默认模糊
+                <div 
+                  key={item.id} 
+                  className={`p-3 rounded-2xl border transition space-y-2.5 ${
+                    item.enabled 
+                      ? 'bg-slate-50/80 dark:bg-slate-800/60 border-slate-200/80 dark:border-slate-700/80 shadow-2xs' 
+                      : 'bg-slate-100/40 dark:bg-slate-900/40 border-slate-200/40 dark:border-slate-800/40 opacity-75'
+                  }`}
+                >
+                  {/* Row 1: Title, Subtitle, and Main Display Switch */}
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-xs font-bold text-slate-900 dark:text-white">
+                          {item.title}
                         </span>
-                      )}
+                        {item.blurByDefault && (
+                          <span className="text-[9px] font-mono font-bold px-1.5 py-0.2 rounded bg-rose-500/15 text-rose-600 dark:text-rose-400 flex items-center gap-0.5">
+                            <Lock className="w-2.5 h-2.5" /> 默认模糊
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-[10px] text-slate-400 truncate mt-0.5">
+                        {item.subtitle}
+                      </div>
                     </div>
-                    <div className="text-[10px] text-slate-400 truncate">
-                      {item.subtitle}
+
+                    {/* Main Switch */}
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      <span className="text-[10px] font-bold text-slate-400">
+                        {item.enabled ? '已展示' : '已隐藏'}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => toggleWidgetEnabled(item.id)}
+                        className={`w-10 h-5.5 rounded-full transition-colors relative flex items-center p-0.5 ${
+                          item.enabled ? 'bg-indigo-600' : 'bg-slate-300 dark:bg-slate-700'
+                        }`}
+                        title={item.enabled ? '点击从首页隐藏' : '点击在首页展示'}
+                      >
+                        <div className={`w-4.5 h-4.5 rounded-full bg-white shadow-md transform transition-transform ${
+                          item.enabled ? 'translate-x-4.5' : 'translate-x-0'
+                        }`} />
+                      </button>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-1.5 flex-shrink-0">
-                    {/* Up/Down */}
-                    <button
-                      type="button"
-                      disabled={idx === 0}
-                      onClick={() => moveWidget(idx, 'up')}
-                      className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-indigo-500 hover:text-white disabled:opacity-20 disabled:pointer-events-none transition active:scale-95"
-                      title="向上移动"
-                    >
-                      <ArrowUp className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      type="button"
-                      disabled={idx === widgets.length - 1}
-                      onClick={() => moveWidget(idx, 'down')}
-                      className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-indigo-500 hover:text-white disabled:opacity-20 disabled:pointer-events-none transition active:scale-95"
-                      title="向下移动"
-                    >
-                      <ArrowDown className="w-3.5 h-3.5" />
-                    </button>
+                  {/* Row 2: Reorder Buttons & Privacy Blur Mode Toggle */}
+                  <div className="flex items-center justify-between pt-2 border-t border-slate-200/50 dark:border-slate-700/50 text-[11px]">
+                    {/* Left: Move Up / Move Down */}
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        disabled={idx === 0}
+                        onClick={() => moveWidgetInList(idx, 'up')}
+                        className="py-1 px-2.5 rounded-xl bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 hover:bg-indigo-500 hover:text-white disabled:opacity-20 disabled:pointer-events-none transition active:scale-95 flex items-center gap-1 text-[10px] font-bold shadow-2xs"
+                        title="向上移动"
+                      >
+                        <ArrowUp className="w-3 h-3" /> 上移
+                      </button>
+                      <button
+                        type="button"
+                        disabled={idx === widgets.length - 1}
+                        onClick={() => moveWidgetInList(idx, 'down')}
+                        className="py-1 px-2.5 rounded-xl bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 hover:bg-indigo-500 hover:text-white disabled:opacity-20 disabled:pointer-events-none transition active:scale-95 flex items-center gap-1 text-[10px] font-bold shadow-2xs"
+                        title="向下移动"
+                      >
+                        <ArrowDown className="w-3 h-3" /> 下移
+                      </button>
+                    </div>
 
-                    {/* Per-Card Privacy Blur Toggle Button */}
+                    {/* Right: Privacy Blur Mode Toggle */}
                     <button
                       type="button"
                       onClick={() => toggleWidgetBlurByDefault(item.id)}
-                      className={`py-1 px-2 rounded-xl text-[10px] font-bold flex items-center gap-1 transition active:scale-90 ${
+                      className={`py-1 px-2.5 rounded-xl text-[10px] font-bold flex items-center gap-1.5 transition active:scale-95 border ${
                         item.blurByDefault 
-                          ? 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900/50 shadow-2xs' 
-                          : 'bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
+                          ? 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-900/50 shadow-2xs' 
+                          : 'bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-600 hover:border-indigo-400'
                       }`}
-                      title={item.blurByDefault ? '当前：默认高斯模糊（点击改为默认明文）' : '当前：默认清晰明文（点击改为默认高斯模糊）'}
+                      title={item.blurByDefault ? '当前：进网站默认高斯模糊（点击改为默认明文）' : '当前：进网站直接清晰明文（点击改为默认高斯模糊）'}
                     >
-                      {item.blurByDefault ? <Lock className="w-3 h-3 text-rose-500" /> : <EyeOff className="w-3 h-3 text-slate-400" />}
-                      <span>{item.blurByDefault ? '模糊' : '明文'}</span>
-                    </button>
-
-                    {/* Show/Hide Toggle Switch */}
-                    <button
-                      type="button"
-                      onClick={() => toggleWidgetEnabled(item.id)}
-                      className={`w-11 h-6 rounded-full transition-colors relative flex items-center p-0.5 ${
-                        item.enabled ? 'bg-indigo-600' : 'bg-slate-300 dark:bg-slate-700'
-                      }`}
-                      title={item.enabled ? '在首页显示' : '在首页隐藏'}
-                    >
-                      <div className={`w-5 h-5 rounded-full bg-white shadow-md transform transition-transform ${
-                        item.enabled ? 'translate-x-5' : 'translate-x-0'
-                      }`} />
+                      {item.blurByDefault ? (
+                        <>
+                          <Lock className="w-3 h-3 text-rose-500" />
+                          <span>默认模糊</span>
+                        </>
+                      ) : (
+                        <>
+                          <Eye className="w-3 h-3 text-slate-400" />
+                          <span>直接明文</span>
+                        </>
+                      )}
                     </button>
                   </div>
                 </div>
