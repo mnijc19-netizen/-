@@ -57,6 +57,45 @@ export function App() {
     return localStorage.getItem('privacy_mode') !== 'false'; // Defaults to true (masked)
   });
 
+  // 🚀 Always scroll to the very top whenever a page is opened / switched
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    document.documentElement.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    document.body.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  }, [currentPage]);
+
+  // 🔄 Native Browser / Mobile Swipe-Back History Sync
+  const navigateTo = (page: PageId, pushHistory = true) => {
+    if (page === currentPage) {
+      window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+      return;
+    }
+    if (pushHistory) {
+      try {
+        window.history.pushState({ page }, '', `#${page}`);
+      } catch {
+        // Ignore on file/custom protocols
+      }
+    }
+    setCurrentPage(page);
+  };
+
+  useEffect(() => {
+    try {
+      window.history.replaceState({ page: 'dashboard' }, '', '#dashboard');
+    } catch {}
+
+    const handlePopState = (e: PopStateEvent) => {
+      if (e.state && e.state.page) {
+        setCurrentPage(e.state.page);
+      } else {
+        setCurrentPage('dashboard');
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
   const handleTogglePrivacy = () => {
     setPrivacyMode(prev => {
       const next = !prev;
@@ -441,7 +480,7 @@ export function App() {
                     if (p === 'iphone_shortcut') {
                       setIphoneShortcutOpen(true);
                     } else {
-                      setCurrentPage(p);
+                      navigateTo(p);
                     }
                   }}
                   onOpenQuickTx={() => setUniversalQuickAddOpen(true)}
@@ -459,7 +498,7 @@ export function App() {
                   investments={investments}
                   onRefresh={loadAllData}
                   onOpenQuickTx={() => setQuickTxOpen(true)}
-                  onNavigate={(p) => setCurrentPage(p as any)}
+                  onNavigate={(p) => navigateTo(p as any)}
                 />
               )}
 
@@ -470,7 +509,7 @@ export function App() {
                   categories={categories}
                   onRefresh={loadAllData}
                   onOpenQuickTx={() => setQuickTxOpen(true)}
-                  onNavigate={(p) => setCurrentPage(p as any)}
+                  onNavigate={(p) => navigateTo(p as any)}
                 />
               )}
 
@@ -479,7 +518,7 @@ export function App() {
                   accounts={accounts}
                   categories={categories}
                   onRefresh={loadAllData}
-                  onNavigate={(p) => setCurrentPage(p as any)}
+                  onNavigate={(p) => navigateTo(p as any)}
                 />
               )}
 
@@ -498,7 +537,7 @@ export function App() {
                   transactions={transactions}
                   categories={categories}
                   onRefresh={loadAllData}
-                  onNavigate={(p) => setCurrentPage(p as any)}
+                  onNavigate={(p) => navigateTo(p as any)}
                   onOpenAiChat={() => setAiChatOpen(true)}
                 />
               )}
@@ -540,7 +579,7 @@ export function App() {
                   onRefresh={loadAllData}
                   liquidGlass={liquidGlass}
                   onToggleLiquidGlass={(val) => setLiquidGlass(val)}
-                  onNavigate={(val) => setCurrentPage(val as any)}
+                  onNavigate={(val) => navigateTo(val as any)}
                   onOpenOnboarding={() => setOnboardingOpen(true)}
                 />
               )}
@@ -553,7 +592,7 @@ export function App() {
       {/* Mobile Bottom Navigation Bar (Directly viewport-fixed with z-50) */}
       <MobileBottomNav
         currentPage={currentPage}
-        onSelectPage={(p) => setCurrentPage(p)}
+        onSelectPage={(p) => navigateTo(p)}
         onOpenSmartParser={() => setSmartParserOpen(true)}
         onOpenQuickTx={() => setUniversalQuickAddOpen(true)}
         onOpenSnapshot={() => setSnapshotOpen(true)}
