@@ -140,13 +140,13 @@ export interface DashboardWidgetConfig {
 }
 
 export const DEFAULT_DASHBOARD_WIDGETS: DashboardWidgetConfig[] = [
-  { id: 'debts', title: '💳 本期待还分期智能看板', subtitle: '白条/花呗/信用卡待还与分期', enabled: true },
-  { id: 'budgets', title: '📊 月度预算实时监控', subtitle: '日常消费限额与超支预警', enabled: true },
-  { id: 'goals', title: '🎯 存钱心愿目标进度', subtitle: '心愿单与备用金达成率', enabled: true },
-  { id: 'planner', title: '📅 资金规划与自由现金流', subtitle: '工资/刚性支出/自由分配', enabled: true },
-  { id: 'investments', title: '💰 投资理财与基金持仓', subtitle: '股票/基金浮动盈亏走势', enabled: true },
-  { id: 'analytics', title: '📈 支出分类透视分析', subtitle: '本月消费构成透视占比', enabled: false },
-  { id: 'transactions', title: '📝 最新交易明细', subtitle: '最近入账与消费流水列表', enabled: true }
+  { id: 'debts', title: '💳 分期待还', subtitle: '白条/花呗/信用卡待还与分期', enabled: true },
+  { id: 'budgets', title: '📊 本月预算', subtitle: '日常消费限额与超支预警', enabled: true },
+  { id: 'goals', title: '🎯 存钱目标', subtitle: '心愿单与备用金达成率', enabled: true },
+  { id: 'transactions', title: '📝 最新明细', subtitle: '最近入账与消费流水列表', enabled: true },
+  { id: 'planner', title: '📅 资金规划', subtitle: '工资/刚性支出/自由现金流', enabled: false },
+  { id: 'investments', title: '💰 投资理财', subtitle: '股票/基金持仓浮动盈亏', enabled: false },
+  { id: 'analytics', title: '📈 支出分类', subtitle: '本月消费构成比例透视', enabled: false }
 ];
 
 export interface AiConfig {
@@ -460,8 +460,20 @@ export const localStore = {
     const raw = dbStore.getSync<DashboardWidgetConfig[]>(STORAGE_KEYS.DASHBOARD_WIDGETS, DEFAULT_DASHBOARD_WIDGETS);
     if (!raw || raw.length === 0) return DEFAULT_DASHBOARD_WIDGETS;
 
+    const defMap = new Map(DEFAULT_DASHBOARD_WIDGETS.map(d => [d.id, d]));
     const existingIds = new Set(raw.map(r => r.id));
-    const merged = [...raw];
+    
+    // Update titles and subtitles to clean versions while preserving user's enabled and order
+    const merged: DashboardWidgetConfig[] = raw.map(r => {
+      const def = defMap.get(r.id);
+      return {
+        id: r.id,
+        title: def ? def.title : r.title,
+        subtitle: def ? def.subtitle : r.subtitle,
+        enabled: r.enabled
+      };
+    });
+
     for (const def of DEFAULT_DASHBOARD_WIDGETS) {
       if (!existingIds.has(def.id)) {
         merged.push(def);

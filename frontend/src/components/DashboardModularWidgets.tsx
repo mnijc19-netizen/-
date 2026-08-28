@@ -286,7 +286,7 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
                   <CreditCard className="w-3.5 h-3.5" />
                 </div>
                 <span className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-                  <span>💳 本期待还分期智能看板</span>
+                  <span>💳 分期待还</span>
                   {activeDebts.length > 0 && (
                     <span className="text-[10px] text-slate-400 font-normal">
                       ({activeDebts.length}笔)
@@ -304,7 +304,7 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
                 disabled={isEditing}
                 className="text-[11px] font-bold text-rose-600 dark:text-rose-400 hover:underline flex items-center gap-0.5 disabled:opacity-40 disabled:pointer-events-none"
               >
-                <span>资金规划大厅</span>
+                <span>分期管理</span>
                 <ChevronRight className="w-3 h-3" />
               </button>
             </div>
@@ -391,7 +391,7 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
                   <PieChart className="w-3.5 h-3.5" />
                 </div>
                 <span className="text-xs font-bold text-slate-900 dark:text-white">
-                  📊 月度预算实时监控 {budgets.length > 0 ? `(${budgets.length}项)` : ''}
+                  📊 本月预算 {budgets.length > 0 ? `(${budgets.length}项)` : ''}
                 </span>
               </div>
               <button
@@ -458,7 +458,7 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
                   <Target className="w-3.5 h-3.5" />
                 </div>
                 <span className="text-xs font-bold text-slate-900 dark:text-white">
-                  🎯 存钱计划与心愿目标 {goals.length > 0 ? `(${goals.length}个)` : ''}
+                  🎯 存钱目标 {goals.length > 0 ? `(${goals.length}个)` : ''}
                 </span>
               </div>
               <button
@@ -470,7 +470,7 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
                 disabled={isEditing}
                 className="text-[11px] font-bold text-purple-600 dark:text-purple-400 hover:underline flex items-center gap-0.5 disabled:opacity-40 disabled:pointer-events-none"
               >
-                <span>心愿大厅</span>
+                <span>心愿单</span>
                 <ChevronRight className="w-3 h-3" />
               </button>
             </div>
@@ -525,7 +525,7 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
                   <Calendar className="w-3.5 h-3.5" />
                 </div>
                 <span className="text-xs font-bold text-slate-900 dark:text-white">
-                  📅 月度资金规划与自由现金流
+                  📅 资金规划
                 </span>
               </div>
               <button
@@ -593,7 +593,7 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
                   <TrendingUp className="w-3.5 h-3.5" />
                 </div>
                 <span className="text-xs font-bold text-slate-900 dark:text-white">
-                  💰 投资理财与基金持仓 {investments.length > 0 ? `(${investments.length}个)` : ''}
+                  💰 投资理财 {investments.length > 0 ? `(${investments.length}个)` : ''}
                 </span>
               </div>
               <button
@@ -657,7 +657,7 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
                   <BarChart3 className="w-3.5 h-3.5" />
                 </div>
                 <span className="text-xs font-bold text-slate-900 dark:text-white">
-                  📈 支出分类透视分析
+                  📈 支出分类
                 </span>
               </div>
               <button
@@ -669,7 +669,7 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
                 disabled={isEditing}
                 className="text-[11px] font-bold text-teal-600 dark:text-teal-400 hover:underline flex items-center gap-0.5 disabled:opacity-40 disabled:pointer-events-none"
               >
-                <span>查看图表</span>
+                <span>图表透视</span>
                 <ChevronRight className="w-3 h-3" />
               </button>
             </div>
@@ -719,7 +719,7 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
                   <ReceiptText className="w-3.5 h-3.5" />
                 </div>
                 <span className="text-xs font-bold text-slate-900 dark:text-white">
-                  📝 最新交易明细 ({transactions.length})
+                  📝 最新明细 ({transactions.length})
                 </span>
               </div>
               <button
@@ -731,7 +731,7 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
                 disabled={isEditing}
                 className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-0.5 disabled:opacity-40 disabled:pointer-events-none"
               >
-                <span>全部账单</span>
+                <span>全部明细</span>
                 <ArrowRight className="w-3 h-3" />
               </button>
             </div>
@@ -857,7 +857,7 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
       <div className="flex items-center justify-between px-1">
         <div className="flex items-center gap-2">
           <span className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
-            ✨ 首页智能财务看板
+            ✨ 首页卡片
           </span>
           {isEditing ? (
             <span className="px-2.5 py-0.5 rounded-full bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 text-[10px] font-bold animate-pulse flex items-center gap-1">
@@ -1032,7 +1032,7 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
                 </div>
                 <div>
                   <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                    自定义首页智能看板
+                    自定义首页卡片
                   </h3>
                   <p className="text-[10px] text-slate-400">
                     勾选需要在首页展示的横版信息卡片并调整顺序
