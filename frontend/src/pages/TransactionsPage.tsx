@@ -286,9 +286,9 @@ export const TransactionsPage: React.FC<TransactionsPageProps> = ({
   };
 
   return (
-    <div className="space-y-3.5 pb-32 animate-in fade-in duration-200 max-w-lg mx-auto">
+    <div className="space-y-2.5 sm:space-y-3 pb-28 animate-in fade-in duration-200 max-w-lg mx-auto">
       {/* Top Header & Search Bar */}
-      <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-3">
+      <div className="p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs space-y-2.5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <h2 className="text-base font-black text-slate-900 dark:text-white">
@@ -462,7 +462,7 @@ export const TransactionsPage: React.FC<TransactionsPageProps> = ({
       )}
 
       {/* Transactions List */}
-      <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-3">
+      <div className="p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs space-y-2.5">
         {filtered.length === 0 ? (
           <div className="py-12 text-center space-y-3">
             <div className="w-10 h-10 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-400 flex items-center justify-center mx-auto">

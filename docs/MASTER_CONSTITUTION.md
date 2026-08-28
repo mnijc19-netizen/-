@@ -80,3 +80,29 @@ Layer 0: 母宪法公理层 (恒等式、物理留痕、单点权威)
    - 白条/花呗/美团月付/信用卡待还账单属于 **信贷负债 (Debt)**，进入月度资金规划大厅（Planner），严禁作为单笔日常消费扣减现金或产生负余额；
 2. **多期参数自动提取**：
    - 自动解析总待还本金、分期期数、当期与未来月供、每月还款日，保证资产负债表与自由现金流推算 100% 精确。
+
+---
+
+## 🎨 第五章：UI 审美标准法与全域视觉工程公理 (UI Aesthetics Standard Law)
+
+系统所有界面设计、卡片排版与交互动效必须 100% 严格遵守以下 **UI 审美四大黄金律**：
+
+### 1. 【卡片纵向空间紧凑黄金律 (Vertical Rhythm & Compact Density)】
+- **卡片内边距收敛**：全局卡片 Padding 统一控制在 `p-3.5 sm:p-4`（小型/嵌套卡片使用 `p-2.5 sm:p-3`），严禁使用 `p-6` 或过大无意义留白造成视觉臃肿；
+- **纵向节奏节制**：页面容器间距统一使用 `space-y-2.5 sm:space-y-3`（严禁超过 `space-y-4` 导致屏幕被无限拉长）；
+- **高度合理化**：单个卡片在移动端视口内的高度必须精简克制，保证首屏（390×844）至少能完整纵览“净资产核心卡 + 2~3 个核心模块”，拒绝一屏只能看一个大块。
+
+### 2. 【信息密度与呼吸感二元平衡律 (Information Hierarchy & Clarity)】
+- **字体层级规整**：
+  - 一级标题 / 卡片主标：`text-xs sm:text-sm font-bold`；
+  - 二级辅助说明 / 时间标签：`text-[10px] sm:text-[11px] text-slate-400 dark:text-slate-500`；
+  - 核心财务数字：采用清晰等宽 `font-mono font-bold`，金额与辅助文本主次分明；
+- **视觉去噪**：严禁在标题中滥用装饰性 Emoji 或夸张色块，保持苹果 HIG 的极简克制。
+
+### 3. 【全端 60FPS 丝滑轻量动效律 (Lightweight & Micro-Interactions)】
+- 统一采用纯 CSS GPU 硬件加速的液态毛玻璃（`backdrop-filter: blur(20px)`）；
+- 所有可点击交互元素必须配置微缩放反馈（`active:scale-[0.98]`）与触感震动（`haptic.selection()` / `haptic.toggle()`）。
+
+### 4. 【零溢出与弹性自适应律 (Zero Overflow & Responsive Resilience)】
+- 移动端单行操作按钮不得超过 3 个，复杂多功能必须采用清晰的上下双层舒展卡片（2-Tier Card）；
+- 文本一律配置 `truncate` 或 `line-clamp`，杜绝任何换行挤压、横向滚动条或布局被顶开。

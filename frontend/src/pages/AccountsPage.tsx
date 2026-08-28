@@ -155,7 +155,7 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({
   };
 
   return (
-    <div className="space-y-6 pb-36 animate-in fade-in duration-300">
+    <div className="space-y-4 pb-36 animate-in fade-in duration-300">
       {/* Header & Quick Action Hub */}
       <div className="space-y-3">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -274,7 +274,7 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({
                   return (
                     <div 
                       key={acc.id}
-                      className="p-4 sm:p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md hover:border-emerald-400/50 transition flex flex-col justify-between gap-3.5"
+                      className="p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs hover:border-emerald-400/50 transition flex flex-col justify-between gap-2.5"
                     >
                       {/* Top Row: Icon + Name + Balance Display */}
                       <div className="flex items-start justify-between gap-2.5">

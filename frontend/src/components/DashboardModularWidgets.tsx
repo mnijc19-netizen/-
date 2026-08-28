@@ -828,7 +828,7 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
             </div>
 
             {recentTransactions.length === 0 ? (
-              <div className="py-6 text-center space-y-3 bg-white/60 dark:bg-slate-900/60 rounded-2xl border border-slate-200/50 dark:border-slate-800/50">
+              <div className="py-6 text-center space-y-2.5 bg-white/60 dark:bg-slate-900/60 rounded-2xl border border-slate-200/50 dark:border-slate-800/50">
                 <div className="w-10 h-10 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-400 flex items-center justify-center mx-auto">
                   <ReceiptText className="w-5 h-5" />
                 </div>
@@ -951,7 +951,7 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
   };
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2.5">
       {/* Header bar */}
       <div className="flex items-center justify-between px-1">
         <div className="flex items-center gap-2">
@@ -1008,7 +1008,7 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
       </div>
 
       {/* Render Enabled Horizontal Widgets with Fluid Spring Transition */}
-      <div className="space-y-3">
+      <div className="space-y-2.5">
         {enabledWidgets.map((item, idx) => {
           const isCurrentDrag = activeDragIdx === idx;
 
@@ -1022,7 +1022,7 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
               style={{
                 transition: 'transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.25s ease, opacity 0.2s ease'
               }}
-              className={`p-4 rounded-3xl border shadow-sm relative select-none ${getWidgetBgClass(item.id)} ${
+              className={`p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl border shadow-2xs relative select-none ${getWidgetBgClass(item.id)} ${
                 isEditing 
                   ? 'ring-2 ring-indigo-500/40 bg-white/95 dark:bg-slate-900/95 shadow-md' 
                   : ''

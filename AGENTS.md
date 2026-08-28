@@ -38,6 +38,9 @@
 3. **【轻量化现代算力 Web 动效公理】**：
    - 采用纯 CSS GPU 硬件加速的液态毛玻璃（`backdrop-filter`）、SVG 图标与 `canvas-confetti` 粒子礼花；
    - **严禁引入任何几十 MB 的重型 MP4 视频或高清 GIF**，确保包体极速秒开、全端 60FPS 满帧运行。
+5. **【UI 审美标准法与纵向空间紧凑公理】**：
+   - 遵循 `docs/MASTER_CONSTITUTION.md` 第五章，卡片 padding 控制在 `p-3.5 sm:p-4`，容器间距 `space-y-2.5 sm:space-y-3`；
+   - 严禁过高臃肿卡片，确保首屏信息紧凑、排版舒适、呼吸感与高密度并存。
 4. **【零副作用与纯函数红线】**：
    - 严禁在 Getter / Computed / 渲染函数中产生修改状态的副作用；
    - 交付前自动化测试与真实 API 拟人实测必须 **100% PASS**。

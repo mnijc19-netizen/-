@@ -65,7 +65,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const isBrandNew = transactions.length === 0 && analytics.total_assets === 0;
 
   return (
-    <div className="space-y-3.5 pb-32 animate-in fade-in duration-200 max-w-lg mx-auto">
+    <div className="space-y-2.5 sm:space-y-3 pb-28 animate-in fade-in duration-200 max-w-lg mx-auto">
       {/* New User Welcome / Onboarding Card if Ledger is Brand New */}
       {isBrandNew && (
         <div className="p-3.5 rounded-3xl bg-gradient-to-r from-purple-600 via-indigo-600 to-pink-600 text-white shadow-lg shadow-indigo-500/20 flex items-center justify-between gap-3 animate-in slide-in-from-top duration-300">
@@ -89,7 +89,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
       )}
 
       {/* 1. Sleek Modern Financial Hero Card (with Privacy Eye Toggle) */}
-      <div className="p-5 rounded-3xl bg-gradient-to-br from-emerald-600 via-teal-700 to-slate-900 text-white shadow-xl shadow-emerald-500/10 relative overflow-hidden space-y-4">
+      <div className="p-4 sm:p-4.5 rounded-2xl sm:rounded-3xl bg-gradient-to-br from-emerald-600 via-teal-700 to-slate-900 text-white shadow-lg shadow-emerald-500/10 relative overflow-hidden space-y-3">
         <div className="flex items-center justify-between text-emerald-100 text-xs">
           <div className="flex items-center gap-2">
             <span className="flex items-center gap-1.5 font-medium">
@@ -117,7 +117,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </button>
         </div>
 
-        <div className="text-3xl font-black font-mono tracking-tight flex items-center gap-2">
+        <div className="text-2xl sm:text-3xl font-black font-mono tracking-tight flex items-center gap-2">
           {privacyMode ? (
             <span className="tracking-widest font-sans text-2xl text-emerald-100/90 font-bold">
               ¥ ••••
