@@ -1,4 +1,4 @@
-﻿import assert from 'assert';
+import assert from 'assert';
 
 const ZHIPU_API_KEY = '3e3a1c2d2b8c42cf8dd3da9ce64a8f4a.1lGvbmammJGT8KYL';
 
@@ -45,16 +45,16 @@ async function testScenario2_LiveAiTransactionUpdateIntent() {
       type: 'function',
       function: {
         name: 'update_transaction',
-        description: '修改已有交易流水的分类、商户名、金额、账户、日期或备注',
+        description: '修改已有交易流水的分类、商户名、金额、账户、日期或备注。无需向用户索要ID，直接传入 merchant 和修改后的 category 即可！',
         parameters: {
           type: 'object',
           properties: {
-            transaction_id: { type: 'string', description: '要修改的交易 ID' },
-            merchant: { type: 'string', description: '商户名' },
-            category: { type: 'string', description: '修改后的消费分类' },
+            transaction_id: { type: 'string', description: '要修改的交易 ID（可选）' },
+            merchant: { type: 'string', description: '商户名（如 博爱医药）' },
+            category: { type: 'string', description: '修改后的消费分类（如 医疗健康）' },
             amount: { type: 'number', description: '金额' }
           },
-          required: ['category']
+          required: ['merchant', 'category']
         }
       }
     },

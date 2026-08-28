@@ -118,18 +118,18 @@ export const FINANCIAL_AGENT_TOOLS: any[] = [
     type: 'function',
     function: {
       name: 'update_transaction',
-      description: '修改已有交易流水的分类、商户名、金额、账户、日期或备注（例如用户指出“这是药店啊”、“把分类改成医疗健康”时修改已有流水，绝不新建重复账单）',
+      description: '修改已有交易流水的分类、商户名、金额、账户、日期或备注。当用户指出分类错误（如“这是药店啊”、“把博爱医药改成医疗健康”）或要求改备注时，无需向用户索要ID，直接传入 merchant 和修改后的 category 即可！',
       parameters: {
         type: 'object',
         properties: {
-          transaction_id: { type: 'string', description: '要修改的交易流水 ID（如已知），或留空由系统根据商户名/金额自动匹配' },
-          merchant: { type: 'string', description: '匹配或修改后的商户名' },
-          category: { type: 'string', description: '修改后的消费分类，如 医疗健康、餐饮美食、日用百货、交通出行、生活服务等' },
+          transaction_id: { type: 'string', description: '要修改的交易流水 ID（可选，未知则留空）' },
+          merchant: { type: 'string', description: '商户名或消费对象（如 博爱医药）' },
+          category: { type: 'string', description: '修改后的标准消费分类（如 医疗健康、餐饮美食、日用百货、交通出行、生活服务等）' },
           amount: { type: 'number', description: '修改后的金额（可选）' },
           account_id: { type: 'string', description: '修改后的关联账户 ID（可选）' },
           note: { type: 'string', description: '修改后的备注说明（可选）' }
         },
-        required: ['category']
+        required: ['merchant', 'category']
       }
     }
   },
