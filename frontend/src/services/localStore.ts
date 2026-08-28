@@ -130,7 +130,7 @@ export const DEFAULT_DASHBOARD_SHORTCUTS: DashboardShortcutItem[] = [
   }
 ];
 
-export type DashboardWidgetType = 'debts' | 'budgets' | 'goals' | 'planner' | 'investments' | 'analytics';
+export type DashboardWidgetType = 'debts' | 'budgets' | 'goals' | 'planner' | 'investments' | 'analytics' | 'transactions';
 
 export interface DashboardWidgetConfig {
   id: DashboardWidgetType;
@@ -145,7 +145,8 @@ export const DEFAULT_DASHBOARD_WIDGETS: DashboardWidgetConfig[] = [
   { id: 'goals', title: '🎯 存钱心愿目标进度', subtitle: '心愿单与备用金达成率', enabled: true },
   { id: 'planner', title: '📅 资金规划与自由现金流', subtitle: '工资/刚性支出/自由分配', enabled: true },
   { id: 'investments', title: '💰 投资理财与基金持仓', subtitle: '股票/基金浮动盈亏走势', enabled: true },
-  { id: 'analytics', title: '📈 支出分类透视分析', subtitle: '本月消费构成透视占比', enabled: false }
+  { id: 'analytics', title: '📈 支出分类透视分析', subtitle: '本月消费构成透视占比', enabled: false },
+  { id: 'transactions', title: '📝 最新交易明细', subtitle: '最近入账与消费流水列表', enabled: true }
 ];
 
 export interface AiConfig {
