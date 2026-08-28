@@ -279,7 +279,7 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
       case 'debts':
         return (
           <div className="space-y-2.5">
-            {/* Header */}
+            {/* Header: Clean title with no cluttered buttons */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <div className="w-6 h-6 rounded-lg bg-rose-500/15 text-rose-600 dark:text-rose-400 flex items-center justify-center font-bold">
@@ -293,32 +293,6 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
                     </span>
                   )}
                 </span>
-
-                {/* Gaussian Blur Privacy Toggle Eye */}
-                {!isEditing && activeDebts.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      haptic.toggle();
-                      setDebtsPrivacyRevealed(!debtsPrivacyRevealed);
-                    }}
-                    className="py-0.5 px-2 rounded-lg bg-white/80 dark:bg-slate-800/80 border border-slate-200/60 dark:border-slate-700/60 text-[10px] font-bold text-slate-600 dark:text-slate-300 hover:text-rose-600 dark:hover:text-rose-400 transition flex items-center gap-1 shadow-2xs active:scale-95"
-                    title={debtsPrivacyRevealed ? '点击高斯模糊保护隐私' : '点击解锁显示分期详情'}
-                  >
-                    {debtsPrivacyRevealed ? (
-                      <>
-                        <Eye className="w-3 h-3 text-rose-500" />
-                        <span className="text-[9px]">已解锁</span>
-                      </>
-                    ) : (
-                      <>
-                        <EyeOff className="w-3 h-3 text-slate-400" />
-                        <span className="text-[9px]">点此解锁</span>
-                      </>
-                    )}
-                  </button>
-                )}
               </div>
 
               <button
@@ -336,24 +310,17 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
             </div>
 
             {activeDebts.length > 0 ? (
-              <div 
-                onClick={() => {
-                  if (!isEditing && !debtsPrivacyRevealed) {
-                    haptic.toggle();
-                    setDebtsPrivacyRevealed(true);
-                  }
-                }}
-                className="space-y-2 relative"
-              >
+              <div className="space-y-2">
                 {activeDebts.map((d) => (
                   <div 
                     key={d.id} 
                     onClick={() => {
-                      if (debtsPrivacyRevealed) {
-                        safeNavigate('planner');
+                      if (!isEditing) {
+                        haptic.toggle();
+                        setDebtsPrivacyRevealed(!debtsPrivacyRevealed);
                       }
                     }}
-                    className={`p-3 rounded-2xl bg-white/70 dark:bg-slate-900/60 border border-rose-200/50 dark:border-rose-900/40 flex items-center justify-between shadow-xs transition relative overflow-hidden ${
+                    className={`p-3 rounded-2xl bg-white/70 dark:bg-slate-900/60 border border-rose-200/50 dark:border-rose-900/40 flex items-center justify-between shadow-xs transition relative overflow-hidden select-none ${
                       isEditing ? 'cursor-default' : 'hover:border-rose-400 cursor-pointer active:scale-[0.99]'
                     }`}
                   >
@@ -371,6 +338,7 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
                         )}
                       </div>
 
+                      {/* Gaussian Blurred Details: Tap card to toggle blur/unblur */}
                       <div 
                         style={{
                           filter: debtsPrivacyRevealed ? 'none' : 'blur(5.5px)',
@@ -382,6 +350,7 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
                       </div>
                     </div>
 
+                    {/* Gaussian Blurred Amount: Tap card to toggle blur/unblur */}
                     <div className="text-right">
                       <div 
                         style={{
@@ -396,14 +365,6 @@ export const DashboardModularWidgets: React.FC<DashboardModularWidgetsProps> = (
                         {d.is_repaid_this_month ? '当期已结清' : '当期应还'}
                       </div>
                     </div>
-
-                    {!debtsPrivacyRevealed && !isEditing && (
-                      <div className="absolute inset-0 bg-slate-900/5 dark:bg-white/5 flex items-center justify-center pointer-events-none">
-                        <span className="text-[10px] font-bold text-rose-600 dark:text-rose-400 bg-white/90 dark:bg-slate-900/90 px-2 py-0.5 rounded-full shadow-xs border border-rose-200/60 dark:border-rose-900/60 flex items-center gap-1 backdrop-blur-xs">
-                          <Lock className="w-2.5 h-2.5" /> 点击空白处解锁
-                        </span>
-                      </div>
-                    )}
                   </div>
                 ))}
               </div>
