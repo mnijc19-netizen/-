@@ -130,6 +130,24 @@ export const DEFAULT_DASHBOARD_SHORTCUTS: DashboardShortcutItem[] = [
   }
 ];
 
+export type DashboardWidgetType = 'debts' | 'budgets' | 'goals' | 'planner' | 'investments' | 'analytics';
+
+export interface DashboardWidgetConfig {
+  id: DashboardWidgetType;
+  title: string;
+  subtitle: string;
+  enabled: boolean;
+}
+
+export const DEFAULT_DASHBOARD_WIDGETS: DashboardWidgetConfig[] = [
+  { id: 'debts', title: '💳 本期待还分期智能看板', subtitle: '白条/花呗/信用卡待还与分期', enabled: true },
+  { id: 'budgets', title: '📊 月度预算实时监控', subtitle: '日常消费限额与超支预警', enabled: true },
+  { id: 'goals', title: '🎯 存钱心愿目标进度', subtitle: '心愿单与备用金达成率', enabled: true },
+  { id: 'planner', title: '📅 资金规划与自由现金流', subtitle: '工资/刚性支出/自由分配', enabled: true },
+  { id: 'investments', title: '💰 投资理财与基金持仓', subtitle: '股票/基金浮动盈亏走势', enabled: true },
+  { id: 'analytics', title: '📈 支出分类透视分析', subtitle: '本月消费构成透视占比', enabled: false }
+];
+
 export interface AiConfig {
   enabled: boolean;
   provider: string;
@@ -182,7 +200,8 @@ export const STORAGE_KEYS = {
   LIQUID_GLASS: 'smartwealth_liquid_glass_v1',
   ONBOARDING_COMPLETED: 'smartwealth_onboarding_completed_v1',
   WEBDAV_CONFIG: 'smartwealth_webdav_config_v1',
-  DASHBOARD_SHORTCUTS: 'smartwealth_dashboard_shortcuts_v2'
+  DASHBOARD_SHORTCUTS: 'smartwealth_dashboard_shortcuts_v2',
+  DASHBOARD_WIDGETS: 'smartwealth_dashboard_widgets_v2'
 };
 
 // Initialize preload of all keys into memory cache
@@ -434,6 +453,23 @@ export const localStore = {
   },
   saveDashboardShortcuts(shortcuts: DashboardShortcutItem[]) {
     dbStore.set(STORAGE_KEYS.DASHBOARD_SHORTCUTS, shortcuts);
+  },
+
+  getDashboardWidgets(): DashboardWidgetConfig[] {
+    const raw = dbStore.getSync<DashboardWidgetConfig[]>(STORAGE_KEYS.DASHBOARD_WIDGETS, DEFAULT_DASHBOARD_WIDGETS);
+    if (!raw || raw.length === 0) return DEFAULT_DASHBOARD_WIDGETS;
+
+    const existingIds = new Set(raw.map(r => r.id));
+    const merged = [...raw];
+    for (const def of DEFAULT_DASHBOARD_WIDGETS) {
+      if (!existingIds.has(def.id)) {
+        merged.push(def);
+      }
+    }
+    return merged;
+  },
+  saveDashboardWidgets(widgets: DashboardWidgetConfig[]) {
+    dbStore.set(STORAGE_KEYS.DASHBOARD_WIDGETS, widgets);
   },
 
   clearAllData: () => {
