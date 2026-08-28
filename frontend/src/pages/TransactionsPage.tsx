@@ -41,6 +41,32 @@ interface TransactionsPageProps {
 
 type TimeRangePreset = 'all' | 'this_week' | 'this_month' | 'last_month' | 'custom';
 
+// Universal date normalizer: Handles YYYY-MM-DD, MM-DD, YYYY/MM/DD, etc.
+function normalizeTxDate(rawDate?: string): string {
+  if (!rawDate) return '';
+  const trimmed = rawDate.trim();
+
+  // Format: "YYYY-MM-DD" or "YYYY/MM/DD"
+  const matchFull = trimmed.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})/);
+  if (matchFull) {
+    const y = matchFull[1];
+    const m = matchFull[2].padStart(2, '0');
+    const d = matchFull[3].padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+
+  // Format: "MM-DD" or "MM/DD" (missing year) -> prepend current calendar year
+  const matchMMDD = trimmed.match(/^(\d{1,2})[-\/](\d{1,2})/);
+  if (matchMMDD) {
+    const currYear = new Date().getFullYear();
+    const m = matchMMDD[1].padStart(2, '0');
+    const d = matchMMDD[2].padStart(2, '0');
+    return `${currYear}-${m}-${d}`;
+  }
+
+  return trimmed.substring(0, 10);
+}
+
 export const TransactionsPage: React.FC<TransactionsPageProps> = ({
   transactions,
   accounts,
@@ -75,6 +101,9 @@ export const TransactionsPage: React.FC<TransactionsPageProps> = ({
   // Compute date range bounds
   const dateBounds = useMemo(() => {
     const now = new Date();
+    const currYear = now.getFullYear();
+    const currMonth = String(now.getMonth() + 1).padStart(2, '0');
+
     if (timeRange === 'this_week') {
       const day = now.getDay() || 7;
       const start = new Date(now);
@@ -83,13 +112,14 @@ export const TransactionsPage: React.FC<TransactionsPageProps> = ({
       return { start: getBeijingDateString(start), end: '9999-12-31' };
     }
     if (timeRange === 'this_month') {
-      const start = new Date(now.getFullYear(), now.getMonth(), 1);
-      return { start: getBeijingDateString(start), end: '9999-12-31' };
+      return { start: `${currYear}-${currMonth}-01`, end: '9999-12-31' };
     }
     if (timeRange === 'last_month') {
-      const start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-      const end = new Date(now.getFullYear(), now.getMonth(), 0);
-      return { start: getBeijingDateString(start), end: getBeijingDateString(end) };
+      const prevDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const pYear = prevDate.getFullYear();
+      const pMonth = String(prevDate.getMonth() + 1).padStart(2, '0');
+      const lastDay = new Date(pYear, prevDate.getMonth() + 1, 0).getDate();
+      return { start: `${pYear}-${pMonth}-01`, end: `${pYear}-${pMonth}-${lastDay}` };
     }
     if (timeRange === 'custom') {
       return { start: customStart || '0000-01-01', end: customEnd ? customEnd + ' 23:59' : '9999-12-31' };
@@ -99,10 +129,21 @@ export const TransactionsPage: React.FC<TransactionsPageProps> = ({
 
   // Filter transactions
   const filtered = useMemo(() => {
+    const now = new Date();
+    const currMonthStr = String(now.getMonth() + 1).padStart(2, '0');
+
     return transactions.filter(t => {
-      // Date filter
-      const txDate = t.date.substring(0, 10);
-      if (txDate < dateBounds.start || txDate > dateBounds.end) return false;
+      // Date filter with universal normalization
+      const txDate = normalizeTxDate(t.date);
+      if (timeRange === 'this_month') {
+        // Match current month (either full YYYY-MM or month code)
+        const isMonthMatch = txDate.includes(`-${currMonthStr}-`) || (txDate >= dateBounds.start && txDate <= dateBounds.end);
+        if (!isMonthMatch) return false;
+      } else if (timeRange === 'all') {
+        // All transactions allowed
+      } else {
+        if (txDate < dateBounds.start || txDate > dateBounds.end) return false;
+      }
 
       // Type filter
       if (selectedType !== 'all' && t.type !== selectedType) return false;
@@ -428,11 +469,25 @@ export const TransactionsPage: React.FC<TransactionsPageProps> = ({
               <ReceiptText className="w-5 h-5" />
             </div>
             <div className="text-xs font-bold text-slate-700 dark:text-slate-300">
-              无符合条件的明细记录
+              {transactions.length > 0 ? '当前筛选范围内暂无明细' : '暂无记账明细'}
             </div>
             <p className="text-[10px] text-slate-400">
-              尝试调整筛选条件或点击右上角「+」记一笔
+              {transactions.length > 0 
+                ? `账本中共有 ${transactions.length} 笔流水记录，可切换时间或分类查看`
+                : '点击右上角「+」或底部加号开始第一笔记录'
+              }
             </p>
+            {transactions.length > 0 && timeRange !== 'all' && (
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={() => setTimeRange('all')}
+                  className="px-4 py-2 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md shadow-emerald-500/20 active:scale-95 transition"
+                >
+                  查看全部历史明细 ({transactions.length} 笔)
+                </button>
+              </div>
+            )}
           </div>
         ) : (
           <div className="divide-y divide-slate-100 dark:divide-slate-800">
