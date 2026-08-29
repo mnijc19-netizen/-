@@ -124,9 +124,35 @@ export const cloudCodeSync = {
       const categories = localStore.getCategories();
       const ingestedList: any[] = [];
 
-      for (const item of inboxList) {
-        // Direct structured transaction
-        if (item.amount && !isNaN(Number(item.amount))) {
+      for (let rawItem of inboxList) {
+        let item = rawItem;
+
+        // 1. If item is a JSON string, try parsing it
+        if (typeof item === 'string') {
+          try {
+            item = JSON.parse(item);
+          } catch {
+            // Regex try match JSON object inside string
+            const m = item.match(/\{[\s\S]*\}/);
+            if (m) {
+              try { item = JSON.parse(m[0]); } catch {}
+            }
+          }
+        }
+
+        // 2. If item is raw Zhipu API Response ({ choices: [...] })
+        if (item && item.choices && item.choices[0]?.message?.content) {
+          try {
+            const innerStr = item.choices[0].message.content.trim();
+            const m = innerStr.match(/\{[\s\S]*\}/);
+            if (m) {
+              item = JSON.parse(m[0]);
+            }
+          } catch {}
+        }
+
+        // 3. Direct structured transaction
+        if (item && typeof item === 'object' && item.amount && !isNaN(Number(item.amount))) {
           const matchedCategory = categories.find(c => c.name === item.category) || categories[0];
           const matchedAccount = accounts.find(a => a.name.includes(item.account_name || '')) || defaultAccount;
 
