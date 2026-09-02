@@ -36,11 +36,48 @@ export function cleanRepetitiveText(text: string): string {
   }
   let result = cleanLines.join('\n');
 
-  // 2. Specific pattern filter for common apology/disclaimer loops
-  const apologizePattern = /((?:对不起，我之前的回答可能有误[。，]?|以下是按照您的要求生成的文本[：:]?|抱歉[，,]我之前的回答)[\s\S]{0,40}?)\1{2,}/g;
+  // 2. Specific pattern filter for common apology/disclaimer/repeating thought loops
+  const apologizePattern = /((?:对不起，我之前的回答可能有误[。，]?|以下是按照您的要求生成的文本[：:]?|抱歉[，,]我之前的回答|让我再仔细看看用户的输入|让我重新思考这个问题|但是[，,]由于我没有看到这些图片)[\s\S]{0,60}?)\1{2,}/g;
   result = result.replace(apologizePattern, '$1');
 
-  // 3. General N-gram repetition filter
+  // 3. Multi-paragraph cycle detection (e.g. Paragraphs A->B->C repeating as A->B->C)
+  const paragraphs = result.split(/\n{2,}/);
+  if (paragraphs.length >= 3) {
+    const seenPara = new Set<string>();
+    const cleanParas: string[] = [];
+    for (const p of paragraphs) {
+      const normalized = p.trim().replace(/\s+/g, ' ').slice(0, 50);
+      if (normalized.length >= 15 && seenPara.has(normalized)) {
+        // Repeated paragraph block cycle detected! Truncate to stop runaway looping
+        break;
+      }
+      if (normalized.length >= 15) seenPara.add(normalized);
+      cleanParas.push(p);
+    }
+    result = cleanParas.join('\n\n');
+  }
+
+  // 4. Sentence-level repetition cycle truncation
+  const sentenceList = result.split(/([。\n！？]+)/);
+  const seenSentences = new Set<string>();
+  const finalChunks: string[] = [];
+  for (let i = 0; i < sentenceList.length; i += 2) {
+    const s = (sentenceList[i] || '').trim();
+    const punct = sentenceList[i + 1] || '';
+    if (!s) continue;
+    const norm = s.replace(/\s+/g, '');
+    if (norm.length >= 14 && seenSentences.has(norm)) {
+      // Loop cycle detected! Truncate repetition
+      break;
+    }
+    if (norm.length >= 14) seenSentences.add(norm);
+    finalChunks.push(s + punct);
+  }
+  if (finalChunks.length > 0 && finalChunks.length < sentenceList.length / 2) {
+    result = finalChunks.join('');
+  }
+
+  // 5. General N-gram repetition filter
   for (let len = 40; len >= 12; len--) {
     for (let start = 0; start <= result.length - len * 3; start++) {
       const chunk = result.substring(start, start + len);
@@ -54,7 +91,7 @@ export function cleanRepetitiveText(text: string): string {
     }
   }
 
-  // 4. Strip model meta-reasoning leakages (e.g. "根据规则，我需要使用...工具...")
+  // 6. Strip model meta-reasoning leakages (e.g. "根据规则，我需要使用...工具...")
   result = result.replace(/根据规则[，,]?\s*我需要使用[a-zA-Z0-9_]+工具[\s\S]*?(?:我需要调用[a-zA-Z0-9_]+工具[^\n]*\n?)/g, '');
   result = result.replace(/(?:根据规则|按照规则|我需要使用|我需要调用)[a-zA-Z0-9_]+工具[^\n]*\n?/g, '');
 
@@ -562,6 +599,15 @@ export async function sendAgentMessage(
      * 自动匹配或联网查询标准 6 位证券代码（如 纳指ETF广发 ➔ 159941，标普500ETF博时 ➔ 513500，纳指科技ETF ➔ 159509，沪深300 ➔ 510300，中证500 ➔ 510500）；
      * 逐一提取 shares（持仓股数/份额）、cost_price（成本均价）、current_price（现价）、market_value（持仓市值）。
 
+🚨【核心铁律 4：多张图片必须针对每一张图片的内容连续调用对应的工具函数】：
+   - 当用户一次性上传多张图片（如 2 张至 9 张截图）时，你必须按顺序逐一分析每一张图片，并【连续多次调用对应的工具函数】！
+   - 例如：
+     * 第 1 张图为京东白条待还 ➔ 调用 create_debt(...)
+     * 第 2 张图为华泰证券持仓 ➔ 调用 batch_create_investments(...)
+     * 第 3 张图为微信钱包零钱 ➔ 调用 create_account(...)
+     * 第 4 张图为银行卡列表 ➔ 调用 batch_create_accounts(...)
+   - 绝严禁只处理第一张图而遗漏后续图片！系统前端支持同时接收并展示多个待确认卡片，请放心全部调用！
+
 【输出格式铁律】：
 - 严禁在向用户的正文回复中复述任何系统规则或输出“根据规则，我需要使用xxx工具”、“需要提取的信息包括”等生硬草稿！
 - 你只需直接调用对应工具，并在正文中输出一两句亲切、自然的回复（如：“已为您识别出华泰证券持仓，请在下方核对并录入：”）。
@@ -589,8 +635,8 @@ export async function sendAgentMessage(
         { 
           type: 'text', 
           text: userMessage 
-            ? `${userMessage}\n(共上传了 ${imagesBase64.length} 张图片，请逐一识别分析每张图片中的平台、总资产/余额、月付欠款或消费明细，并调用对应开账或记账工具)` 
-            : `请识别分析我上传的 ${imagesBase64.length} 张图片。若包含消费凭证或支付小票请务必调用记账工具；若为月付/白条待还请调用负债分期工具；仅当为总资产/钱包零钱时才调用对账开户工具。` 
+            ? `${userMessage}\n(共上传了 ${imagesBase64.length} 张图片，请按顺序逐一分析每一张图片，并针对每一张图的内容连续调用对应的工具函数进行开账、建负债或记账！)` 
+            : `请识别分析我上传的 ${imagesBase64.length} 张图片。请针对每一张图片连续调用对应工具：若为消费凭证记流水；若为白条/月付/分期待还建负债(create_debt)；若为证券持仓建投资(batch_create_investments)；若为钱包零钱/银行卡对账开户(batch_create_accounts/create_account)。请全部处理！` 
         }
       ];
 
@@ -628,16 +674,43 @@ export async function sendAgentMessage(
     { role: 'system', content: systemPrompt }
   ];
 
+  // Find the most recent message with images in history to preserve vision context for follow-up turns like "继续"
+  let lastImageMessage: AgentChatMessage | undefined = undefined;
+  for (let i = history.length - 1; i >= 0; i--) {
+    if (history[i].imageUrls && history[i].imageUrls!.length > 0) {
+      lastImageMessage = history[i];
+      break;
+    }
+  }
+
   for (const h of history.slice(-8)) {
     const cleanedMsg = cleanRepetitiveText(h.content || '');
     if (!cleanedMsg.trim()) continue;
     // Strip empty or degenerate past apologies from infecting new prompts
     if (cleanedMsg.includes('对不起，我之前的回答可能有误') && cleanedMsg.length < 50) continue;
 
-    apiMessages.push({
-      role: h.role === 'user' ? 'user' : 'assistant',
-      content: cleanedMsg
-    });
+    // If this history turn had images AND the current turn does NOT upload new images,
+    // preserve the image URLs so follow-up turns like "继续" or "第二张图是什么" have vision!
+    if (h.id === lastImageMessage?.id && imagesBase64.length === 0 && isVisionModel && h.imageUrls && h.imageUrls.length > 0) {
+      const parts: any[] = [
+        { type: 'text', text: cleanedMsg }
+      ];
+      for (const img of h.imageUrls) {
+        parts.push({
+          type: 'image_url',
+          image_url: { url: img }
+        });
+      }
+      apiMessages.push({
+        role: h.role === 'user' ? 'user' : 'assistant',
+        content: parts
+      });
+    } else {
+      apiMessages.push({
+        role: h.role === 'user' ? 'user' : 'assistant',
+        content: cleanedMsg
+      });
+    }
   }
 
   apiMessages.push({
@@ -726,17 +799,36 @@ export async function sendAgentMessage(
             const deltaReasoning = deltaObj.reasoning_content || '';
             const deltaToolCalls = deltaObj.tool_calls || [];
 
-            // Handle live reasoning preview
+            // Handle live reasoning preview with Anti-Repetition Circuit Breaker
             if (deltaReasoning) {
               rawAccumulatedReasoning += deltaReasoning;
-              onStreamChunk?.(rawAccumulatedContent, rawAccumulatedReasoning);
+
+              // Anti-repetition stream circuit breaker for reasoning
+              if (rawAccumulatedReasoning.length > 80) {
+                const last200 = rawAccumulatedReasoning.slice(-200);
+                const sentences = last200.split(/[。\n！？]/).filter(s => s.trim().length >= 8);
+                if (sentences.length >= 3) {
+                  const sLast = sentences[sentences.length - 1].trim();
+                  const sPrev1 = sentences[sentences.length - 2].trim();
+                  const sPrev2 = sentences[sentences.length - 3].trim();
+                  if (sLast === sPrev1 || sPrev1 === sPrev2 || sLast === sPrev2) {
+                    console.warn('⚠️ Anti-Repetition Circuit Breaker triggered on reasoning stream.');
+                    try { reader.cancel(); } catch {}
+                    loopDetected = true;
+                    rawAccumulatedReasoning = cleanRepetitiveText(rawAccumulatedReasoning);
+                    break;
+                  }
+                }
+              }
+
+              onStreamChunk?.(rawAccumulatedContent, cleanRepetitiveText(rawAccumulatedReasoning));
             }
 
             // Handle live conversational content
             if (deltaContent) {
               rawAccumulatedContent += deltaContent;
 
-              // Anti-repetition stream circuit breaker
+              // Anti-repetition stream circuit breaker for content
               if (rawAccumulatedContent.length > 50) {
                 const last160 = rawAccumulatedContent.slice(-160);
                 const sentences = last160.split(/[。\n！？]/).filter(s => s.trim().length >= 8);
@@ -753,7 +845,7 @@ export async function sendAgentMessage(
                 }
               }
 
-              onStreamChunk?.(cleanRepetitiveText(rawAccumulatedContent), rawAccumulatedReasoning);
+              onStreamChunk?.(cleanRepetitiveText(rawAccumulatedContent), cleanRepetitiveText(rawAccumulatedReasoning));
             }
 
             // Aggregate streamed tool call parameters
@@ -772,6 +864,7 @@ export async function sendAgentMessage(
         }
       }
       rawAccumulatedContent = cleanRepetitiveText(rawAccumulatedContent);
+      rawAccumulatedReasoning = cleanRepetitiveText(rawAccumulatedReasoning);
     } else {
       // Non-streaming fallback
       const data = await response.json();
@@ -789,27 +882,32 @@ export async function sendAgentMessage(
       }
     }
 
-    // Parse Tool Calls into structured Actions
-    let action: any = { type: 'none' };
+    // Parse ALL Tool Calls into structured Actions array
     const toolCallEntries = Object.values(accumulatedToolCalls);
+    const parsedActions: Array<{ type: string; payload: any }> = [];
 
-    if (toolCallEntries.length > 0) {
-      const primaryCall = toolCallEntries[0];
+    for (const tc of toolCallEntries) {
+      if (!tc.name) continue;
       try {
-        const parsedArgs = JSON.parse(primaryCall.arguments);
-        action = {
-          type: primaryCall.name,
+        const parsedArgs = JSON.parse(tc.arguments || '{}');
+        parsedActions.push({
+          type: tc.name,
           payload: parsedArgs
-        };
+        });
       } catch (parseErr) {
-        console.warn('Failed to parse tool call arguments:', primaryCall.arguments);
+        console.warn('Failed to parse tool call arguments:', tc.arguments);
       }
     }
 
+    const primaryAction = parsedActions.length > 0 ? parsedActions[0] : { type: 'none' };
+
     return {
-      reply: rawAccumulatedContent.trim() || (action.type !== 'none' ? '已为您准备好操作卡片，请在下方确认入账：' : '已为您处理完成。'),
-      reasoning: rawAccumulatedReasoning.trim() || undefined,
-      action
+      reply: cleanRepetitiveText(rawAccumulatedContent.trim()) || (parsedActions.length > 0 
+        ? `已为您成功识别出 ${parsedActions.length} 项财务记录，请在下方确认入账：` 
+        : '已为您处理完成。'),
+      reasoning: cleanRepetitiveText(rawAccumulatedReasoning.trim()) || undefined,
+      action: primaryAction,
+      actions: parsedActions
     };
   } catch (err: any) {
     // If tools-based stream fetch fails, try fallback without stream
@@ -829,24 +927,29 @@ export async function sendAgentMessage(
 
     const data = await fbResponse.json();
     const msg = data.choices?.[0]?.message || {};
-    const content = (msg.content || '').trim();
-    const reasoning = (msg.reasoning_content || '').trim();
+    const content = cleanRepetitiveText((msg.content || '').trim());
+    const reasoning = cleanRepetitiveText((msg.reasoning_content || '').trim());
 
-    let action: any = { type: 'none' };
+    const fbActions: Array<{ type: string; payload: any }> = [];
     if (msg.tool_calls && msg.tool_calls.length > 0) {
-      const tc = msg.tool_calls[0];
-      try {
-        action = {
-          type: tc.function?.name,
-          payload: JSON.parse(tc.function?.arguments || '{}')
-        };
-      } catch {}
+      for (const tc of msg.tool_calls) {
+        if (!tc.function?.name) continue;
+        try {
+          fbActions.push({
+            type: tc.function.name,
+            payload: JSON.parse(tc.function.arguments || '{}')
+          });
+        } catch {}
+      }
     }
 
+    const primaryAction = fbActions.length > 0 ? fbActions[0] : { type: 'none' };
+
     return {
-      reply: content || (action.type !== 'none' ? '已为您识别并准备好操作卡片：' : '已处理完成。'),
+      reply: content || (fbActions.length > 0 ? `已为您识别出 ${fbActions.length} 项财务记录并准备好操作卡片：` : '已处理完成。'),
       reasoning: reasoning || undefined,
-      action
+      action: primaryAction,
+      actions: fbActions
     };
   }
 }

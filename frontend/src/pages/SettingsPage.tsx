@@ -412,32 +412,89 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
       </div>
 
       {/* 手机触感反馈 */}
-      <div className="p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs flex items-center justify-between transition">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-violet-500 to-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-500/20 flex-shrink-0">
-            <Smartphone className="w-5 h-5" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h3 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
-                手机触感反馈
-              </h3>
+      <div className="p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs space-y-3 transition">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-violet-500 to-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-500/20 flex-shrink-0">
+              <Smartphone className="w-5 h-5" />
             </div>
-            <p className="text-[10px] text-slate-400 mt-0.5">
-              操作开关与按钮时触发轻微触感震动反馈
-            </p>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
+                  手机全域硬件触感反馈
+                </h3>
+                <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 font-bold border border-indigo-200 dark:border-indigo-800">
+                  双端驱动
+                </span>
+              </div>
+              <p className="text-[10px] text-slate-400 mt-0.5">
+                支持 iOS Taptic Engine 硬件开关桥接 与 Android 线性马达动力学脉冲
+              </p>
+            </div>
           </div>
+
+          <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
+            <input 
+              type="checkbox" 
+              checked={hapticFeedback}
+              onChange={(e) => handleToggleHaptic(e.target.checked)}
+              className="sr-only peer"
+            />
+            <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600"></div>
+          </label>
         </div>
 
-        <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
-          <input 
-            type="checkbox" 
-            checked={hapticFeedback}
-            onChange={(e) => handleToggleHaptic(e.target.checked)}
-            className="sr-only peer"
-          />
-          <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600"></div>
-        </label>
+        {hapticFeedback && (
+          <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                ⚡ 硬件震动实时测试：
+              </span>
+              <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-medium">
+                点击直接体验不同马达力度
+              </span>
+            </div>
+
+            <div className="grid grid-cols-4 gap-2">
+              <button
+                type="button"
+                onClick={() => haptic.selection()}
+                className="py-1.5 px-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-[11px] font-bold active:scale-95 transition text-center"
+              >
+                轻触 (35ms)
+              </button>
+              <button
+                type="button"
+                onClick={() => haptic.impact()}
+                className="py-1.5 px-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-[11px] font-bold active:scale-95 transition text-center"
+              >
+                按键 (45ms)
+              </button>
+              <button
+                type="button"
+                onClick={() => haptic.success()}
+                className="py-1.5 px-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 text-[11px] font-bold active:scale-95 transition text-center"
+              >
+                成功 (双击)
+              </button>
+              <button
+                type="button"
+                onClick={() => haptic.warning()}
+                className="py-1.5 px-2 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-[11px] font-bold active:scale-95 transition text-center"
+              >
+                警告 (三击)
+              </button>
+            </div>
+
+            <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60 text-[10px] text-slate-500 dark:text-slate-400 space-y-1">
+              <div className="flex items-center gap-1.5 font-bold text-slate-700 dark:text-slate-300">
+                <span>💡 真机震动排查指南：</span>
+              </div>
+              <p>• <b>iPhone (iOS Safari)</b>：已集成 iOS 17.4+ 原生 Switch 节点与超低频触控声学；若无感知，请确认 iOS 设置 →「声音与触感」中「触感反馈」是否开启。</p>
+              <p>• <b>小米 / Android (Chrome)</b>：已校准动力脉冲（克服 X 轴马达起振阈值）；若无感知，请确认小米系统设置 →「声音与振动」→「触感」已开启。</p>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* 📱 Full System Modules Navigation Hub (快捷直达全部功能模块) */}

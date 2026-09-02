@@ -278,10 +278,11 @@ export const QuickTransactionModal: React.FC<QuickTransactionModalProps> = ({
                 onClose();
                 onOpenImageOcr();
               }}
-              className="p-1.5 rounded-full bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 hover:bg-purple-100 dark:hover:bg-purple-900/60 transition active:scale-90"
-              title="拍照识图记账"
+              className="px-2.5 py-1 rounded-full bg-purple-100 dark:bg-purple-950/80 text-purple-700 dark:text-purple-300 hover:bg-purple-200 transition active:scale-95 flex items-center gap-1 text-[11px] font-bold border border-purple-200/80 dark:border-purple-800/80"
+              title="拍照或选相册截图记账"
             >
-              <Camera className="w-4 h-4" />
+              <Camera className="w-3.5 h-3.5" />
+              <span>拍照/选图</span>
             </button>
           )}
           {onClipboardIngest && (
@@ -292,10 +293,11 @@ export const QuickTransactionModal: React.FC<QuickTransactionModalProps> = ({
                 onClose();
                 onClipboardIngest();
               }}
-              className="p-1.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 transition active:scale-90"
+              className="px-2.5 py-1 rounded-full bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-200 transition active:scale-95 flex items-center gap-1 text-[11px] font-bold border border-emerald-200/80 dark:border-emerald-800/80"
               title="读取剪贴板极速入账"
             >
-              <ClipboardCheck className="w-4 h-4" />
+              <ClipboardCheck className="w-3.5 h-3.5" />
+              <span>剪贴板</span>
             </button>
           )}
         </div>

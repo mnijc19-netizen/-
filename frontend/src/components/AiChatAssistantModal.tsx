@@ -36,7 +36,7 @@ import {
   ShieldCheck
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { Account, Transaction, Category, Goal, Budget, RecurringRule, Investment, Debt, AgentChatMessage, AccountType } from '../types';
+import { Account, Transaction, Category, Goal, Budget, RecurringRule, Investment, Debt, AgentChatMessage, AccountType, StagedAgentAction } from '../types';
 import { api } from '../api/client';
 import { localStore, AiConfig } from '../services/localStore';
 import { sendAgentMessage, cleanRepetitiveText } from '../services/aiAgent';
@@ -160,6 +160,21 @@ export function findBestMatchingAccount(name: string, type: string = '', account
   if (sub) return sub;
 
   return null;
+}
+
+function getStagedActionTitle(type: string): string {
+  if (type === 'create_debt') return '💳 负债与分期还款待录入';
+  if (type && type.includes('investment')) return '📈 证券与基金持仓待录入';
+  if (type === 'create_account' || type === 'update_balance') return '🏦 账户资产余额待录入';
+  if (type === 'batch_create_accounts' || type === 'batch_update_balances') return '🏦 批量资产账户待录入';
+  if (type === 'create_transaction' || type === 'batch_create_transactions') return '🧾 交易收支流水待录入';
+  if (type === 'set_monthly_income_plan') return '💼 预计月收入设定';
+  if (type === 'mark_debt_repaid') return '💳 还款销账待确认';
+  if (type === 'generate_monthly_budget_plan') return '📊 月度全套资金预算方案';
+  if (type === 'set_budget') return '🎯 单项预算设定';
+  if (type === 'create_goal') return '🏆 存钱目标设定';
+  if (type === 'create_recurring_rule') return '🔄 周期循环记账规则';
+  return '📋 智能财务记录待录入';
 }
 
 export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
@@ -300,15 +315,8 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
     setSelectedImages(prev => prev.filter((_, idx) => idx !== index));
   };
 
-  // Execute a staged pending action when user confirms
-  const handleCommitPendingAction = async (msgId: string) => {
-    const msgIndex = messages.findIndex(m => m.id === msgId);
-    if (msgIndex === -1) return;
-
-    const msg = messages[msgIndex];
-    if (!msg.pendingAction || msg.pendingAction.status !== 'staged') return;
-
-    const act = msg.pendingAction;
+  // Helper to execute a single action payload into DB/store
+  const executeActionPayload = async (act: any): Promise<any> => {
     let actionResult: any = undefined;
 
     try {
@@ -834,32 +842,103 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
         };
       }
 
-      // Update message state to committed
+      return actionResult;
+    } catch (e: any) {
+      throw e;
+    }
+  };
+
+  // Execute a staged pending action when user confirms
+  const handleCommitPendingAction = async (msgId: string, targetActId?: string) => {
+    const msg = messages.find(m => m.id === msgId);
+    if (!msg) return;
+
+    let targetAct: any = undefined;
+    if (targetActId && msg.pendingActions) {
+      targetAct = msg.pendingActions.find(a => a.id === targetActId);
+    }
+    if (!targetAct) {
+      targetAct = msg.pendingAction;
+    }
+    if (!targetAct || targetAct.status !== 'staged') return;
+
+    try {
+      const actionResult = await executeActionPayload(targetAct);
+
       setMessages(prev => prev.map(m => {
         if (m.id === msgId) {
+          const updatedPendingActions = m.pendingActions
+            ? m.pendingActions.map(a => (a.id === targetAct.id || (!targetActId && m.pendingActions!.length === 1) ? { ...a, status: 'committed' as const } : a))
+            : undefined;
+          const updatedPendingAction = m.pendingAction
+            ? (!targetActId || m.pendingAction.id === targetActId ? { ...m.pendingAction, status: 'committed' as const } : m.pendingAction)
+            : undefined;
           return {
             ...m,
-            pendingAction: { ...m.pendingAction!, status: 'committed' },
-            actionResult
+            pendingAction: updatedPendingAction,
+            pendingActions: updatedPendingActions,
+            actionResult: actionResult || m.actionResult
           };
         }
         return m;
       }));
 
-      confetti({ particleCount: 80, spread: 60, origin: { y: 0.7 } });
+      haptic.success();
+      confetti({ particleCount: 80, spread: 60, origin: { y: 0.65 } });
       onRefresh();
     } catch (e: any) {
       alert(`录入失败: ${e.message}`);
     }
   };
 
+  // Commit all staged actions in a message at once
+  const handleCommitAllPendingActions = async (msgId: string) => {
+    const msg = messages.find(m => m.id === msgId);
+    if (!msg || !msg.pendingActions) return;
+
+    const stagedActs = msg.pendingActions.filter(a => a.status === 'staged');
+    if (stagedActs.length === 0) return;
+
+    try {
+      for (const act of stagedActs) {
+        await executeActionPayload(act);
+      }
+
+      setMessages(prev => prev.map(m => {
+        if (m.id === msgId) {
+          return {
+            ...m,
+            pendingActions: m.pendingActions?.map(a => ({ ...a, status: 'committed' as const })),
+            pendingAction: m.pendingAction ? { ...m.pendingAction, status: 'committed' as const } : undefined
+          };
+        }
+        return m;
+      }));
+
+      haptic.success();
+      confetti({ particleCount: 140, spread: 85, origin: { y: 0.6 } });
+      onRefresh();
+    } catch (e: any) {
+      alert(`批量录入过程中遇到问题: ${e.message}`);
+      onRefresh();
+    }
+  };
+
   // Cancel staged action
-  const handleCancelPendingAction = (msgId: string) => {
+  const handleCancelPendingAction = (msgId: string, targetActId?: string) => {
+    haptic.warning();
     setMessages(prev => prev.map(m => {
       if (m.id === msgId) {
+        const updatedPendingActions = m.pendingActions
+          ? m.pendingActions.map(a => (a.id === targetActId || (!targetActId && m.pendingActions!.length === 1) ? { ...a, status: 'cancelled' as const } : a))
+          : undefined;
+        const updatedPendingAction = m.pendingAction
+          ? (!targetActId || m.pendingAction.id === targetActId ? { ...m.pendingAction, status: 'cancelled' as const } : m.pendingAction)
+          : undefined;
         return {
           ...m,
-          pendingAction: { ...m.pendingAction!, status: 'cancelled' }
+          pendingAction: updatedPendingAction,
+          pendingActions: updatedPendingActions
         };
       }
       return m;
@@ -867,18 +946,29 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
   };
 
   // Update pending action payload field live
-  const handleUpdatePendingField = (msgId: string, field: string, value: any) => {
+  const handleUpdatePendingField = (msgId: string, field: string, value: any, targetActId?: string) => {
     setMessages(prev => prev.map(m => {
-      if (m.id === msgId && m.pendingAction) {
+      if (m.id === msgId) {
+        let updatedAction = m.pendingAction;
+        if (m.pendingAction && (!targetActId || m.pendingAction.id === targetActId)) {
+          updatedAction = {
+            ...m.pendingAction,
+            payload: { ...m.pendingAction.payload, [field]: value }
+          };
+        }
+        const updatedActions = m.pendingActions?.map(a => {
+          if (a.id === targetActId || (!targetActId && m.pendingActions!.length === 1)) {
+            return {
+              ...a,
+              payload: { ...a.payload, [field]: value }
+            };
+          }
+          return a;
+        });
         return {
           ...m,
-          pendingAction: {
-            ...m.pendingAction,
-            payload: {
-              ...m.pendingAction.payload,
-              [field]: value
-            }
-          }
+          pendingAction: updatedAction,
+          pendingActions: updatedActions
         };
       }
       return m;
@@ -886,30 +976,42 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
   };
 
   // Update a specific item inside batch accounts/updates
-  const handleUpdateBatchItemField = (msgId: string, itemIdx: number, field: string, value: any) => {
+  const handleUpdateBatchItemField = (msgId: string, itemIdx: number, field: string, value: any, targetActId?: string) => {
     setMessages(prev => prev.map(m => {
-      if (m.id === msgId && m.pendingAction) {
-        const listKey = m.pendingAction.payload.updates ? 'updates' : 'accounts';
-        const currentList = [...(m.pendingAction.payload[listKey] || [])];
-        if (currentList[itemIdx]) {
-          currentList[itemIdx] = {
-            ...currentList[itemIdx],
-            [field]: value,
-            ...(field === 'platform' ? { name: value } : {}),
-            ...(field === 'name' ? { platform: value } : {}),
-            ...(field === 'account_type' ? { type: value } : {}),
-            ...(field === 'type' ? { account_type: value } : {})
+      if (m.id === msgId) {
+        const updateActPayload = (act: any) => {
+          const listKey = act.payload.updates ? 'updates' : 'accounts';
+          const currentList = [...(act.payload[listKey] || [])];
+          if (currentList[itemIdx]) {
+            currentList[itemIdx] = {
+              ...currentList[itemIdx],
+              [field]: value,
+              ...(field === 'platform' ? { name: value } : {}),
+              ...(field === 'name' ? { platform: value } : {}),
+              ...(field === 'account_type' ? { type: value } : {}),
+              ...(field === 'type' ? { account_type: value } : {})
+            };
+          }
+          return {
+            ...act,
+            payload: { ...act.payload, [listKey]: currentList }
           };
+        };
+
+        let updatedAction = m.pendingAction;
+        if (m.pendingAction && (!targetActId || m.pendingAction.id === targetActId)) {
+          updatedAction = updateActPayload(m.pendingAction);
         }
+        const updatedActions = m.pendingActions?.map(a => {
+          if (a.id === targetActId || (!targetActId && m.pendingActions!.length === 1)) {
+            return updateActPayload(a);
+          }
+          return a;
+        });
         return {
           ...m,
-          pendingAction: {
-            ...m.pendingAction,
-            payload: {
-              ...m.pendingAction.payload,
-              [listKey]: currentList
-            }
-          }
+          pendingAction: updatedAction,
+          pendingActions: updatedActions
         };
       }
       return m;
@@ -917,20 +1019,32 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
   };
 
   // Remove an item from the batch staging list
-  const handleRemoveBatchItem = (msgId: string, itemIdx: number) => {
+  const handleRemoveBatchItem = (msgId: string, itemIdx: number, targetActId?: string) => {
     setMessages(prev => prev.map(m => {
-      if (m.id === msgId && m.pendingAction) {
-        const listKey = m.pendingAction.payload.updates ? 'updates' : 'accounts';
-        const currentList = [...(m.pendingAction.payload[listKey] || [])].filter((_, idx) => idx !== itemIdx);
+      if (m.id === msgId) {
+        const removeActItem = (act: any) => {
+          const listKey = act.payload.updates ? 'updates' : 'accounts';
+          const currentList = [...(act.payload[listKey] || [])].filter((_, idx) => idx !== itemIdx);
+          return {
+            ...act,
+            payload: { ...act.payload, [listKey]: currentList }
+          };
+        };
+
+        let updatedAction = m.pendingAction;
+        if (m.pendingAction && (!targetActId || m.pendingAction.id === targetActId)) {
+          updatedAction = removeActItem(m.pendingAction);
+        }
+        const updatedActions = m.pendingActions?.map(a => {
+          if (a.id === targetActId || (!targetActId && m.pendingActions!.length === 1)) {
+            return removeActItem(a);
+          }
+          return a;
+        });
         return {
           ...m,
-          pendingAction: {
-            ...m.pendingAction,
-            payload: {
-              ...m.pendingAction.payload,
-              [listKey]: currentList
-            }
-          }
+          pendingAction: updatedAction,
+          pendingActions: updatedActions
         };
       }
       return m;
@@ -938,23 +1052,35 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
   };
 
   // Add an item to the batch staging list
-  const handleAddBatchItem = (msgId: string) => {
+  const handleAddBatchItem = (msgId: string, targetActId?: string) => {
     setMessages(prev => prev.map(m => {
-      if (m.id === msgId && m.pendingAction) {
-        const listKey = m.pendingAction.payload.updates ? 'updates' : 'accounts';
-        const currentList = [
-          ...(m.pendingAction.payload[listKey] || []),
-          { platform: '新增资产/负债账户', account_type: 'wallet', balance: 0 }
-        ];
+      if (m.id === msgId) {
+        const addActItem = (act: any) => {
+          const listKey = act.payload.updates ? 'updates' : 'accounts';
+          const currentList = [
+            ...(act.payload[listKey] || []),
+            { platform: '新增资产/负债账户', account_type: 'wallet', balance: 0 }
+          ];
+          return {
+            ...act,
+            payload: { ...act.payload, [listKey]: currentList }
+          };
+        };
+
+        let updatedAction = m.pendingAction;
+        if (m.pendingAction && (!targetActId || m.pendingAction.id === targetActId)) {
+          updatedAction = addActItem(m.pendingAction);
+        }
+        const updatedActions = m.pendingActions?.map(a => {
+          if (a.id === targetActId || (!targetActId && m.pendingActions!.length === 1)) {
+            return addActItem(a);
+          }
+          return a;
+        });
         return {
           ...m,
-          pendingAction: {
-            ...m.pendingAction,
-            payload: {
-              ...m.pendingAction.payload,
-              [listKey]: currentList
-            }
-          }
+          pendingAction: updatedAction,
+          pendingActions: updatedActions
         };
       }
       return m;
@@ -962,34 +1088,42 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
   };
 
   // Update a specific investment holding in batch staging
-  const handleUpdateInvestmentItemField = (msgId: string, itemIdx: number, field: string, value: any) => {
+  const handleUpdateInvestmentItemField = (msgId: string, itemIdx: number, field: string, value: any, targetActId?: string) => {
     setMessages(prev => prev.map(m => {
-      if (m.id === msgId && m.pendingAction) {
-        const currentItems = [...(m.pendingAction.payload.items || [])];
-        if (currentItems[itemIdx]) {
-          currentItems[itemIdx] = {
-            ...currentItems[itemIdx],
-            [field]: value
-          };
-          if (field === 'name' && (!currentItems[itemIdx].code || currentItems[itemIdx].code === '159941')) {
-            currentItems[itemIdx].code = resolveSecurityCode(value);
-          }
-          // Recalculate market value live
-          if (field === 'shares' || field === 'current_price' || field === 'cost_price') {
-            const sh = parseFloat(field === 'shares' ? value : currentItems[itemIdx].shares) || 0;
-            const pr = parseFloat(field === 'current_price' ? value : (currentItems[itemIdx].current_price || currentItems[itemIdx].cost_price)) || 0;
-            currentItems[itemIdx].market_value = Math.round(sh * pr * 100) / 100;
-          }
-        }
-        return {
-          ...m,
-          pendingAction: {
-            ...m.pendingAction,
-            payload: {
-              ...m.pendingAction.payload,
-              items: currentItems
+      if (m.id === msgId) {
+        const updateInv = (act: any) => {
+          const currentItems = [...(act.payload.items || [])];
+          if (currentItems[itemIdx]) {
+            currentItems[itemIdx] = { ...currentItems[itemIdx], [field]: value };
+            if (field === 'name' && (!currentItems[itemIdx].code || currentItems[itemIdx].code === '159941')) {
+              currentItems[itemIdx].code = resolveSecurityCode(value);
+            }
+            if (field === 'shares' || field === 'current_price' || field === 'cost_price') {
+              const sh = parseFloat(field === 'shares' ? value : currentItems[itemIdx].shares) || 0;
+              const pr = parseFloat(field === 'current_price' ? value : (currentItems[itemIdx].current_price || currentItems[itemIdx].cost_price)) || 0;
+              currentItems[itemIdx].market_value = Math.round(sh * pr * 100) / 100;
             }
           }
+          return {
+            ...act,
+            payload: { ...act.payload, items: currentItems }
+          };
+        };
+
+        let updatedAction = m.pendingAction;
+        if (m.pendingAction && (!targetActId || m.pendingAction.id === targetActId)) {
+          updatedAction = updateInv(m.pendingAction);
+        }
+        const updatedActions = m.pendingActions?.map(a => {
+          if (a.id === targetActId || (!targetActId && m.pendingActions!.length === 1)) {
+            return updateInv(a);
+          }
+          return a;
+        });
+        return {
+          ...m,
+          pendingAction: updatedAction,
+          pendingActions: updatedActions
         };
       }
       return m;
@@ -997,19 +1131,31 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
   };
 
   // Remove an investment holding from batch staging
-  const handleRemoveInvestmentItem = (msgId: string, itemIdx: number) => {
+  const handleRemoveInvestmentItem = (msgId: string, itemIdx: number, targetActId?: string) => {
     setMessages(prev => prev.map(m => {
-      if (m.id === msgId && m.pendingAction) {
-        const currentItems = [...(m.pendingAction.payload.items || [])].filter((_, idx) => idx !== itemIdx);
+      if (m.id === msgId) {
+        const removeInv = (act: any) => {
+          const currentItems = [...(act.payload.items || [])].filter((_, idx) => idx !== itemIdx);
+          return {
+            ...act,
+            payload: { ...act.payload, items: currentItems }
+          };
+        };
+
+        let updatedAction = m.pendingAction;
+        if (m.pendingAction && (!targetActId || m.pendingAction.id === targetActId)) {
+          updatedAction = removeInv(m.pendingAction);
+        }
+        const updatedActions = m.pendingActions?.map(a => {
+          if (a.id === targetActId || (!targetActId && m.pendingActions!.length === 1)) {
+            return removeInv(a);
+          }
+          return a;
+        });
         return {
           ...m,
-          pendingAction: {
-            ...m.pendingAction,
-            payload: {
-              ...m.pendingAction.payload,
-              items: currentItems
-            }
-          }
+          pendingAction: updatedAction,
+          pendingActions: updatedActions
         };
       }
       return m;
@@ -1017,22 +1163,34 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
   };
 
   // Add a new investment holding to batch staging
-  const handleAddInvestmentItem = (msgId: string) => {
+  const handleAddInvestmentItem = (msgId: string, targetActId?: string) => {
     setMessages(prev => prev.map(m => {
-      if (m.id === msgId && m.pendingAction) {
-        const currentItems = [
-          ...(m.pendingAction.payload.items || []),
-          { name: '纳指ETF广发', code: '159941', shares: 100, cost_price: 1.0, current_price: 1.0, market_value: 100 }
-        ];
+      if (m.id === msgId) {
+        const addInv = (act: any) => {
+          const currentItems = [
+            ...(act.payload.items || []),
+            { name: '纳指ETF广发', code: '159941', shares: 100, cost_price: 1.0, current_price: 1.0, market_value: 100 }
+          ];
+          return {
+            ...act,
+            payload: { ...act.payload, items: currentItems }
+          };
+        };
+
+        let updatedAction = m.pendingAction;
+        if (m.pendingAction && (!targetActId || m.pendingAction.id === targetActId)) {
+          updatedAction = addInv(m.pendingAction);
+        }
+        const updatedActions = m.pendingActions?.map(a => {
+          if (a.id === targetActId || (!targetActId && m.pendingActions!.length === 1)) {
+            return addInv(a);
+          }
+          return a;
+        });
         return {
           ...m,
-          pendingAction: {
-            ...m.pendingAction,
-            payload: {
-              ...m.pendingAction.payload,
-              items: currentItems
-            }
-          }
+          pendingAction: updatedAction,
+          pendingActions: updatedActions
         };
       }
       return m;
@@ -1097,11 +1255,16 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
         }
       );
 
-      let pendingAction: any = undefined;
       let actionResult: any = undefined;
+      const rawActionsList = response.actions && response.actions.length > 0
+        ? response.actions
+        : (response.action && response.action.type !== 'none' ? [response.action] : []);
 
-      if (response.action && response.action.type !== 'none') {
-        const act = response.action;
+      const pendingActionsList: StagedAgentAction[] = [];
+
+      for (let actIdx = 0; actIdx < rawActionsList.length; actIdx++) {
+        const act = rawActionsList[actIdx];
+        if (!act || act.type === 'none') continue;
 
         // Navigation and export execute right away
         if (act.type === 'navigate_to' && act.payload?.page) {
@@ -1232,21 +1395,25 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
               code: resolveSecurityCode(it.name || '', it.code)
             }));
           }
-          pendingAction = {
-            ...act,
+          pendingActionsList.push({
+            id: `staged-${Date.now()}-${actIdx}`,
+            type: act.type,
             payload: stagedPayload,
             status: 'staged'
-          };
+          });
         }
       }
 
       setMessages(prev => prev.map(m => {
         if (m.id === assistantMsgId) {
+          const finalReply = cleanRepetitiveText(response.reply) || (pendingActionsList.length > 0 ? `✨ 已为您识别出 ${pendingActionsList.length} 项财务记录待入账：` : '✨ 分析完成');
+          const finalReasoning = cleanRepetitiveText(response.reasoning || m.reasoning || '');
           return {
             ...m,
-            content: cleanRepetitiveText(response.reply) || '✨ 分析完成',
-            reasoning: response.reasoning || m.reasoning,
-            pendingAction,
+            content: finalReply,
+            reasoning: finalReasoning || undefined,
+            pendingAction: pendingActionsList.length === 1 ? pendingActionsList[0] : undefined,
+            pendingActions: pendingActionsList.length > 0 ? pendingActionsList : undefined,
             actionResult
           };
         }
@@ -1576,11 +1743,11 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
                     >
                       <span className="flex items-center gap-1.5">
                         <Sparkles className="w-3 h-3 text-purple-500 flex-shrink-0" />
-                        <span>💭 深度思考推理过程</span>
+                        <span>💭 深度思考推理过程 ({collapsedReasonings[m.id] ? '点击折叠' : '已折叠，点击展开'})</span>
                       </span>
-                      <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${collapsedReasonings[m.id] ? '' : 'rotate-180'}`} />
+                      <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${collapsedReasonings[m.id] ? 'rotate-180' : ''}`} />
                     </button>
-                    {!collapsedReasonings[m.id] && (
+                    {collapsedReasonings[m.id] && (
                       <div className="px-3 pb-2.5 pt-1 font-mono text-[10px] text-slate-600 dark:text-slate-400 leading-relaxed whitespace-pre-wrap border-t border-black/5 dark:border-white/5">
                         {m.reasoning}
                       </div>
@@ -1591,35 +1758,97 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
                 <div className="whitespace-pre-wrap leading-relaxed">{m.content}</div>
 
                 {/* ======================================================== */}
-                {/* 🌟 INTERACTIVE EDITABLE STAGING CONFIRMATION CARD */}
+                {/* 🌟 INTERACTIVE EDITABLE STAGING CONFIRMATION CARDS (MULTI-ACTION SUPPORT) */}
                 {/* ======================================================== */}
-                {m.pendingAction && m.pendingAction.status === 'staged' && (
-                  <div className="mt-3 p-3 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border-2 border-amber-300 dark:border-amber-700 text-slate-900 dark:text-slate-100 space-y-2.5 animate-in fade-in">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1.5 font-black text-xs text-amber-800 dark:text-amber-300">
-                        <Edit3 className="w-4 h-4 text-amber-600 flex-shrink-0" />
-                        <span>📋 智能识别待确认 (您可直接修改无误后录入)</span>
-                      </div>
-                      <span className="text-[9px] px-2 py-0.5 rounded-full bg-amber-200 dark:bg-amber-900 text-amber-800 dark:text-amber-200 font-bold">
-                        待确认
-                      </span>
-                    </div>
+                {(() => {
+                  const actionsList = m.pendingActions && m.pendingActions.length > 0
+                    ? m.pendingActions
+                    : (m.pendingAction ? [m.pendingAction] : []);
+                  if (actionsList.length === 0) return null;
 
-                    {/* Single Account / Liability Staging Form */}
-                    {(m.pendingAction.type === 'create_account' || m.pendingAction.type === 'update_balance') && (
+                  const stagedCount = actionsList.filter((a: any) => a.status === 'staged').length;
+
+                  return (
+                    <div className="mt-3 space-y-2.5">
+                      {/* Multi-action Batch Header with One-Click Commit */}
+                      {actionsList.length > 1 && (
+                        <div className="p-3 rounded-2xl bg-gradient-to-r from-purple-500/15 via-indigo-500/15 to-pink-500/15 border border-purple-400/40 dark:border-purple-600/40 flex items-center justify-between shadow-sm animate-in fade-in">
+                          <div className="flex items-center gap-2">
+                            <Sparkles className="w-4 h-4 text-purple-600 dark:text-purple-400 animate-pulse flex-shrink-0" />
+                            <div>
+                              <div className="font-extrabold text-xs text-purple-900 dark:text-purple-200">
+                                ✨ 成功识别出 {actionsList.length} 项财务记录
+                              </div>
+                              <div className="text-[10px] text-purple-600 dark:text-purple-400 font-medium">
+                                {stagedCount > 0 ? `剩余 ${stagedCount} 项待确认入账` : '🎉 全部项目已入账'}
+                              </div>
+                            </div>
+                          </div>
+                          {stagedCount > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => handleCommitAllPendingActions(m.id)}
+                              className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs shadow-md shadow-emerald-500/25 active:scale-95 flex items-center gap-1 transition flex-shrink-0"
+                            >
+                              <CheckCheck className="w-3.5 h-3.5" />
+                              <span>全部一键入账 ({stagedCount}项)</span>
+                            </button>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Individual Action Cards */}
+                      {actionsList.map((act: any, actIdx: number) => {
+                        const isStaged = act.status === 'staged';
+                        const isCommitted = act.status === 'committed';
+                        const isCancelled = act.status === 'cancelled';
+
+                        return (
+                          <div 
+                            key={act.id || actIdx} 
+                            className={`p-3 rounded-2xl border-2 space-y-2.5 animate-in fade-in transition-all ${
+                              isCommitted 
+                                ? 'bg-emerald-50/70 dark:bg-emerald-950/30 border-emerald-300 dark:border-emerald-800' 
+                                : isCancelled 
+                                ? 'bg-slate-50 dark:bg-slate-900 border-slate-300 dark:border-slate-800 opacity-60' 
+                                : 'bg-amber-50 dark:bg-amber-950/40 border-amber-300 dark:border-amber-700'
+                            } text-slate-900 dark:text-slate-100`}
+                          >
+                            {/* Card Header */}
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-1.5 font-black text-xs">
+                                <Edit3 className={`w-4 h-4 flex-shrink-0 ${isCommitted ? 'text-emerald-600' : 'text-amber-600'}`} />
+                                <span className={isCommitted ? 'text-emerald-900 dark:text-emerald-200' : 'text-amber-800 dark:text-amber-300'}>
+                                  {actionsList.length > 1 ? `第 ${actIdx + 1}/${actionsList.length} 项 · ` : ''}
+                                  {getStagedActionTitle(act.type)}
+                                </span>
+                              </div>
+                              <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold ${
+                                isCommitted 
+                                  ? 'bg-emerald-200 dark:bg-emerald-900 text-emerald-800 dark:text-emerald-200' 
+                                  : isCancelled 
+                                  ? 'bg-slate-200 dark:bg-slate-800 text-slate-500' 
+                                  : 'bg-amber-200 dark:bg-amber-900 text-amber-800 dark:text-amber-200'
+                              }`}>
+                                {isCommitted ? '✅ 已录入账本' : isCancelled ? '已取消' : '待确认'}
+                              </span>
+                            </div>
+
+{/* Single Account / Liability Staging Form */}
+                    {(act.type === 'create_account' || act.type === 'update_balance') && (
                       <div className="space-y-2 bg-white/80 dark:bg-slate-900/80 p-2.5 rounded-xl border border-amber-200 dark:border-amber-800 text-xs">
                         <div className="flex items-center gap-2">
                           <BrandLogo 
-                            type={m.pendingAction.payload.type || m.pendingAction.payload.account_type} 
-                            name={m.pendingAction.payload.name || m.pendingAction.payload.platform}
+                            type={act.payload.type || act.payload.account_type} 
+                            name={act.payload.name || act.payload.platform}
                             size="md"
                           />
                           <div className="flex-1">
                             <label className="text-[10px] text-slate-400 block mb-0.5">平台 / 账户名称</label>
                             <input
                               type="text"
-                              value={m.pendingAction.payload.name || m.pendingAction.payload.platform || ''}
-                              onChange={(e) => handleUpdatePendingField(m.id, 'name', e.target.value)}
+                              value={act.payload.name || act.payload.platform || ''}
+                              onChange={(e) => handleUpdatePendingField(m.id, 'name', e.target.value, act.id)}
                               placeholder="如：京东白条、美团月付、华泰证券"
                               className="w-full px-2 py-1 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-xs"
                             />
@@ -1630,10 +1859,10 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
                           <div>
                             <label className="text-[10px] text-slate-400 block mb-0.5">账户 / 信贷分类</label>
                             <select
-                              value={m.pendingAction.payload.type || m.pendingAction.payload.account_type || 'baitiao'}
+                              value={act.payload.type || act.payload.account_type || 'baitiao'}
                               onChange={(e) => {
-                                handleUpdatePendingField(m.id, 'type', e.target.value);
-                                handleUpdatePendingField(m.id, 'account_type', e.target.value);
+                                handleUpdatePendingField(m.id, 'type', e.target.value, act.id);
+                                handleUpdatePendingField(m.id, 'account_type', e.target.value, act.id);
                               }}
                               className="w-full px-2 py-1 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[11px] font-bold"
                             >
@@ -1653,15 +1882,15 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
 
                           <div>
                             <label className="text-[10px] text-slate-400 block mb-0.5">
-                              {['credit', 'loan', 'huabei', 'baitiao', 'meituan_pay', 'douyin_pay', 'jiebei', 'fenfu'].includes(m.pendingAction.payload.type || m.pendingAction.payload.account_type)
+                              {['credit', 'loan', 'huabei', 'baitiao', 'meituan_pay', 'douyin_pay', 'jiebei', 'fenfu'].includes(act.payload.type || act.payload.account_type)
                                 ? '待还负债金额 (¥)'
                                 : '账户资产余额 (¥)'}
                             </label>
                             <input
                               type="number"
                               step="any"
-                              value={m.pendingAction.payload.balance ?? ''}
-                              onChange={(e) => handleUpdatePendingField(m.id, 'balance', parseFloat(e.target.value) || 0)}
+                              value={act.payload.balance ?? ''}
+                              onChange={(e) => handleUpdatePendingField(m.id, 'balance', parseFloat(e.target.value) || 0, act.id)}
                               className="w-full px-2 py-1 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono font-black text-rose-600 dark:text-rose-400 text-xs"
                             />
                           </div>
@@ -1674,7 +1903,7 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
                               <RefreshCw className="w-3 h-3 text-purple-600" />
                               <span>录入规则与目标账户</span>
                             </label>
-                            {m.pendingAction.payload.target_account_id && m.pendingAction.payload.target_account_id !== '__new__' ? (
+                            {act.payload.target_account_id && act.payload.target_account_id !== '__new__' ? (
                               <span className="font-bold text-emerald-600 dark:text-emerald-400">
                                 🔄 覆盖更新 (不重复累加)
                               </span>
@@ -1685,15 +1914,15 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
                             )}
                           </div>
                           <select
-                            value={m.pendingAction.payload.target_account_id || '__new__'}
+                            value={act.payload.target_account_id || '__new__'}
                             onChange={(e) => {
                               const val = e.target.value;
-                              handleUpdatePendingField(m.id, 'target_account_id', val);
+                              handleUpdatePendingField(m.id, 'target_account_id', val, act.id);
                               if (val !== '__new__') {
                                 const acc = accounts.find(a => a.id === val);
                                 if (acc) {
-                                  handleUpdatePendingField(m.id, 'matched_account_name', acc.name);
-                                  handleUpdatePendingField(m.id, 'existing_balance', acc.balance);
+                                  handleUpdatePendingField(m.id, 'matched_account_name', acc.name, act.id);
+                                  handleUpdatePendingField(m.id, 'existing_balance', acc.balance, act.id);
                                 }
                               }
                             }}
@@ -1708,35 +1937,35 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
                               ➕ 新建独立账户 (如第2个微信/支付宝号)
                             </option>
                           </select>
-                          {m.pendingAction.payload.target_account_id && m.pendingAction.payload.target_account_id !== '__new__' && (
+                          {act.payload.target_account_id && act.payload.target_account_id !== '__new__' && (
                             <div className="text-[10px] text-slate-500 dark:text-slate-400 flex items-center justify-between font-mono pt-0.5">
-                              <span>原余额: ¥{(m.pendingAction.payload.existing_balance ?? 0).toFixed(2)}</span>
-                              <span className="text-purple-600 dark:text-purple-400 font-bold">➔ 覆盖为: ¥{parseFloat(m.pendingAction.payload.balance || 0).toFixed(2)}</span>
+                              <span>原余额: ¥{(act.payload.existing_balance ?? 0).toFixed(2)}</span>
+                              <span className="text-purple-600 dark:text-purple-400 font-bold">➔ 覆盖为: ¥{parseFloat(act.payload.balance || 0).toFixed(2)}</span>
                             </div>
                           )}
                         </div>
 
-                        {['credit', 'loan', 'huabei', 'baitiao', 'meituan_pay', 'douyin_pay', 'jiebei', 'fenfu'].includes(m.pendingAction.payload.type || m.pendingAction.payload.account_type) && (
+                        {['credit', 'loan', 'huabei', 'baitiao', 'meituan_pay', 'douyin_pay', 'jiebei', 'fenfu'].includes(act.payload.type || act.payload.account_type) && (
                           <div className="text-[10px] text-rose-600 dark:text-rose-400 font-medium flex items-center gap-1">
-                            <span>💳 本项将被计为负债，并在总净资产中自动扣减 ¥{parseFloat(m.pendingAction.payload.balance || 0).toFixed(2)}</span>
+                            <span>💳 本项将被计为负债，并在总净资产中自动扣减 ¥{parseFloat(act.payload.balance || 0).toFixed(2)}</span>
                           </div>
                         )}
                       </div>
                     )}
 
                     {/* Batch Accounts Staging List (100% Inline Editable) */}
-                    {(m.pendingAction.type === 'batch_create_accounts' || m.pendingAction.type === 'batch_update_balances') && (
+                    {(act.type === 'batch_create_accounts' || act.type === 'batch_update_balances') && (
                       <div className="space-y-2 bg-white/90 dark:bg-slate-900/90 p-2.5 rounded-2xl border border-amber-300 dark:border-amber-700 text-xs">
                         <div className="flex items-center justify-between px-1">
                           <span className="text-[11px] text-amber-800 dark:text-amber-300 font-black">
                             📝 待录入列表 (可直接点击修改名称、分类与金额)：
                           </span>
                           <span className="text-[10px] text-slate-400 font-mono">
-                            {(m.pendingAction.payload.accounts || m.pendingAction.payload.updates || []).length} 个项目
+                            {(act.payload.accounts || act.payload.updates || []).length} 个项目
                           </span>
                         </div>
 
-                        {(m.pendingAction.payload.accounts || m.pendingAction.payload.updates || []).map((it: any, idx: number) => {
+                        {(act.payload.accounts || act.payload.updates || []).map((it: any, idx: number) => {
                           const currentType = it.account_type || it.type || 'wallet';
                           const isLiab = ['credit', 'loan', 'huabei', 'baitiao', 'meituan_pay', 'douyin_pay', 'jiebei', 'fenfu'].includes(currentType);
                           
@@ -1749,14 +1978,14 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
                                   <input
                                     type="text"
                                     value={it.platform || it.name || ''}
-                                    onChange={(e) => handleUpdateBatchItemField(m.id, idx, 'platform', e.target.value)}
+                                    onChange={(e) => handleUpdateBatchItemField(m.id, idx, 'platform', e.target.value, act.id)}
                                     placeholder="账户/平台名称"
                                     className="w-full px-2 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold text-xs text-slate-900 dark:text-white"
                                   />
                                 </div>
                                 <button
                                   type="button"
-                                  onClick={() => handleRemoveBatchItem(m.id, idx)}
+                                  onClick={() => handleRemoveBatchItem(m.id, idx, act.id)}
                                   title="移除此项"
                                   className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition flex-shrink-0"
                                 >
@@ -1770,8 +1999,8 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
                                   <select
                                     value={currentType}
                                     onChange={(e) => {
-                                      handleUpdateBatchItemField(m.id, idx, 'account_type', e.target.value);
-                                      handleUpdateBatchItemField(m.id, idx, 'type', e.target.value);
+                                      handleUpdateBatchItemField(m.id, idx, 'account_type', e.target.value, act.id);
+                                      handleUpdateBatchItemField(m.id, idx, 'type', e.target.value, act.id);
                                     }}
                                     className={`w-full px-2 py-1 rounded-lg border text-[11px] font-bold ${
                                       isLiab 
@@ -1799,7 +2028,7 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
                                     type="number"
                                     step="any"
                                     value={it.balance ?? ''}
-                                    onChange={(e) => handleUpdateBatchItemField(m.id, idx, 'balance', parseFloat(e.target.value) || 0)}
+                                    onChange={(e) => handleUpdateBatchItemField(m.id, idx, 'balance', parseFloat(e.target.value) || 0, act.id)}
                                     placeholder="0.00"
                                     className={`w-full pl-6 pr-2 py-1 rounded-lg bg-white dark:bg-slate-900 border font-mono font-black text-xs text-right ${
                                       isLiab ? 'border-rose-300 dark:border-rose-800 text-rose-600 dark:text-rose-400' : 'border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white'
@@ -1814,12 +2043,12 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
                                   value={it.target_account_id || '__new__'}
                                   onChange={(e) => {
                                     const val = e.target.value;
-                                    handleUpdateBatchItemField(m.id, idx, 'target_account_id', val);
+                                    handleUpdateBatchItemField(m.id, idx, 'target_account_id', val, act.id);
                                     if (val !== '__new__') {
                                       const acc = accounts.find(a => a.id === val);
                                       if (acc) {
-                                        handleUpdateBatchItemField(m.id, idx, 'matched_account_name', acc.name);
-                                        handleUpdateBatchItemField(m.id, idx, 'existing_balance', acc.balance);
+                                        handleUpdateBatchItemField(m.id, idx, 'matched_account_name', acc.name, act.id);
+                                        handleUpdateBatchItemField(m.id, idx, 'existing_balance', acc.balance, act.id);
                                       }
                                     }
                                   }}
@@ -1859,7 +2088,7 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
                         {/* Add more item button */}
                         <button
                           type="button"
-                          onClick={() => handleAddBatchItem(m.id)}
+                          onClick={() => handleAddBatchItem(m.id, act.id)}
                           className="w-full py-2 text-[11px] font-bold text-amber-700 dark:text-amber-300 border border-dashed border-amber-300 dark:border-amber-700 rounded-xl hover:bg-amber-100/50 dark:hover:bg-amber-950/40 flex items-center justify-center gap-1 transition"
                         >
                           <Plus className="w-3.5 h-3.5" />
@@ -1869,7 +2098,7 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
                     )}
 
                     {/* Batch Investments / Securities Portfolio Staging List (100% Inline Editable) */}
-                    {(m.pendingAction.type === 'batch_create_investments' || m.pendingAction.type === 'create_investment') && (
+                    {(act.type === 'batch_create_investments' || act.type === 'create_investment') && (
                       <div className="space-y-2.5 bg-white/90 dark:bg-slate-900/90 p-3 rounded-2xl border border-indigo-300 dark:border-indigo-700 text-xs">
                         <div className="flex items-center justify-between px-1">
                           <div className="flex items-center gap-1.5 font-black text-indigo-900 dark:text-indigo-200">
@@ -1877,7 +2106,7 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
                             <span>📈 证券持仓与券商账户待录入：</span>
                           </div>
                           <span className="text-[10px] text-slate-400 font-mono">
-                            {(m.pendingAction.payload.items || [m.pendingAction.payload]).length} 个持仓标的
+                            {(act.payload.items || [act.payload]).length} 个持仓标的
                           </span>
                         </div>
 
@@ -1887,8 +2116,8 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
                             <label className="text-[9px] text-slate-400 block mb-0.5">所属券商平台</label>
                             <input
                               type="text"
-                              value={m.pendingAction.payload.broker_name || m.pendingAction.payload.account_name || '华泰证券'}
-                              onChange={(e) => handleUpdatePendingField(m.id, 'broker_name', e.target.value)}
+                              value={act.payload.broker_name || act.payload.account_name || '华泰证券'}
+                              onChange={(e) => handleUpdatePendingField(m.id, 'broker_name', e.target.value, act.id)}
                               placeholder="华泰证券"
                               className="w-full px-2 py-1 rounded-lg bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-700 font-bold text-xs"
                             />
@@ -1898,8 +2127,8 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
                             <input
                               type="number"
                               step="any"
-                              value={m.pendingAction.payload.total_assets ?? ''}
-                              onChange={(e) => handleUpdatePendingField(m.id, 'total_assets', parseFloat(e.target.value) || 0)}
+                              value={act.payload.total_assets ?? ''}
+                              onChange={(e) => handleUpdatePendingField(m.id, 'total_assets', parseFloat(e.target.value) || 0, act.id)}
                               placeholder="1966.65"
                               className="w-full px-2 py-1 rounded-lg bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-700 font-mono font-bold text-xs text-indigo-700 dark:text-indigo-300"
                             />
@@ -1908,7 +2137,7 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
 
                         {/* Holdings items */}
                         <div className="space-y-2">
-                          {(m.pendingAction.payload.items || [m.pendingAction.payload]).map((it: any, idx: number) => (
+                          {(act.payload.items || [act.payload]).map((it: any, idx: number) => (
                             <div key={idx} className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 space-y-2">
                               {/* Row 1: Name + Code + Delete */}
                               <div className="flex items-center gap-2">
@@ -1919,7 +2148,7 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
                                   <input
                                     type="text"
                                     value={it.name || ''}
-                                    onChange={(e) => handleUpdateInvestmentItemField(m.id, idx, 'name', e.target.value)}
+                                    onChange={(e) => handleUpdateInvestmentItemField(m.id, idx, 'name', e.target.value, act.id)}
                                     placeholder="标的名称（如 纳指ETF广发）"
                                     className="w-full px-2 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold text-xs"
                                   />
@@ -1928,14 +2157,14 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
                                   <input
                                     type="text"
                                     value={it.code || ''}
-                                    onChange={(e) => handleUpdateInvestmentItemField(m.id, idx, 'code', e.target.value)}
+                                    onChange={(e) => handleUpdateInvestmentItemField(m.id, idx, 'code', e.target.value, act.id)}
                                     placeholder="代码 159941"
                                     className="w-full px-2 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono font-bold text-[11px] text-center"
                                   />
                                 </div>
                                 <button
                                   type="button"
-                                  onClick={() => handleRemoveInvestmentItem(m.id, idx)}
+                                  onClick={() => handleRemoveInvestmentItem(m.id, idx, act.id)}
                                   className="p-1 rounded-lg text-slate-400 hover:text-rose-500 transition"
                                   title="删除此标的"
                                 >
@@ -1950,7 +2179,7 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
                                   <input
                                     type="number"
                                     value={it.shares ?? ''}
-                                    onChange={(e) => handleUpdateInvestmentItemField(m.id, idx, 'shares', parseFloat(e.target.value) || 0)}
+                                    onChange={(e) => handleUpdateInvestmentItemField(m.id, idx, 'shares', parseFloat(e.target.value) || 0, act.id)}
                                     className="w-full px-2 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono font-bold text-xs"
                                   />
                                 </div>
@@ -1960,7 +2189,7 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
                                     type="number"
                                     step="any"
                                     value={it.cost_price ?? ''}
-                                    onChange={(e) => handleUpdateInvestmentItemField(m.id, idx, 'cost_price', parseFloat(e.target.value) || 0)}
+                                    onChange={(e) => handleUpdateInvestmentItemField(m.id, idx, 'cost_price', parseFloat(e.target.value) || 0, act.id)}
                                     className="w-full px-2 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono font-bold text-xs"
                                   />
                                 </div>
@@ -1970,7 +2199,7 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
                                     type="number"
                                     step="any"
                                     value={it.market_value ?? ((it.shares || 0) * (it.current_price || it.cost_price || 0))}
-                                    onChange={(e) => handleUpdateInvestmentItemField(m.id, idx, 'market_value', parseFloat(e.target.value) || 0)}
+                                    onChange={(e) => handleUpdateInvestmentItemField(m.id, idx, 'market_value', parseFloat(e.target.value) || 0, act.id)}
                                     className="w-full px-2 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono font-black text-xs text-indigo-600 dark:text-indigo-300"
                                   />
                                 </div>
@@ -1982,7 +2211,7 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
                         {/* Add investment holding item */}
                         <button
                           type="button"
-                          onClick={() => handleAddInvestmentItem(m.id)}
+                          onClick={() => handleAddInvestmentItem(m.id, act.id)}
                           className="w-full py-2 text-[11px] font-bold text-indigo-700 dark:text-indigo-300 border border-dashed border-indigo-300 dark:border-indigo-700 rounded-xl hover:bg-indigo-100/50 dark:hover:bg-indigo-950/40 flex items-center justify-center gap-1 transition"
                         >
                           <Plus className="w-3.5 h-3.5" />
@@ -1992,7 +2221,7 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
                     )}
 
                     {/* Single & Batch Transaction Staging Card */}
-                    {(m.pendingAction.type === 'create_transaction' || m.pendingAction.type === 'batch_create_transactions') && (
+                    {(act.type === 'create_transaction' || act.type === 'batch_create_transactions') && (
                       <div className="space-y-2.5 bg-white/90 dark:bg-slate-900/90 p-3 rounded-2xl border border-emerald-300 dark:border-emerald-700 text-xs">
                         <div className="flex items-center justify-between px-1">
                           <div className="flex items-center gap-1.5 font-black text-emerald-900 dark:text-emerald-200">
@@ -2000,12 +2229,12 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
                             <span>🧾 消费/收支流水待入账：</span>
                           </div>
                           <span className="text-[10px] text-slate-400 font-mono">
-                            {(m.pendingAction.payload.items || [m.pendingAction.payload]).length} 笔交易
+                            {(act.payload.items || [act.payload]).length} 笔交易
                           </span>
                         </div>
 
                         <div className="space-y-2">
-                          {(m.pendingAction.payload.items || [m.pendingAction.payload]).map((it: any, idx: number) => (
+                          {(act.payload.items || [act.payload]).map((it: any, idx: number) => (
                             <div key={idx} className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 grid grid-cols-2 gap-2 text-[11px]">
                               <div>
                                 <label className="text-[9px] text-slate-400 block mb-0.5">商户/明细</label>
@@ -2013,12 +2242,12 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
                                   type="text"
                                   value={it.merchant || ''}
                                   onChange={(e) => {
-                                    if (m.pendingAction?.type === 'batch_create_transactions') {
-                                      const cur = [...(m.pendingAction?.payload?.items || [])];
+                                    if (act?.type === 'batch_create_transactions') {
+                                      const cur = [...(act?.payload?.items || [])];
                                       if (cur[idx]) cur[idx].merchant = e.target.value;
-                                      handleUpdatePendingField(m.id, 'items', cur);
+                                      handleUpdatePendingField(m.id, 'items', cur, act.id);
                                     } else {
-                                      handleUpdatePendingField(m.id, 'merchant', e.target.value);
+                                      handleUpdatePendingField(m.id, 'merchant', e.target.value, act.id);
                                     }
                                   }}
                                   className="w-full px-2 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold text-xs"
@@ -2032,12 +2261,12 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
                                   value={it.amount ?? ''}
                                   onChange={(e) => {
                                     const v = parseFloat(e.target.value) || 0;
-                                    if (m.pendingAction?.type === 'batch_create_transactions') {
-                                      const cur = [...(m.pendingAction?.payload?.items || [])];
+                                    if (act?.type === 'batch_create_transactions') {
+                                      const cur = [...(act?.payload?.items || [])];
                                       if (cur[idx]) cur[idx].amount = v;
-                                      handleUpdatePendingField(m.id, 'items', cur);
+                                      handleUpdatePendingField(m.id, 'items', cur, act.id);
                                     } else {
-                                      handleUpdatePendingField(m.id, 'amount', v);
+                                      handleUpdatePendingField(m.id, 'amount', v, act.id);
                                     }
                                   }}
                                   className="w-full px-2 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono font-black text-xs text-rose-600 dark:text-rose-400 text-right"
@@ -2050,7 +2279,7 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
                     )}
 
                     {/* Debt & Installment Staging Card */}
-                    {m.pendingAction.type === 'create_debt' && (
+                    {act.type === 'create_debt' && (
                       <div className="space-y-2 bg-white/90 dark:bg-slate-900/90 p-3 rounded-2xl border border-rose-300 dark:border-rose-700 text-xs">
                         <div className="flex items-center gap-1.5 font-black text-rose-900 dark:text-rose-200">
                           <CreditCard className="w-4 h-4 text-rose-600 flex-shrink-0" />
@@ -2061,8 +2290,8 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
                             <label className="text-[9px] text-slate-400 block mb-0.5">账单/平台名称</label>
                             <input
                               type="text"
-                              value={m.pendingAction.payload.name || ''}
-                              onChange={(e) => handleUpdatePendingField(m.id, 'name', e.target.value)}
+                              value={act.payload.name || ''}
+                              onChange={(e) => handleUpdatePendingField(m.id, 'name', e.target.value, act.id)}
                               placeholder="花呗分期 / 京东白条"
                               className="w-full px-2 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold text-xs"
                             />
@@ -2072,8 +2301,8 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
                             <input
                               type="number"
                               step="any"
-                              value={m.pendingAction.payload.total_principal ?? ''}
-                              onChange={(e) => handleUpdatePendingField(m.id, 'total_principal', parseFloat(e.target.value) || 0)}
+                              value={act.payload.total_principal ?? ''}
+                              onChange={(e) => handleUpdatePendingField(m.id, 'total_principal', parseFloat(e.target.value) || 0, act.id)}
                               className="w-full px-2 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono font-black text-xs text-rose-600 dark:text-rose-400 text-right"
                             />
                           </div>
@@ -2084,8 +2313,8 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
                             <input
                               type="number"
                               min="1"
-                              value={m.pendingAction.payload.total_installments ?? 1}
-                              onChange={(e) => handleUpdatePendingField(m.id, 'total_installments', parseInt(e.target.value) || 1)}
+                              value={act.payload.total_installments ?? 1}
+                              onChange={(e) => handleUpdatePendingField(m.id, 'total_installments', parseInt(e.target.value) || 1, act.id)}
                               className="w-full px-2 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono text-xs text-center"
                             />
                           </div>
@@ -2094,8 +2323,8 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
                             <input
                               type="number"
                               step="any"
-                              value={m.pendingAction.payload.monthly_payment ?? ''}
-                              onChange={(e) => handleUpdatePendingField(m.id, 'monthly_payment', parseFloat(e.target.value) || 0)}
+                              value={act.payload.monthly_payment ?? ''}
+                              onChange={(e) => handleUpdatePendingField(m.id, 'monthly_payment', parseFloat(e.target.value) || 0, act.id)}
                               placeholder="自动计算"
                               className="w-full px-2 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono text-xs text-right font-bold text-rose-500"
                             />
@@ -2106,8 +2335,8 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
                               type="number"
                               min="1"
                               max="31"
-                              value={m.pendingAction.payload.repay_day ?? 10}
-                              onChange={(e) => handleUpdatePendingField(m.id, 'repay_day', parseInt(e.target.value) || 10)}
+                              value={act.payload.repay_day ?? 10}
+                              onChange={(e) => handleUpdatePendingField(m.id, 'repay_day', parseInt(e.target.value) || 10, act.id)}
                               className="w-full px-2 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono text-xs text-center font-bold text-indigo-500"
                             />
                           </div>
@@ -2116,7 +2345,7 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
                     )}
 
                     {/* Set Monthly Salary Staging Card */}
-                    {m.pendingAction.type === 'set_monthly_income_plan' && (
+                    {act.type === 'set_monthly_income_plan' && (
                       <div className="space-y-2 bg-white/90 dark:bg-slate-900/90 p-3 rounded-2xl border border-emerald-300 dark:border-emerald-700 text-xs">
                         <div className="flex items-center gap-1.5 font-black text-emerald-900 dark:text-emerald-200">
                           <Calendar className="w-4 h-4 text-emerald-600 flex-shrink-0" />
@@ -2127,8 +2356,8 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
                           <input
                             type="number"
                             step="any"
-                            value={m.pendingAction.payload.expected_salary ?? ''}
-                            onChange={(e) => handleUpdatePendingField(m.id, 'expected_salary', parseFloat(e.target.value) || 0)}
+                            value={act.payload.expected_salary ?? ''}
+                            onChange={(e) => handleUpdatePendingField(m.id, 'expected_salary', parseFloat(e.target.value) || 0, act.id)}
                             placeholder="例如 8500"
                             className="w-full px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-emerald-300 dark:border-emerald-700 font-mono font-black text-sm text-emerald-600 dark:text-emerald-400 text-right"
                           />
@@ -2137,12 +2366,12 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
                     )}
 
                     {/* Mark Debt Repaid Staging Card */}
-                    {m.pendingAction.type === 'mark_debt_repaid' && (
+                    {act.type === 'mark_debt_repaid' && (
                       <div className="p-3.5 rounded-2xl bg-white/90 dark:bg-slate-900/90 border border-teal-300 dark:border-teal-700 text-xs space-y-2.5 shadow-sm">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2 font-bold text-teal-800 dark:text-teal-200">
                             <CheckCircle2 className="w-4 h-4 text-teal-600 flex-shrink-0" />
-                            <span>💳 还款销账待确认：【{m.pendingAction.payload.debt_name}】</span>
+                            <span>💳 还款销账待确认：【{act.payload.debt_name}】</span>
                           </div>
                           <span className="text-[10px] px-2 py-0.5 rounded-full bg-teal-100 dark:bg-teal-900 text-teal-700 dark:text-teal-300 font-bold">
                             冲减待还本金
@@ -2154,8 +2383,8 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
                             <input
                               type="number"
                               step="any"
-                              value={m.pendingAction.payload.repay_amount ?? ''}
-                              onChange={(e) => handleUpdatePendingField(m.id, 'repay_amount', parseFloat(e.target.value) || 0)}
+                              value={act.payload.repay_amount ?? ''}
+                              onChange={(e) => handleUpdatePendingField(m.id, 'repay_amount', parseFloat(e.target.value) || 0, act.id)}
                               placeholder="默认当期月供"
                               className="w-full px-2 py-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono font-bold text-xs text-teal-600 text-right"
                             />
@@ -2163,8 +2392,8 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
                           <div>
                             <label className="text-[10px] text-slate-400 block mb-0.5">付款资金账户</label>
                             <select
-                              value={m.pendingAction.payload.payment_account_name || ''}
-                              onChange={(e) => handleUpdatePendingField(m.id, 'payment_account_name', e.target.value)}
+                              value={act.payload.payment_account_name || ''}
+                              onChange={(e) => handleUpdatePendingField(m.id, 'payment_account_name', e.target.value, act.id)}
                               className="w-full px-2 py-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold"
                             >
                               <option value="">自动首选账户 (微信/支付宝)</option>
@@ -2182,12 +2411,12 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
                     )}
 
                     {/* Generate Monthly Budget Plan Staging Card */}
-                    {m.pendingAction.type === 'generate_monthly_budget_plan' && (
+                    {act.type === 'generate_monthly_budget_plan' && (
                       <div className="p-3.5 rounded-2xl bg-white/95 dark:bg-slate-900/95 border border-indigo-300 dark:border-indigo-700 text-xs space-y-3 shadow-md">
                         <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
                           <div className="flex items-center gap-2 font-bold text-indigo-900 dark:text-indigo-200">
                             <Sparkles className="w-4 h-4 text-indigo-600 flex-shrink-0" />
-                            <span>📊 {m.pendingAction.payload.plan_title || '月度全套财务预算方案建议'}</span>
+                            <span>📊 {act.payload.plan_title || '月度全套财务预算方案建议'}</span>
                           </div>
                           <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-900/80 text-indigo-700 dark:text-indigo-300 font-bold">
                             可直接语音/打字微调
@@ -2199,19 +2428,19 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
                           <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60">
                             <div className="text-[9px] text-slate-400">预期到手月薪</div>
                             <div className="text-xs font-black font-mono text-emerald-600 dark:text-emerald-400 mt-0.5">
-                              ¥{(m.pendingAction.payload.expected_salary || 0).toLocaleString()}
+                              ¥{(act.payload.expected_salary || 0).toLocaleString()}
                             </div>
                           </div>
                           <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60">
                             <div className="text-[9px] text-slate-400">建议存钱目标</div>
                             <div className="text-xs font-black font-mono text-amber-600 dark:text-amber-400 mt-0.5">
-                              ¥{(m.pendingAction.payload.savings_target || 0).toLocaleString()}
+                              ¥{(act.payload.savings_target || 0).toLocaleString()}
                             </div>
                           </div>
                           <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60">
                             <div className="text-[9px] text-slate-400">日常总预算</div>
                             <div className="text-xs font-black font-mono text-purple-600 dark:text-purple-400 mt-0.5">
-                              ¥{((m.pendingAction.payload.budgets || []).reduce((s: number, b: any) => s + (parseFloat(b.amount) || 0), 0)).toLocaleString()}
+                              ¥{((act.payload.budgets || []).reduce((s: number, b: any) => s + (parseFloat(b.amount) || 0), 0)).toLocaleString()}
                             </div>
                           </div>
                         </div>
@@ -2220,7 +2449,7 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
                         <div className="space-y-1.5 pt-1">
                           <div className="text-[10px] font-bold text-slate-400">各项分类预算规划明细：</div>
                           <div className="grid grid-cols-2 gap-1.5">
-                            {(m.pendingAction.payload.budgets || []).map((b: any, idx: number) => (
+                            {(act.payload.budgets || []).map((b: any, idx: number) => (
                               <div key={idx} className="p-1.5 px-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80 flex items-center justify-between">
                                 <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 truncate max-w-[80px]">
                                   {b.category_name}
@@ -2241,7 +2470,7 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
                     )}
 
                     {/* Budget Staging Card */}
-                    {m.pendingAction.type === 'set_budget' && (
+                    {act.type === 'set_budget' && (
                       <div className="space-y-2 bg-white/90 dark:bg-slate-900/90 p-3 rounded-2xl border border-purple-300 dark:border-purple-700 text-xs">
                         <div className="flex items-center gap-1.5 font-black text-purple-900 dark:text-purple-200">
                           <PieChart className="w-4 h-4 text-purple-600 flex-shrink-0" />
@@ -2252,8 +2481,8 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
                             <label className="text-[9px] text-slate-400 block mb-0.5">预算分类</label>
                             <input
                               type="text"
-                              value={m.pendingAction.payload.category_name || ''}
-                              onChange={(e) => handleUpdatePendingField(m.id, 'category_name', e.target.value)}
+                              value={act.payload.category_name || ''}
+                              onChange={(e) => handleUpdatePendingField(m.id, 'category_name', e.target.value, act.id)}
                               placeholder="餐饮美食"
                               className="w-full px-2 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold text-xs"
                             />
@@ -2263,8 +2492,8 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
                             <input
                               type="number"
                               step="any"
-                              value={m.pendingAction.payload.amount ?? ''}
-                              onChange={(e) => handleUpdatePendingField(m.id, 'amount', parseFloat(e.target.value) || 0)}
+                              value={act.payload.amount ?? ''}
+                              onChange={(e) => handleUpdatePendingField(m.id, 'amount', parseFloat(e.target.value) || 0, act.id)}
                               className="w-full px-2 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono font-bold text-xs text-purple-600 dark:text-purple-400 text-right"
                             />
                           </div>
@@ -2273,7 +2502,7 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
                     )}
 
                     {/* Goal Staging Card */}
-                    {m.pendingAction.type === 'create_goal' && (
+                    {act.type === 'create_goal' && (
                       <div className="space-y-2 bg-white/90 dark:bg-slate-900/90 p-3 rounded-2xl border border-amber-300 dark:border-amber-700 text-xs">
                         <div className="flex items-center gap-1.5 font-black text-amber-900 dark:text-amber-200">
                           <Sparkles className="w-4 h-4 text-amber-600 flex-shrink-0" />
@@ -2284,8 +2513,8 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
                             <label className="text-[9px] text-slate-400 block mb-0.5">心愿目标</label>
                             <input
                               type="text"
-                              value={m.pendingAction.payload.name || ''}
-                              onChange={(e) => handleUpdatePendingField(m.id, 'name', e.target.value)}
+                              value={act.payload.name || ''}
+                              onChange={(e) => handleUpdatePendingField(m.id, 'name', e.target.value, act.id)}
                               placeholder="买新手机"
                               className="w-full px-2 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold text-xs"
                             />
@@ -2295,8 +2524,8 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
                             <input
                               type="number"
                               step="any"
-                              value={m.pendingAction.payload.target_amount ?? ''}
-                              onChange={(e) => handleUpdatePendingField(m.id, 'target_amount', parseFloat(e.target.value) || 0)}
+                              value={act.payload.target_amount ?? ''}
+                              onChange={(e) => handleUpdatePendingField(m.id, 'target_amount', parseFloat(e.target.value) || 0, act.id)}
                               className="w-full px-2 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono font-bold text-xs text-amber-600 dark:text-amber-400 text-right"
                             />
                           </div>
@@ -2305,7 +2534,7 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
                     )}
 
                     {/* Recurring Rule Staging Card */}
-                    {m.pendingAction.type === 'create_recurring_rule' && (
+                    {act.type === 'create_recurring_rule' && (
                       <div className="space-y-2 bg-white/90 dark:bg-slate-900/90 p-3 rounded-2xl border border-blue-300 dark:border-blue-700 text-xs">
                         <div className="flex items-center gap-1.5 font-black text-blue-900 dark:text-blue-200">
                           <Clock className="w-4 h-4 text-blue-600 flex-shrink-0" />
@@ -2316,8 +2545,8 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
                             <label className="text-[9px] text-slate-400 block mb-0.5">规则名称</label>
                             <input
                               type="text"
-                              value={m.pendingAction.payload.name || ''}
-                              onChange={(e) => handleUpdatePendingField(m.id, 'name', e.target.value)}
+                              value={act.payload.name || ''}
+                              onChange={(e) => handleUpdatePendingField(m.id, 'name', e.target.value, act.id)}
                               placeholder="房租 / 工资"
                               className="w-full px-2 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold text-xs"
                             />
@@ -2327,8 +2556,8 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
                             <input
                               type="number"
                               step="any"
-                              value={m.pendingAction.payload.amount ?? ''}
-                              onChange={(e) => handleUpdatePendingField(m.id, 'amount', parseFloat(e.target.value) || 0)}
+                              value={act.payload.amount ?? ''}
+                              onChange={(e) => handleUpdatePendingField(m.id, 'amount', parseFloat(e.target.value) || 0, act.id)}
                               className="w-full px-2 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono font-bold text-xs text-right"
                             />
                           </div>
@@ -2336,26 +2565,42 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
                       </div>
                     )}
 
-                    {/* Staging Confirmation Buttons */}
-                    <div className="flex items-center gap-2 pt-1">
-                      <button
-                        type="button"
-                        onClick={() => handleCommitPendingAction(m.id)}
-                        className="flex-1 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold shadow-md shadow-emerald-500/20 flex items-center justify-center gap-1.5 transition active:scale-95"
-                      >
-                        <CheckCheck className="w-3.5 h-3.5" />
-                        <span>确认无误，立即录入账本</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleCancelPendingAction(m.id)}
-                        className="py-1.5 px-3 rounded-xl bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 text-slate-600 dark:text-slate-300 text-[11px] font-bold transition"
-                      >
-                        取消
-                      </button>
+                    
+
+                            {/* Card Action Footer */}
+                            {isStaged && (
+                              <div className="flex items-center gap-2 pt-1 border-t border-amber-200/60 dark:border-amber-800/60">
+                                <button
+                                  type="button"
+                                  onClick={() => handleCommitPendingAction(m.id, act.id)}
+                                  className="flex-1 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold shadow-md shadow-emerald-500/20 flex items-center justify-center gap-1.5 transition active:scale-95"
+                                >
+                                  <CheckCheck className="w-3.5 h-3.5" />
+                                  <span>确认无误，录入此项</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleCancelPendingAction(m.id, act.id)}
+                                  className="py-1.5 px-3 rounded-xl bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 text-slate-600 dark:text-slate-300 text-[11px] font-bold transition"
+                                >
+                                  移除
+                                </button>
+                              </div>
+                            )}
+
+                            {isCommitted && (
+                              <div className="flex items-center justify-between pt-1 text-[11px] text-emerald-700 dark:text-emerald-300 font-bold border-t border-emerald-200/50 dark:border-emerald-800/50">
+                                <span className="flex items-center gap-1"><Check className="w-3.5 h-3.5" /> 此项已成功写入账本</span>
+                                <span className="text-[10px] text-slate-400 font-normal">已在资产/负债/明细中同步生效</span>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
+
 
                 {/* Post-Action Result Cards (After Confirmed) */}
                 {m.actionResult && m.actionResult.type === 'account_created' && (

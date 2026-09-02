@@ -238,6 +238,13 @@ export interface RecurringRule {
   note?: string;
 }
 
+export interface StagedAgentAction {
+  id?: string;
+  type: string;
+  status: 'staged' | 'committed' | 'cancelled';
+  payload: any;
+}
+
 export interface AgentChatMessage {
   id: string;
   role: 'user' | 'assistant' | 'system';
@@ -246,11 +253,8 @@ export interface AgentChatMessage {
   imageUrl?: string;
   imageUrls?: string[];
   timestamp: string;
-  pendingAction?: {
-    type: string;
-    status: 'staged' | 'committed' | 'cancelled';
-    payload: any;
-  };
+  pendingAction?: StagedAgentAction;
+  pendingActions?: StagedAgentAction[];
   actionResult?: {
     type: string;
     data?: any;
@@ -264,5 +268,9 @@ export interface AgentResponse {
     type: string;
     payload?: any;
   };
+  actions?: Array<{
+    type: string;
+    payload?: any;
+  }>;
 }
 
