@@ -29,8 +29,10 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
   const [dragY, setDragY] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const startYRef = useRef(0);
+  const startXRef = useRef(0);
   const currentYRef = useRef(0);
   const sheetRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
 
   // Trigger smooth enter/exit animations
   useEffect(() => {
@@ -54,40 +56,63 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
     };
   }, [isOpen]);
 
-  // Touch gesture handlers for pull-down to dismiss
+  // Universal Touch Gesture Handlers (Supports dragging down anywhere on the sheet when content is at top)
   const handleTouchStart = (e: React.TouchEvent) => {
-    // Only allow drag-to-dismiss when initiated on drag handle or header
     startYRef.current = e.touches[0].clientY;
+    startXRef.current = e.touches[0].clientX;
     currentYRef.current = e.touches[0].clientY;
-    setIsDragging(true);
   };
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    if (!isDragging) return;
-    const delta = e.touches[0].clientY - startYRef.current;
-    if (delta > 0) {
-      // Damped downward pull
-      setDragY(delta * 0.75);
-    } else {
-      // Rubber-band resistance upward
-      setDragY(delta * 0.15);
+    const clientY = e.touches[0].clientY;
+    const clientX = e.touches[0].clientX;
+    const deltaY = clientY - startYRef.current;
+    const deltaX = clientX - startXRef.current;
+
+    // Ignore predominantly horizontal swipes
+    if (Math.abs(deltaX) > Math.abs(deltaY) && !isDragging) {
+      return;
     }
-    currentYRef.current = e.touches[0].clientY;
+
+    const contentScrollTop = contentRef.current ? contentRef.current.scrollTop : 0;
+
+    // Only initiate drag-down if content is at the top (scrollTop <= 0) and pulling downwards,
+    // OR if already in dragging state
+    if ((contentScrollTop <= 0 && deltaY > 0) || isDragging) {
+      if (!isDragging) {
+        setIsDragging(true);
+      }
+      currentYRef.current = clientY;
+
+      if (deltaY > 0) {
+        // Damped downward pull
+        setDragY(deltaY * 0.75);
+      } else {
+        // Rubber-band resistance upward
+        setDragY(deltaY * 0.15);
+      }
+    }
   }, [isDragging]);
 
   const handleTouchEnd = useCallback(() => {
-    if (!isDragging) return;
-    setIsDragging(false);
-    const delta = currentYRef.current - startYRef.current;
-    if (delta > 90) {
-      // Pulled down enough to dismiss
-      haptic.sheetClose();
-      onClose();
+    if (isDragging) {
+      setIsDragging(false);
+      const delta = currentYRef.current - startYRef.current;
+      // 80px threshold to trigger smooth dismiss
+      if (delta > 80) {
+        haptic.sheetClose();
+        onClose();
+      }
+      setDragY(0);
     }
-    setDragY(0);
   }, [isDragging, onClose]);
 
   if (!isOpen && !mounted) return null;
+
+  // Real-time backdrop opacity decay based on drag distance
+  const backdropOpacity = isDragging && dragY > 0 
+    ? Math.max(0.1, 1 - dragY / 320) 
+    : 1;
 
   return (
     <div 
@@ -95,8 +120,9 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
         isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
       }`}
     >
-      {/* Backdrop overlay with blur */}
+      {/* Backdrop overlay with dynamic blur and opacity */}
       <div 
+        style={{ opacity: backdropOpacity }}
         className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm transition-opacity"
         onClick={() => {
           haptic.selection();
@@ -105,9 +131,12 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
         aria-hidden="true"
       />
 
-      {/* iOS BottomSheet Sheet Panel */}
+      {/* iOS BottomSheet Sheet Panel with universal touch listener */}
       <div
         ref={sheetRef}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
         style={{
           transform: isDragging 
             ? `translate3d(0, ${Math.max(0, dragY)}px, 0)`
@@ -118,13 +147,8 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
         }}
         className={`relative w-full max-w-lg mx-auto bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl rounded-t-[28px] border-t border-slate-200/80 dark:border-slate-800/80 shadow-2xl flex flex-col ${maxHeightClass} pb-[env(safe-area-inset-bottom,16px)]`}
       >
-        {/* Drag Handle & Header Touch Area */}
-        <div 
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
-          className="pt-3 pb-2 px-5 select-none cursor-grab active:cursor-grabbing shrink-0"
-        >
+        {/* Drag Handle & Header Area */}
+        <div className="pt-3 pb-2 px-5 select-none shrink-0 cursor-grab active:cursor-grabbing">
           {showHandle && (
             <div className="w-10 h-1.5 rounded-full bg-slate-300 dark:bg-slate-700 mx-auto mb-2.5 transition-colors" />
           )}
@@ -160,8 +184,11 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
           </div>
         </div>
 
-        {/* Scrollable Content Body */}
-        <div className={`overflow-y-auto overscroll-contain flex-1 ${contentClassName}`}>
+        {/* Scrollable Content Body with contentRef */}
+        <div 
+          ref={contentRef}
+          className={`overflow-y-auto overscroll-contain flex-1 ${contentClassName}`}
+        >
           {children}
         </div>
       </div>

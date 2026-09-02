@@ -1,0 +1,41 @@
+{
+  "url": "https://mnijc19-netizen.github.io/-/",
+  "timestamp": "2026-09-02T18:08:53.580Z",
+  "viewport": "390x844 (iPhone 16 Pro)",
+  "test1_homePage": {
+    "title": "斌斌钱包",
+    "loaded": true
+  },
+  "test2_quickAddSheet": {
+    "found": true,
+    "hasExpenseTab": true,
+    "hasIncomeTab": true,
+    "hasTransferTab": true,
+    "hasRepayTab": true,
+    "hasAmountInput": true,
+    "hasCategoryFood": true,
+    "hasCategoryDaily": true,
+    "hasPreset10": true,
+    "hasPreset20": true,
+    "hasPreset50": true,
+    "hasHeaderCamera": true,
+    "hasHeaderClipboard": true,
+    "hasSaveButton": true,
+    "buttonsSample": [
+      "",
+      "",
+      "",
+      "支出",
+      "收入",
+      "转账",
+      "还款",
+      "+10",
+      "+20",
+      "+50"
+    ]
+  },
+  "test3_iphoneShortcutSheet": {},
+  "test4_onboardingSheet": {},
+  "consoleErrors": [],
+  "pageErrors": []
+}

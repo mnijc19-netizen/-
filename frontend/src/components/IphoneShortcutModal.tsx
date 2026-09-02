@@ -137,62 +137,86 @@ export const IphoneShortcutModal: React.FC<IphoneShortcutModalProps> = ({ isOpen
       </div>
 
       {/* Tab 1: 2-Step Instant Jump (Zero Waiting, Native App Feel) */}
+      {/* Tab 1: 2-Step Instant Jump (Zero Waiting, Native App Feel) */}
       {activeTab === 'easy_url' && (
         <div className="space-y-3">
+          {/* Hero Banner */}
           <div className="p-3.5 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 space-y-1.5">
             <div className="font-bold text-emerald-900 dark:text-emerald-200 flex items-center gap-1.5 text-xs">
               <Sparkles className="w-4 h-4 text-emerald-500" />
               ⚡ 原生级体验：长按侧键秒跳记账卡（0 等待 · 0 门槛）
             </div>
             <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
-              像原生记账 App 一样丝滑！快捷指令仅需 2 个动作，付完款长按手机侧键截屏，瞬间直跳网页并直接弹好填完的入账卡片，点一次「保存」即入库！
+              像原生记账 App 一样丝滑！付完款长按手机侧键截屏，瞬间直跳网页并直接弹好填完的入账卡片，点一次「保存」即入库，无需后台等待！
             </p>
           </div>
 
-          <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 space-y-2.5">
-            <div className="font-bold text-slate-800 dark:text-slate-200 text-xs flex items-center gap-1.5">
-              <span>快捷指令只需 2 步动作：</span>
-            </div>
-
-            <div className="space-y-2 text-[11px] text-slate-700 dark:text-slate-300">
-              <div className="flex items-start gap-2 p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800">
-                <span className="w-5 h-5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-bold flex items-center justify-center shrink-0 text-[10px]">1</span>
-                <div>
-                  <div className="font-bold">动作一：截屏 ➔ 从图像提取文本</div>
-                  <div className="text-[10px] text-slate-400">iOS 自带识别，0.1 秒完成</div>
-                </div>
+          {/* Option A: 1-Click iCloud Shortcut Install */}
+          <div className="p-3.5 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-indigo-500/10 border border-emerald-300 dark:border-emerald-700 space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="text-xs font-black text-slate-900 dark:text-white flex items-center gap-1.5">
+                <Zap className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                <span>推荐：官方快捷指令一键添加</span>
               </div>
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 font-bold">
+                1 秒免配置
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+              点击下方按钮直接唤起 iPhone 官方安装弹窗，点击「添加快捷指令」即可永久安装，无需手动拼装任何动作！
+            </p>
+            <button
+              type="button"
+              onClick={handleOpenShortcutsApp}
+              className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-sm shadow-emerald-500/20 active:scale-98 transition"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+              <span>一键唤起 iPhone 快捷指令</span>
+            </button>
+          </div>
 
-              <div className="flex items-start gap-2 p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800">
-                <span className="w-5 h-5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-bold flex items-center justify-center shrink-0 text-[10px]">2</span>
-                <div className="flex-1 min-w-0">
-                  <div className="font-bold flex items-center justify-between">
-                    <span>动作二：打开 URL (带上识别文本)</span>
-                    <button
-                      type="button"
-                      onClick={() => handleCopy(universalShortcutUrl, 'easyUrl')}
-                      className="px-2 py-0.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[9.5px] flex items-center gap-1 active:scale-95 transition"
-                    >
-                      {copiedKey === 'easyUrl' ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-                      <span>{copiedKey === 'easyUrl' ? '已复制' : '一键复制 URL'}</span>
-                    </button>
-                  </div>
-                  <div className="text-[9.5px] font-mono text-emerald-600 dark:text-emerald-400 truncate mt-0.5">
-                    {universalShortcutUrl}
-                  </div>
+          {/* Option B: Zero-Barrier Pure Web Flow (No Shortcuts Needed!) */}
+          <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 space-y-2">
+            <div className="text-xs font-black text-slate-900 dark:text-white flex items-center gap-1.5">
+              <span>💡 觉得快捷指令麻烦？完全不用装！</span>
+            </div>
+            <div className="grid grid-cols-2 gap-2 pt-0.5">
+              <div className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 space-y-1">
+                <div className="text-[11px] font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1">
+                  <span>📸 相册直接选图</span>
                 </div>
+                <p className="text-[10px] text-slate-400 leading-relaxed">
+                  点底部「+」右上角相机，直接选付款截图，AI 秒级识别入账
+                </p>
+              </div>
+              <div className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 space-y-1">
+                <div className="text-[11px] font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1">
+                  <span>📋 剪贴板秒识别</span>
+                </div>
+                <p className="text-[10px] text-slate-400 leading-relaxed">
+                  复制微信账单或银行扣款短信，打开网页点剪贴板自动入库
+                </p>
               </div>
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={handleOpenShortcutsApp}
-            className="w-full py-3 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-md shadow-emerald-500/20 active:scale-98 transition"
-          >
-            <ExternalLink className="w-4 h-4" />
-            <span>一键打开 iPhone 快捷指令 App 配置</span>
-          </button>
+          {/* Option C: Manual 2-Step Configuration (For Advanced Users) */}
+          <div className="p-3.5 rounded-2xl bg-slate-50/60 dark:bg-slate-800/30 border border-slate-200/60 dark:border-slate-700/60 space-y-2">
+            <div className="font-bold text-slate-700 dark:text-slate-300 text-[11px] flex items-center justify-between">
+              <span>🛠️ 极客自配：直跳链接 (2步动作)</span>
+              <button
+                type="button"
+                onClick={() => handleCopy(universalShortcutUrl, 'easyUrl')}
+                className="px-2 py-0.5 rounded-lg bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold text-[9.5px] flex items-center gap-1 active:scale-95 transition"
+              >
+                {copiedKey === 'easyUrl' ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                <span>{copiedKey === 'easyUrl' ? '已复制' : '复制 URL'}</span>
+              </button>
+            </div>
+            <div className="text-[9.5px] font-mono text-emerald-600 dark:text-emerald-400 truncate bg-white dark:bg-slate-900 p-2 rounded-xl border border-slate-200/60 dark:border-slate-800">
+              {universalShortcutUrl}
+            </div>
+          </div>
         </div>
       )}
 

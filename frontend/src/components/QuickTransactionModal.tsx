@@ -34,10 +34,14 @@ interface QuickTransactionModalProps {
 }
 
 // Visual category presets with emoji icons and styling
-const CATEGORY_META: Record<string, { icon: string; bg: string; text: string }> = {
+export const CATEGORY_META: Record<string, { icon: string; bg: string; text: string }> = {
   '餐饮美食': { icon: '🍱', bg: 'bg-orange-500/10 dark:bg-orange-500/20', text: 'text-orange-600 dark:text-orange-400' },
   '日用百货': { icon: '🛒', bg: 'bg-blue-500/10 dark:bg-blue-500/20', text: 'text-blue-600 dark:text-blue-400' },
   '交通出行': { icon: '🚕', bg: 'bg-amber-500/10 dark:bg-amber-500/20', text: 'text-amber-600 dark:text-amber-400' },
+  '购物消费': { icon: '🛍️', bg: 'bg-pink-500/10 dark:bg-pink-500/20', text: 'text-pink-600 dark:text-pink-400' },
+  '数码科技': { icon: '💻', bg: 'bg-indigo-500/10 dark:bg-indigo-500/20', text: 'text-indigo-600 dark:text-indigo-400' },
+  '社交人情': { icon: '🎁', bg: 'bg-rose-500/10 dark:bg-rose-500/20', text: 'text-rose-600 dark:text-rose-400' },
+  '金融还款': { icon: '💳', bg: 'bg-slate-500/10 dark:bg-slate-500/20', text: 'text-slate-600 dark:text-slate-400' },
   '休闲娱乐': { icon: '🎮', bg: 'bg-purple-500/10 dark:bg-purple-500/20', text: 'text-purple-600 dark:text-purple-400' },
   '医疗健康': { icon: '💊', bg: 'bg-emerald-500/10 dark:bg-emerald-500/20', text: 'text-emerald-600 dark:text-emerald-400' },
   '住房物业': { icon: '🏠', bg: 'bg-cyan-500/10 dark:bg-cyan-500/20', text: 'text-cyan-600 dark:text-cyan-400' },
@@ -45,12 +49,70 @@ const CATEGORY_META: Record<string, { icon: string; bg: string; text: string }> 
   '文化教育': { icon: '🎓', bg: 'bg-teal-500/10 dark:bg-teal-500/20', text: 'text-teal-600 dark:text-teal-400' },
   '服饰装扮': { icon: '👗', bg: 'bg-pink-500/10 dark:bg-pink-500/20', text: 'text-pink-600 dark:text-pink-400' },
   '其他支出': { icon: '📦', bg: 'bg-slate-500/10 dark:bg-slate-500/20', text: 'text-slate-600 dark:text-slate-400' },
+  '工资薪金': { icon: '💰', bg: 'bg-emerald-500/10 dark:bg-emerald-500/20', text: 'text-emerald-600 dark:text-emerald-400' },
   '薪资收入': { icon: '💰', bg: 'bg-emerald-500/10 dark:bg-emerald-500/20', text: 'text-emerald-600 dark:text-emerald-400' },
   '投资理财': { icon: '📈', bg: 'bg-indigo-500/10 dark:bg-indigo-500/20', text: 'text-indigo-600 dark:text-indigo-400' },
+  '兼职副业': { icon: '💼', bg: 'bg-teal-500/10 dark:bg-teal-500/20', text: 'text-teal-600 dark:text-teal-400' },
   '兼职外快': { icon: '💼', bg: 'bg-teal-500/10 dark:bg-teal-500/20', text: 'text-teal-600 dark:text-teal-400' },
   '礼金红包': { icon: '🧧', bg: 'bg-rose-500/10 dark:bg-rose-500/20', text: 'text-rose-600 dark:text-rose-400' },
   '其他收入': { icon: '💵', bg: 'bg-blue-500/10 dark:bg-blue-500/20', text: 'text-blue-600 dark:text-blue-400' }
 };
+
+export function getCategoryMeta(categoryName: string): { icon: string; bg: string; text: string } {
+  const name = (categoryName || '').trim();
+  if (CATEGORY_META[name]) {
+    return CATEGORY_META[name];
+  }
+
+  // Fuzzy semantic keywords resolver
+  if (/餐|吃|饭|美|外卖|咖啡|茶|肯德基|麦当劳|粮|面/.test(name)) {
+    return { icon: '🍱', bg: 'bg-orange-500/10 dark:bg-orange-500/20', text: 'text-orange-600 dark:text-orange-400' };
+  }
+  if (/车|行|打车|滴滴|高铁|飞机|油|地铁|公|高德/.test(name)) {
+    return { icon: '🚕', bg: 'bg-amber-500/10 dark:bg-amber-500/20', text: 'text-amber-600 dark:text-amber-400' };
+  }
+  if (/百货|商超|超市|日用|杂|果|生鲜/.test(name)) {
+    return { icon: '🛒', bg: 'bg-blue-500/10 dark:bg-blue-500/20', text: 'text-blue-600 dark:text-blue-400' };
+  }
+  if (/购|淘宝|京东|拼多多|网购|天猫|买/.test(name)) {
+    return { icon: '🛍️', bg: 'bg-pink-500/10 dark:bg-pink-500/20', text: 'text-pink-600 dark:text-pink-400' };
+  }
+  if (/数码|科技|手机|电脑|电子|ipad|硬件/.test(name)) {
+    return { icon: '💻', bg: 'bg-indigo-500/10 dark:bg-indigo-500/20', text: 'text-indigo-600 dark:text-indigo-400' };
+  }
+  if (/人情|社交|送礼|礼|客|友|请客/.test(name)) {
+    return { icon: '🎁', bg: 'bg-rose-500/10 dark:bg-rose-500/20', text: 'text-rose-600 dark:text-rose-400' };
+  }
+  if (/还款|金融|分期|白条|花呗|借|贷|还债|信用/.test(name)) {
+    return { icon: '💳', bg: 'bg-slate-500/10 dark:bg-slate-500/20', text: 'text-slate-600 dark:text-slate-400' };
+  }
+  if (/医|药|病|健康|门诊|院/.test(name)) {
+    return { icon: '💊', bg: 'bg-emerald-500/10 dark:bg-emerald-500/20', text: 'text-emerald-600 dark:text-emerald-400' };
+  }
+  if (/房|住|水|电|燃气|租|物业|暖/.test(name)) {
+    return { icon: '🏠', bg: 'bg-cyan-500/10 dark:bg-cyan-500/20', text: 'text-cyan-600 dark:text-cyan-400' };
+  }
+  if (/娱|玩|游戏|游|影|乐|视|vip/.test(name)) {
+    return { icon: '🎮', bg: 'bg-purple-500/10 dark:bg-purple-500/20', text: 'text-purple-600 dark:text-purple-400' };
+  }
+  if (/衣|服|装|鞋|包|美妆|饰/.test(name)) {
+    return { icon: '👗', bg: 'bg-pink-500/10 dark:bg-pink-500/20', text: 'text-pink-600 dark:text-pink-400' };
+  }
+  if (/工|薪|资|收入/.test(name)) {
+    return { icon: '💰', bg: 'bg-emerald-500/10 dark:bg-emerald-500/20', text: 'text-emerald-600 dark:text-emerald-400' };
+  }
+  if (/红|礼金/.test(name)) {
+    return { icon: '🧧', bg: 'bg-rose-500/10 dark:bg-rose-500/20', text: 'text-rose-600 dark:text-rose-400' };
+  }
+  if (/兼职|副业|外快|单/.test(name)) {
+    return { icon: '💼', bg: 'bg-teal-500/10 dark:bg-teal-500/20', text: 'text-teal-600 dark:text-teal-400' };
+  }
+  if (/理财|投|股|基|债|利息/.test(name)) {
+    return { icon: '📈', bg: 'bg-indigo-500/10 dark:bg-indigo-500/20', text: 'text-indigo-600 dark:text-indigo-400' };
+  }
+
+  return { icon: '✨', bg: 'bg-slate-500/10 dark:bg-slate-500/20', text: 'text-slate-600 dark:text-slate-400' };
+}
 
 export const QuickTransactionModal: React.FC<QuickTransactionModalProps> = ({
   isOpen,
@@ -364,7 +426,7 @@ export const QuickTransactionModal: React.FC<QuickTransactionModalProps> = ({
             <div className="grid grid-cols-5 gap-2">
               {filteredCategories.map((c) => {
                 const isSelected = categoryId === c.id;
-                const meta = CATEGORY_META[c.name] || { icon: '🏷️', bg: 'bg-slate-500/10', text: 'text-slate-600' };
+                const meta = getCategoryMeta(c.name);
 
                 return (
                   <button
