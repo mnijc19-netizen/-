@@ -46,6 +46,7 @@ import { calculateMonthlyCashflowPlan, saveMonthlyPlanConfig } from '../services
 import { optimizeImagesBatch } from '../services/imageOptimizer';
 import { BrandLogo, detectBrandType } from './BrandLogo';
 import { AI_PROVIDERS } from '../services/aiParser';
+import { haptic } from '../services/haptic';
 
 interface AiChatAssistantModalProps {
   isOpen: boolean;
@@ -1229,11 +1230,62 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
     setMessages([DEFAULT_WELCOME_MESSAGE]);
   };
 
+  const [dragY, setDragY] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const startYRef = useRef(0);
+  const startXRef = useRef(0);
+  const currentYRef = useRef(0);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    startYRef.current = e.touches[0].clientY;
+    startXRef.current = e.touches[0].clientX;
+    currentYRef.current = e.touches[0].clientY;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    const clientY = e.touches[0].clientY;
+    const clientX = e.touches[0].clientX;
+    const deltaY = clientY - startYRef.current;
+    const deltaX = clientX - startXRef.current;
+
+    if (Math.abs(deltaX) > Math.abs(deltaY) && !isDragging) return;
+
+    const scrollTop = scrollContainerRef.current ? scrollContainerRef.current.scrollTop : 0;
+    if ((scrollTop <= 0 && deltaY > 0) || isDragging) {
+      if (!isDragging) setIsDragging(true);
+      currentYRef.current = clientY;
+      setDragY(deltaY > 0 ? deltaY * 0.75 : deltaY * 0.15);
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (isDragging) {
+      setIsDragging(false);
+      const delta = currentYRef.current - startYRef.current;
+      if (delta > 80) {
+        haptic.sheetClose();
+        onClose();
+      }
+      setDragY(0);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex flex-col justify-end sm:items-center sm:justify-center p-0 sm:p-4 bg-slate-950/75 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl border-t sm:border border-slate-200 dark:border-slate-800 rounded-t-[28px] sm:rounded-3xl w-full sm:max-w-lg shadow-2xl overflow-hidden flex flex-col h-[94dvh] sm:h-[90vh] sm:max-h-[780px] pb-[env(safe-area-inset-bottom,12px)] sm:pb-0">
+      <div 
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        style={{
+          transform: isDragging 
+            ? `translate3d(0, ${Math.max(0, dragY)}px, 0)`
+            : 'translate3d(0, 0, 0)',
+          transition: isDragging ? 'none' : 'transform 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
+        }}
+        className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl border-t sm:border border-slate-200 dark:border-slate-800 rounded-t-[28px] sm:rounded-3xl w-full sm:max-w-lg shadow-2xl overflow-hidden flex flex-col h-[94dvh] sm:h-[90vh] sm:max-h-[780px] pb-[env(safe-area-inset-bottom,12px)] sm:pb-0"
+      >
         {/* iOS Drag Handle */}
-        <div className="w-10 h-1.5 rounded-full bg-slate-300 dark:bg-slate-700 mx-auto mt-2 mb-1 sm:hidden shrink-0" />
+        <div className="w-10 h-1.5 rounded-full bg-slate-300 dark:bg-slate-700 mx-auto mt-2 mb-1 sm:hidden shrink-0 cursor-grab active:cursor-grabbing" />
         {/* Header */}
         <div className="relative p-3 sm:p-3.5 border-b border-slate-100 dark:border-slate-800 bg-slate-50/90 dark:bg-slate-900/90 backdrop-blur-md z-20">
           <div className="flex items-center justify-between">

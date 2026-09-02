@@ -3,6 +3,7 @@ import { Sparkles, Clipboard, CheckCircle2, AlertCircle, ArrowRight, X, Smartpho
 import { api } from '../api/client';
 import { Account, Category, ParsedTransactionResult } from '../types';
 import { getBeijingDateTimeString } from '../utils/dateUtils';
+import { BottomSheet } from './common/BottomSheet';
 
 interface SmartParserModalProps {
   isOpen: boolean;
@@ -140,40 +141,16 @@ export const SmartParserModal: React.FC<SmartParserModalProps> = ({
     }
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3.5 sm:p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[82vh] my-auto">
-        {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-transparent">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
-              <Sparkles className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                智能短信与通知记账
-                <span className="text-xs font-normal px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300">
-                  零摩擦防放弃
-                </span>
-              </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                复制手机扣款短信、微信/支付宝凭证或一句话，自动秒级提取字段
-              </p>
-            </div>
-          </div>
-          <button 
-            onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        {/* Body */}
-        <div className="p-6 overflow-y-auto space-y-5 flex-1">
-          {/* Sample quick pills */}
+    <BottomSheet
+      isOpen={isOpen}
+      onClose={onClose}
+      title="✨ 智能短信与通知记账"
+      description="复制手机扣款短信、微信/支付宝凭证，自动秒级提取"
+      maxHeightClass="max-h-[92dvh]"
+      contentClassName="p-4 sm:p-5 space-y-4"
+    >
+      {/* Sample quick pills */}
           <div>
             <div className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-2 flex items-center gap-1.5">
               <Bot className="w-3.5 h-3.5" /> 点击体验预设短信与通知示例：
@@ -316,7 +293,6 @@ export const SmartParserModal: React.FC<SmartParserModalProps> = ({
               {errorMsg}
             </div>
           )}
-        </div>
 
         {/* Footer */}
         <div className="p-3.5 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex items-center gap-2.5">
@@ -337,7 +313,6 @@ export const SmartParserModal: React.FC<SmartParserModalProps> = ({
             <ArrowRight className="w-4 h-4" />
           </button>
         </div>
-      </div>
-    </div>
+    </BottomSheet>
   );
 };

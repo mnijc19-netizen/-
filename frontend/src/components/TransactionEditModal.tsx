@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { Transaction, Account, Category, TransactionType } from '../types';
 import { api } from '../api/client';
+import { BottomSheet } from './common/BottomSheet';
 
 interface TransactionEditModalProps {
   isOpen: boolean;
@@ -48,65 +49,64 @@ export const TransactionEditModal: React.FC<TransactionEditModalProps> = ({
 
   useEffect(() => {
     if (transaction) {
-      setTransType(transaction.type);
+      setTransType(transaction.type || 'expense');
       setAmount(transaction.amount.toString());
       setMerchant(transaction.merchant || '');
-      setAccountId(transaction.account_id);
+      setAccountId(transaction.account_id || (accounts[0]?.id || ''));
       setToAccountId(transaction.to_account_id || '');
-      
-      const foundCat = categories.find(c => c.name === transaction.category_name || c.id === transaction.category_id);
-      setCategoryId(foundCat ? foundCat.id : '');
-      
-      setDate(transaction.date);
+      setCategoryId(transaction.category_id || '');
+      setDate(transaction.date ? transaction.date.substring(0, 16).replace('T', ' ') : '');
       setNote(transaction.note || '');
       setErrorMsg('');
     }
-  }, [transaction, categories]);
+  }, [transaction, accounts]);
 
-  if (!isOpen || !transaction) return null;
-
-  const filteredCategories = categories.filter(c => c.type === (transType === 'income' ? 'income' : 'expense'));
+  const filteredCategories = categories.filter(c => {
+    if (transType === 'income') return c.type === 'income';
+    return c.type === 'expense';
+  });
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!transaction) return;
+
     const numAmount = parseFloat(amount);
     if (isNaN(numAmount) || numAmount <= 0) {
-      setErrorMsg('请输入正确的金额');
-      return;
-    }
-    if (!accountId) {
-      setErrorMsg('请选择关联账户');
+      setErrorMsg('请输入有效的金额');
       return;
     }
 
     setSaving(true);
     setErrorMsg('');
+
     try {
-      const catObj = categories.find(c => c.id === categoryId);
       await api.updateTransaction(transaction.id, {
         type: transType,
         amount: numAmount,
-        merchant: merchant.trim() || '日常收支',
+        merchant: merchant.trim(),
         account_id: accountId,
         to_account_id: transType === 'transfer' ? toAccountId : undefined,
-        category_id: categoryId || undefined,
-        category_name: catObj ? catObj.name : transaction.category_name,
-        date: date.trim() || transaction.date,
+        category_id: transType !== 'transfer' ? categoryId : undefined,
+        date: date.trim() || undefined,
         note: note.trim()
       });
 
       onSuccess();
       onClose();
     } catch (err: any) {
-      setErrorMsg(err.message || '修改保存失败');
+      setErrorMsg(err.message || '更新失败');
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = async () => {
-    if (!confirm('确定要删除这笔流水吗？（关联账户余额将自动还原）')) return;
+    if (!transaction) return;
+    if (!confirm('确定要删除这笔交易记录吗？删除后不可恢复。')) return;
+
     setDeleting(true);
+    setErrorMsg('');
+
     try {
       await api.deleteTransaction(transaction.id);
       onSuccess();
@@ -119,39 +119,20 @@ export const TransactionEditModal: React.FC<TransactionEditModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3.5 sm:p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[82vh] my-auto">
-        {/* Header */}
-        <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-gradient-to-r from-emerald-500/10 to-transparent">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
-              <Edit3 className="w-4 h-4" />
-            </div>
-            <div>
-              <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                编辑与查看流水明细
-              </h3>
-              <p className="text-[10px] text-slate-400">
-                修改商户名、切换账户或调整分类
-              </p>
-            </div>
-          </div>
-          <button 
+    <BottomSheet
+      isOpen={isOpen}
+      onClose={onClose}
+      title="编辑与查看流水明细"
+      description="修改商户名、切换账户或调整分类"
+      maxHeightClass="max-h-[92dvh]"
+      contentClassName="p-4 sm:p-5"
+    >
+      <form onSubmit={handleSave} className="space-y-3.5 text-xs">
+        {/* Type selector */}
+        <div className="grid grid-cols-3 p-1 bg-slate-100 dark:bg-slate-800/80 rounded-xl gap-1 font-bold text-[11px]">
+          <button
             type="button"
-            onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1.5 rounded-lg"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        {/* Scrollable Form Body */}
-        <form onSubmit={handleSave} className="p-4 overflow-y-auto space-y-3.5 text-xs flex-1">
-          {/* Type selector */}
-          <div className="grid grid-cols-3 p-1 bg-slate-100 dark:bg-slate-800/80 rounded-xl gap-1 font-bold text-[11px]">
-            <button
-              type="button"
-              onClick={() => setTransType('expense')}
+            onClick={() => setTransType('expense')}
               className={`py-1.5 rounded-lg flex items-center justify-center gap-1 transition ${
                 transType === 'expense' ? 'bg-rose-500 text-white shadow-sm' : 'text-slate-500'
               }`}
@@ -316,7 +297,6 @@ export const TransactionEditModal: React.FC<TransactionEditModalProps> = ({
             </button>
           </div>
         </form>
-      </div>
-    </div>
+    </BottomSheet>
   );
 };

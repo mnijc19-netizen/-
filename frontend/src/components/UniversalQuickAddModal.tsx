@@ -27,6 +27,9 @@ interface UniversalQuickAddModalProps {
   onSelectPlanner?: () => void;
 }
 
+import { BottomSheet } from './common/BottomSheet';
+import { haptic } from '../services/haptic';
+
 export const UniversalQuickAddModal: React.FC<UniversalQuickAddModalProps> = ({
   isOpen,
   onClose,
@@ -38,41 +41,19 @@ export const UniversalQuickAddModal: React.FC<UniversalQuickAddModalProps> = ({
   onClipboardIngest,
   onSelectPlanner
 }) => {
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-950/70 backdrop-blur-md animate-in fade-in duration-200">
-      <div 
-        className="w-full max-w-md bg-white dark:bg-slate-900 border-t sm:border border-slate-200 dark:border-slate-800 rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom duration-200 pb-6 sm:pb-0"
-      >
-        {/* Modal Header */}
-        <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold">
-              <Plus className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                记一笔 / 智能入账
-              </h3>
-              <p className="text-[10px] text-slate-400">
-                选择记账方式或通过 AI 极速入库
-              </p>
-            </div>
-          </div>
-          <button 
-            type="button" 
-            onClick={onClose}
-            className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        {/* 1-Tap Clipboard Instant Ingest Hero Button */}
-        <div className="p-4 pb-2">
-          <button
-            type="button"
+    <BottomSheet
+      isOpen={isOpen}
+      onClose={onClose}
+      title="记一笔 / 智能入账"
+      description="选择记账方式或通过 AI 极速入库"
+      maxHeightClass="max-h-[92dvh]"
+      contentClassName="p-4 space-y-3"
+    >
+      {/* 1-Tap Clipboard Instant Ingest Hero Button */}
+      <div>
+        <button
+          type="button"
             onClick={() => {
               onClose();
               onClipboardIngest();
@@ -206,7 +187,6 @@ export const UniversalQuickAddModal: React.FC<UniversalQuickAddModalProps> = ({
             </button>
           </div>
         )}
-      </div>
-    </div>
+    </BottomSheet>
   );
 };

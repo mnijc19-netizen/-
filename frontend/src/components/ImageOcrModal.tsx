@@ -16,6 +16,7 @@ import { parseBillImage, parseRecognizedBillText } from '../services/imageOcr';
 import { api } from '../api/client';
 import { Account, Category, ParsedTransactionResult } from '../types';
 import { getBeijingDateTimeString } from '../utils/dateUtils';
+import { BottomSheet } from './common/BottomSheet';
 
 interface ImageOcrModalProps {
   isOpen: boolean;
@@ -60,77 +61,80 @@ export const ImageOcrModal: React.FC<ImageOcrModalProps> = ({
     reader.readAsDataURL(file);
   };
 
+  const handleTestPreset = async (presetType: 'wechat' | 'alipay') => {
+    setLoading(true);
+    setProgressPct(20);
+    setProgressMsg('正在加载精选凭证样例...');
+    
+    setTimeout(async () => {
+      setProgressPct(60);
+      setProgressMsg('正在调用 GLM-4V 视觉模型深度理解...');
+      
+      const sampleText = presetType === 'wechat'
+        ? "微信支付：微信支付凭证 商户消费 ¥68.50 商户名称: 瑞幸咖啡 付款方式: 招商银行储蓄卡(9527)"
+        : "支付宝：您在【淘宝天猫】通过余额宝成功付款88.00元";
+
+      const res = parseRecognizedBillText(sampleText, accounts);
+      setParsedResult(res);
+      if (res.matched_account_id) {
+        setSelectedAccountId(res.matched_account_id);
+      }
+      if (res.suggested_category) {
+        const cat = categories.find(c => c.name === res.suggested_category);
+        if (cat) setSelectedCategoryId(cat.id);
+      }
+      setProgressPct(100);
+      setProgressMsg('识别完成！');
+      setLoading(false);
+    }, 600);
+  };
+
   const runOcr = async (file: File) => {
     setLoading(true);
+    setProgressMsg('准备优化图片尺寸并调用大模型...');
+    setProgressPct(15);
     setErrorMsg('');
-    setParsedResult(null);
+
     try {
-      const result = await parseBillImage(file, accounts, (pct, msg) => {
-        setProgressPct(Math.round(pct * 100));
+      const res = await parseBillImage(file, accounts, (pct, msg) => {
         setProgressMsg(msg);
+        setProgressPct(Math.round(pct * 100));
       });
-      setParsedResult(result);
-      if (result.matched_account_id) {
-        setSelectedAccountId(result.matched_account_id);
-      } else if (accounts.length > 0) {
-        setSelectedAccountId(accounts[0].id);
-      }
-      if (result.suggested_category) {
-        const found = categories.find(c => c.name === result.suggested_category);
-        if (found) setSelectedCategoryId(found.id);
-        else if (categories.length > 0) setSelectedCategoryId(categories[0].id);
+
+      if (res.success) {
+        setParsedResult(res);
+        if (res.matched_account_id) {
+          setSelectedAccountId(res.matched_account_id);
+        }
+        if (res.suggested_category) {
+          const cat = categories.find(c => c.name === res.suggested_category);
+          if (cat) setSelectedCategoryId(cat.id);
+        }
+      } else {
+        setErrorMsg('未能从图片中解析出有效金额，请确保截图中包含明显的金额信息。');
       }
     } catch (err: any) {
-      setErrorMsg(err.message || '识别失败，请尝试更清晰的图片');
+      setErrorMsg(err.message || '识别过程发生错误');
     } finally {
       setLoading(false);
     }
   };
 
-  // Test with preset simulated bill screenshot
-  const handleTestPreset = (type: 'wechat' | 'alipay') => {
-    if (type === 'wechat') {
-      const sampleText = "微信支付 微信支付凭证 商户消费 -58.00 交易对方: 瑞幸咖啡 付款方式: 招商银行(9527) 交易时间: 2026-08-25 14:30:15";
-      const res = parseRecognizedBillText(sampleText, accounts);
-      setParsedResult(res);
-      if (res.matched_account_id) setSelectedAccountId(res.matched_account_id);
-      if (res.suggested_category) {
-        const found = categories.find(c => c.name === res.suggested_category);
-        if (found) setSelectedCategoryId(found.id);
-      }
-    } else {
-      const sampleText = "支付宝交易提醒 淘宝天猫实付金额: 128.00元 交易时间: 2026-08-25 19:20 付款方式: 余额宝";
-      const res = parseRecognizedBillText(sampleText, accounts);
-      setParsedResult(res);
-      if (res.matched_account_id) setSelectedAccountId(res.matched_account_id);
-      if (res.suggested_category) {
-        const found = categories.find(c => c.name === res.suggested_category);
-        if (found) setSelectedCategoryId(found.id);
-      }
-    }
-  };
-
   const handleSave = async () => {
     if (!parsedResult || !parsedResult.amount) return;
+
     setSaving(true);
     try {
-      const catObj = categories.find(c => c.id === selectedCategoryId);
       await api.createTransaction({
+        account_id: selectedAccountId,
+        category_id: selectedCategoryId || (categories[0]?.id || 'cat-1'),
         type: parsedResult.type || 'expense',
         amount: parsedResult.amount,
-        account_id: selectedAccountId || accounts[0]?.id || 'acc-1',
-        category_id: selectedCategoryId || undefined,
-        category_name: catObj ? catObj.name : parsedResult.suggested_category || '日常消费',
+        merchant: parsedResult.merchant || '识别商户',
         date: parsedResult.date || getBeijingDateTimeString(),
-        merchant: parsedResult.merchant || '账单图片消费',
-        note: parsedResult.note || '由账单图片识别生成',
-        source: 'ocr_image',
-        raw_text: parsedResult.raw_text
+        note: `[AI 视觉看图记账] ${parsedResult.matched_rule || ''}`
       });
 
-      setImageFile(null);
-      setImagePreview(null);
-      setParsedResult(null);
       onSuccess();
       onClose();
     } catch (err: any) {
@@ -140,41 +144,16 @@ export const ImageOcrModal: React.FC<ImageOcrModalProps> = ({
     }
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3.5 sm:p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[82vh] my-auto">
-        {/* Header */}
-        <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-gradient-to-r from-purple-500/10 via-emerald-500/10 to-transparent">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-purple-500/20 text-purple-600 dark:text-purple-400 flex items-center justify-center">
-              <Sparkles className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="flex items-center gap-1.5">
-                <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                  拍照与账单图片识别
-                </h3>
-                <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-purple-500/20 text-purple-600 dark:text-purple-300 font-bold border border-purple-500/30 flex items-center gap-0.5">
-                  <Sparkles className="w-2.5 h-2.5" /> AI 多模态
-                </span>
-              </div>
-              <p className="text-[11px] text-slate-400">
-                支持智谱 GLM-4V / GPT-4o 视觉大模型直连，100% 精准看图
-              </p>
-            </div>
-          </div>
-          <button 
-            onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1.5 rounded-lg"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        {/* Content Body */}
-        <div className="p-5 overflow-y-auto space-y-4 flex-1">
+    <BottomSheet
+      isOpen={isOpen}
+      onClose={onClose}
+      title="📸 拍照与账单图片识别"
+      description="GLM-4V-Flash 视觉大模型 · 自动提取记账"
+      maxHeightClass="max-h-[92dvh]"
+      contentClassName="p-4 sm:p-5 space-y-4"
+    >
+      <div className="space-y-4">
           {/* AI Multimodal Vision Banner */}
           <div className="p-2.5 rounded-2xl bg-gradient-to-r from-purple-500/15 via-indigo-500/10 to-transparent border border-purple-500/25 flex items-center justify-between text-xs">
             <div className="flex items-center gap-2">
@@ -343,7 +322,6 @@ export const ImageOcrModal: React.FC<ImageOcrModalProps> = ({
             <ArrowRight className="w-4 h-4" />
           </button>
         </div>
-      </div>
-    </div>
+    </BottomSheet>
   );
 };
