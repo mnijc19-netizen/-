@@ -25,6 +25,7 @@ import { OnboardingWizardModal } from '../components/OnboardingWizardModal';
 import { BottomSheet } from '../components/common/BottomSheet';
 import { BrandLogo } from '../components/BrandLogo';
 import { haptic } from '../services/haptic';
+import { CANONICAL_ACCOUNT_CATALOG } from '../data/accountCatalog';
 import { ArrowRight } from 'lucide-react';
 
 interface AccountsPageProps {
@@ -502,41 +503,22 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({
         contentClassName="p-4 sm:p-5 space-y-4"
       >
         <form onSubmit={handleSave} className="space-y-3.5 text-xs">
-          {/* Quick Brand Preset Chips */}
+          {/* Quick Brand Preset Chips from Unified Canonical Catalog */}
           {!editingAccount && (
             <div>
-              <label className="text-slate-500 block mb-1.5 font-bold">✨ 点击快速选择品牌与机构</label>
+              <label className="text-slate-500 dark:text-slate-400 block mb-1.5 font-bold">✨ 点击快速选择品牌与机构 ({CANONICAL_ACCOUNT_CATALOG.length})</label>
               <div className="flex items-center gap-1.5 overflow-x-auto pb-2 scrollbar-none">
-                {[
-                  { name: '微信零钱', type: 'wallet', bank: '微信支付' },
-                  { name: '支付宝', type: 'wallet', bank: '支付宝' },
-                  { name: '招商银行卡', type: 'bank', bank: '招商银行' },
-                  { name: '工商银行卡', type: 'bank', bank: '工商银行' },
-                  { name: '建设银行卡', type: 'bank', bank: '建设银行' },
-                  { name: '农业银行卡', type: 'bank', bank: '农业银行' },
-                  { name: '中国银行卡', type: 'bank', bank: '中国银行' },
-                  { name: '福建农信卡', type: 'bank', bank: '福建农信' },
-                  { name: '厦门银行卡', type: 'bank', bank: '厦门银行' },
-                  { name: '兴业银行卡', type: 'bank', bank: '兴业银行' },
-                  { name: '美团月付', type: 'meituan_pay', bank: '美团' },
-                  { name: '京东白条', type: 'baitiao', bank: '京东金融' },
-                  { name: '抖音月付', type: 'douyin_pay', bank: '抖音' },
-                  { name: '蚂蚁花呗', type: 'huabei', bank: '蚂蚁消金' },
-                  { name: '蚂蚁借呗', type: 'jiebei', bank: '蚂蚁借呗' },
-                  { name: '华泰证券', type: 'investment', bank: '华泰证券' },
-                  { name: '天天基金', type: 'investment', bank: '天天基金' },
-                  { name: '富途牛牛', type: 'investment', bank: '富途证券' },
-                ].map(p => (
+                {CANONICAL_ACCOUNT_CATALOG.map(p => (
                   <button
-                    key={p.name}
+                    key={p.id}
                     type="button"
                     onClick={() => {
                       haptic.selection();
                       setName(p.name);
                       setType(p.type as AccountType);
-                      setBankName(p.bank);
+                      setBankName(p.bankName || '');
                     }}
-                    className="flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:border-emerald-500 hover:bg-emerald-50/50 dark:hover:bg-emerald-950/40 active:scale-95 transition text-[11px] font-medium text-slate-700 dark:text-slate-200"
+                    className="flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 hover:border-emerald-500 hover:bg-emerald-50/50 dark:hover:bg-emerald-950/40 active:scale-95 transition text-[11px] font-bold text-slate-700 dark:text-slate-200"
                   >
                     <BrandLogo type={p.type} name={p.name} size="sm" />
                     <span>{p.name}</span>

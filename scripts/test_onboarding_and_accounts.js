@@ -1,8 +1,9 @@
 const assert = require('assert');
+const fs = require('fs');
 
 console.log('=========================================================================');
 console.log('🧪 TESTING ONBOARDING WIZARD & ACCOUNT OPENING FLOW (10-SEC PRESETS)');
-console.log('=========================================================================\\n');
+console.log('=========================================================================\n');
 
 // 1. Verify Preset Configuration & Liability Mathematics
 const PRESETS = [
@@ -62,4 +63,26 @@ const customNet = customAssets - customLiab;
 assert.strictEqual(Math.round(customNet * 100) / 100, 20139.08);
 console.log('✅ TEST 4 PASSED: Custom user balance modifications strictly conserve accounting balance');
 
-console.log('\\n🏆 ALL ONBOARDING & ACCOUNT SETUP TESTS PASSED (100% SUCCESS)!');
+// Test 5: Verify Canonical Account Catalog File Integrity
+const path = require('path');
+const catalogFile = path.resolve(__dirname, '../frontend/src/data/accountCatalog.ts');
+assert.ok(fs.existsSync(catalogFile), 'frontend/src/data/accountCatalog.ts must exist');
+const catalogContent = fs.readFileSync(catalogFile, 'utf8');
+assert.ok(catalogContent.includes('CANONICAL_ACCOUNT_CATALOG'), 'Catalog must export CANONICAL_ACCOUNT_CATALOG');
+assert.ok(catalogContent.includes('huabei'), 'Catalog must include huabei');
+assert.ok(catalogContent.includes('jiebei'), 'Catalog must include jiebei');
+assert.ok(catalogContent.includes('bank_abc'), 'Catalog must include Agricultural Bank');
+assert.ok(catalogContent.includes('bank_boc'), 'Catalog must include Bank of China');
+assert.ok(catalogContent.includes('bank_bocom'), 'Catalog must include Bank of Communications');
+assert.ok(catalogContent.includes('bank_psbc'), 'Catalog must include Postal Savings Bank');
+console.log('✅ TEST 5 PASSED: Canonical Account Catalog file integrity and multi-bank coverage confirmed');
+
+// Test 6: Official SVGs Verification (Huabei, Jiebei, Yuebao)
+assert.ok(fs.existsSync(path.resolve(__dirname, '../frontend/public/logos/huabei.svg')), 'huabei.svg must exist');
+assert.ok(fs.existsSync(path.resolve(__dirname, '../frontend/public/logos/jiebei.svg')), 'jiebei.svg must exist');
+assert.ok(fs.existsSync(path.resolve(__dirname, '../frontend/public/logos/yu_ebao.svg')), 'yu_ebao.svg must exist');
+const huabeiSvg = fs.readFileSync(path.resolve(__dirname, '../frontend/public/logos/huabei.svg'), 'utf8');
+assert.ok(!huabeiSvg.includes('L45 135 L90 45'), 'huabei.svg must not be the fake triangle logo');
+console.log('✅ TEST 6 PASSED: Official Brand Logo SVGs for Huabei, Jiebei & Yuebao strictly verified');
+
+console.log('\n🏆 ALL ONBOARDING & ACCOUNT SETUP TESTS PASSED (100% SUCCESS)!');

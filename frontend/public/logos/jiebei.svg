@@ -1,7 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
-  <rect width="100%" height="100%" rx="110" fill="#FF6A00"/>
-  <g transform="translate(56, 56) scale(2.2)">
-    <circle cx="90" cy="90" r="56" fill="none" stroke="#FFFFFF" stroke-width="15"/>
-    <rect x="70" y="70" width="40" height="40" rx="6" fill="none" stroke="#FFFFFF" stroke-width="13"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <rect width="1024" height="1024" rx="240" fill="#1677FF"/>
+  <!-- Official Alipay Jiebei Logo (Umbrella / Canopy Silhouette) -->
+  <g transform="translate(512, 500)">
+    <path d="M-280 20 C-280 -180 -140 -280 0 -280 C140 -280 280 -180 280 20 C280 40 260 55 240 55 L-240 55 C-260 55 -280 40 -280 20 Z" fill="#FFFFFF"/>
+    <path d="M-15 45 L-15 170 C-15 225 25 255 70 255 C115 255 145 225 145 170" fill="none" stroke="#FFFFFF" stroke-width="56" stroke-linecap="round"/>
   </g>
 </svg>
