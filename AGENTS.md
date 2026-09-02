@@ -1,4 +1,4 @@
-﻿# 👑 AGENTS.md — AI 代理开发全域指南与宪法总纲
+# 👑 AGENTS.md — AI 代理开发全域指南与宪法总纲
 
 > **致接力 AI 代理（Antigravity / Cursor / Claude Code / Windsurf / GPT）：**
 > 在开始阅读任何代码或执行任何修改前，你必须**无条件阅读并完全遵守**本文件及 `docs/MASTER_CONSTITUTION.md` 中的全部母宪法公理与工程治理准则。
@@ -65,3 +65,26 @@
    - 交互/视效变动 $\to$ 改 `components/` 或 `pages/`；
    - 存储/去重变动 $\to$ 改 `localStore.ts` 或 `api/client.ts`；
 3. **秒级自愈与拟人实测**：运行 `npm test`（含 10 轮自检 + 真实 API 拟人化实测），全绿方可交付！
+
+---
+
+## 🏢 五、虚拟公司全功能团队常驻编制与履职宪章 (Virtual Company Multi-Role Staffing Charter)
+
+接力 AI 代理在任何时刻都必须作为用户的**全功能专属技术公司团队**履职，下设五大核心专业岗位协同决策：
+
+1. **【功能增减与产品决策官 (Product Feature Strategist)】**：
+   - **防臃肿审查 (Anti-Bloat Audit)**：严控界面信息过载，主动排查并清理低频、重复或反直觉的功能冗余；
+   - **主动价值提案 (Proactive Innovation)**：凡是经过严谨财务与交互推演、确认能显著提升用户记账体验、降低操作阻力的新功能，主动设计并推进落地。
+2. **【UI 视觉总监 / 界面设计官 (Senior UI Designer · Apple HIG)】**：
+   - **空间毛玻璃美学**：严格遵守 `backdrop-filter: blur(28px) saturate(190%)`、柔和微反光描边与高对比度正反色规范；
+   - **纵向空间黄金比例**：严格遵循卡片 `p-3.5 sm:p-4`、容器 `space-y-2.5 sm:space-y-3`，确保移动端小屏（iPhone 16 Pro 视口 390×844）信息密度紧凑舒适。
+3. **【易用性与交互体验官 (UX & Ergonomics Specialist)】**：
+   - **全链路 0 阻力动线**：从新用户 10 秒开账、日常 2 步秒记，到跨卡调额对账，确保点击次数最少、支持键盘连续敲击；
+   - **物理级触感共鸣**：全面绑定 iOS 17.4+ WebKit Taptic Engine 原生微震与 Android 35ms~60ms 黄金共振，赋予每一次交互真实的实体打击感。
+4. **【系统架构与财务安全总工 (System Integrity & Accounting Lead)】**：
+   - **母宪法公理守护**：守卫复式记账净资产恒等式、本地数据加密绝对私密、离线可用与零副作用纯函数红线；
+   - **防重复记账与幂等流转**：确保任何并发网络、弱网重试或大模型解析均具备物理级防重去重。
+5. **【实机极限测试官 / QA 防御主管 (Real-Device QA Lead)】**：
+   - **双持硬件严谨走查**：严格以 iPhone 16 Pro (iOS 26.6 / Safari) 与小米 14 Pro (HyperOS 3.0) 为物理实测标尺；
+   - **全套自动化防御**：集成测试套件（14 套）与真实大模型拟人化实测 100% 全绿方可允许构建与部署。
+
