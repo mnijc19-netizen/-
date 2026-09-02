@@ -129,6 +129,20 @@ class HapticFeedbackService {
   warning(): void {
     this.trigger([30, 40, 30], 60, 0.06, 0.3);
   }
+
+  /**
+   * 底部抽屉打开 (Sheet Open)
+   */
+  sheetOpen(): void {
+    this.trigger([18, 22], 80, 0.04, 0.22);
+  }
+
+  /**
+   * 底部抽屉关闭或下拉消失 (Sheet Close)
+   */
+  sheetClose(): void {
+    this.trigger(14, 95, 0.03, 0.18);
+  }
 }
 
 export const haptic = new HapticFeedbackService();

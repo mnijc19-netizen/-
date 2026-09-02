@@ -594,7 +594,7 @@ export function App() {
         currentPage={currentPage}
         onSelectPage={(p) => navigateTo(p)}
         onOpenSmartParser={() => setSmartParserOpen(true)}
-        onOpenQuickTx={() => setUniversalQuickAddOpen(true)}
+        onOpenQuickTx={() => setQuickTxOpen(true)}
         onOpenSnapshot={() => setSnapshotOpen(true)}
         onOpenImageOcr={() => setImageOcrOpen(true)}
       />
@@ -664,6 +664,8 @@ export function App() {
         onSuccess={loadAllData}
         accounts={accounts}
         categories={categories}
+        onOpenImageOcr={() => setImageOcrOpen(true)}
+        onClipboardIngest={handleClipboardIngest}
       />
 
       <SnapshotModal

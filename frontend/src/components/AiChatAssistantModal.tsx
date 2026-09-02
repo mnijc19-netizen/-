@@ -1230,8 +1230,10 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/75 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col h-[90vh] max-h-[780px]">
+    <div className="fixed inset-0 z-50 flex flex-col justify-end sm:items-center sm:justify-center p-0 sm:p-4 bg-slate-950/75 backdrop-blur-md animate-in fade-in duration-200">
+      <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl border-t sm:border border-slate-200 dark:border-slate-800 rounded-t-[28px] sm:rounded-3xl w-full sm:max-w-lg shadow-2xl overflow-hidden flex flex-col h-[94dvh] sm:h-[90vh] sm:max-h-[780px] pb-[env(safe-area-inset-bottom,12px)] sm:pb-0">
+        {/* iOS Drag Handle */}
+        <div className="w-10 h-1.5 rounded-full bg-slate-300 dark:bg-slate-700 mx-auto mt-2 mb-1 sm:hidden shrink-0" />
         {/* Header */}
         <div className="relative p-3 sm:p-3.5 border-b border-slate-100 dark:border-slate-800 bg-slate-50/90 dark:bg-slate-900/90 backdrop-blur-md z-20">
           <div className="flex items-center justify-between">
