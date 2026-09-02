@@ -192,6 +192,47 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
   const userScrolledUpRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // iOS Pull to Dismiss Drag Gesture States
+  const [dragY, setDragY] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const startYRef = useRef(0);
+  const startXRef = useRef(0);
+  const currentYRef = useRef(0);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    startYRef.current = e.touches[0].clientY;
+    startXRef.current = e.touches[0].clientX;
+    currentYRef.current = e.touches[0].clientY;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    const clientY = e.touches[0].clientY;
+    const clientX = e.touches[0].clientX;
+    const deltaY = clientY - startYRef.current;
+    const deltaX = clientX - startXRef.current;
+
+    if (Math.abs(deltaX) > Math.abs(deltaY) && !isDragging) return;
+
+    const scrollTop = scrollContainerRef.current ? scrollContainerRef.current.scrollTop : 0;
+    if ((scrollTop <= 0 && deltaY > 0) || isDragging) {
+      if (!isDragging) setIsDragging(true);
+      currentYRef.current = clientY;
+      setDragY(deltaY > 0 ? deltaY * 0.75 : deltaY * 0.15);
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (isDragging) {
+      setIsDragging(false);
+      const delta = currentYRef.current - startYRef.current;
+      if (delta > 80) {
+        haptic.sheetClose();
+        onClose();
+      }
+      setDragY(0);
+    }
+  };
+
   const toggleReasoningCollapse = (msgId: string) => {
     setCollapsedReasonings(prev => ({ ...prev, [msgId]: !prev[msgId] }));
   };
@@ -1228,46 +1269,6 @@ export const AiChatAssistantModal: React.FC<AiChatAssistantModalProps> = ({
 
   const handleClearHistory = () => {
     setMessages([DEFAULT_WELCOME_MESSAGE]);
-  };
-
-  const [dragY, setDragY] = useState(0);
-  const [isDragging, setIsDragging] = useState(false);
-  const startYRef = useRef(0);
-  const startXRef = useRef(0);
-  const currentYRef = useRef(0);
-
-  const handleTouchStart = (e: React.TouchEvent) => {
-    startYRef.current = e.touches[0].clientY;
-    startXRef.current = e.touches[0].clientX;
-    currentYRef.current = e.touches[0].clientY;
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    const clientY = e.touches[0].clientY;
-    const clientX = e.touches[0].clientX;
-    const deltaY = clientY - startYRef.current;
-    const deltaX = clientX - startXRef.current;
-
-    if (Math.abs(deltaX) > Math.abs(deltaY) && !isDragging) return;
-
-    const scrollTop = scrollContainerRef.current ? scrollContainerRef.current.scrollTop : 0;
-    if ((scrollTop <= 0 && deltaY > 0) || isDragging) {
-      if (!isDragging) setIsDragging(true);
-      currentYRef.current = clientY;
-      setDragY(deltaY > 0 ? deltaY * 0.75 : deltaY * 0.15);
-    }
-  };
-
-  const handleTouchEnd = () => {
-    if (isDragging) {
-      setIsDragging(false);
-      const delta = currentYRef.current - startYRef.current;
-      if (delta > 80) {
-        haptic.sheetClose();
-        onClose();
-      }
-      setDragY(0);
-    }
   };
 
   return (
