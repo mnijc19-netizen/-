@@ -21,7 +21,10 @@ import { Account, AccountType, Investment } from '../types';
 import { api } from '../api/client';
 import { AccountBalanceAdjustModal } from '../components/AccountBalanceAdjustModal';
 import { BatchBalanceOcrModal } from '../components/BatchBalanceOcrModal';
+import { OnboardingWizardModal } from '../components/OnboardingWizardModal';
+import { BottomSheet } from '../components/common/BottomSheet';
 import { BrandLogo } from '../components/BrandLogo';
+import { haptic } from '../services/haptic';
 import { ArrowRight } from 'lucide-react';
 
 interface AccountsPageProps {
@@ -60,6 +63,7 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({
   const [modalOpen, setModalOpen] = useState(false);
   const [adjustModalOpen, setAdjustModalOpen] = useState(false);
   const [batchOcrOpen, setBatchOcrOpen] = useState(false);
+  const [wizardOpen, setWizardOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
   const [adjustingAccount, setAdjustingAccount] = useState<Account | null>(null);
 
@@ -385,6 +389,81 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({
         })}
       </div>
 
+      {/* Zero-Account Empty State Hero Canvas */}
+      {accounts.length === 0 && (
+        <div className="p-6 sm:p-8 rounded-3xl bg-gradient-to-b from-white/90 to-slate-50/90 dark:from-slate-900/90 dark:to-slate-850/90 border-2 border-dashed border-emerald-300 dark:border-emerald-800 text-center space-y-5 animate-in fade-in shadow-sm">
+          <div className="w-16 h-16 rounded-3xl bg-gradient-to-tr from-emerald-500 via-teal-500 to-indigo-600 text-white flex items-center justify-center mx-auto shadow-lg shadow-emerald-500/25">
+            <Wallet className="w-8 h-8" />
+          </div>
+
+          <div className="space-y-1.5 max-w-md mx-auto">
+            <h3 className="text-base sm:text-lg font-black text-slate-900 dark:text-white flex items-center justify-center gap-2">
+              <Sparkles className="w-4 h-4 text-emerald-500" />
+              <span>开启您的全域资产管理第一步</span>
+            </h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+              开账是构建个人财务大盘的基石。录入您的微信、支付宝、银行储蓄卡与白条负债，即可实时掌控真实净资产与资金流向。
+            </p>
+          </div>
+
+          {/* Two Primary Fast Action Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-lg mx-auto text-left">
+            <button
+              type="button"
+              onClick={() => { haptic.selection(); setWizardOpen(true); }}
+              className="p-4 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white shadow-lg shadow-indigo-500/25 active:scale-98 transition group space-y-2 flex flex-col justify-between"
+            >
+              <div className="flex items-center justify-between">
+                <div className="w-9 h-9 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center">
+                  <Zap className="w-5 h-5 text-amber-300" />
+                </div>
+                <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-400 text-slate-900 shadow-xs">
+                  最推荐 · 10秒
+                </span>
+              </div>
+              <div>
+                <div className="text-sm font-black">⚡ 常用预设一键开账</div>
+                <div className="text-[11px] text-indigo-100 mt-0.5 leading-relaxed">
+                  勾选微信、支付宝、招行/工行卡与白条，填入数字一键秒级建账
+                </div>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => { haptic.selection(); setBatchOcrOpen(true); }}
+              className="p-4 rounded-2xl bg-gradient-to-br from-purple-600 to-teal-600 hover:from-purple-700 hover:to-teal-700 text-white shadow-lg shadow-purple-500/25 active:scale-98 transition group space-y-2 flex flex-col justify-between"
+            >
+              <div className="flex items-center justify-between">
+                <div className="w-9 h-9 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center">
+                  <Images className="w-5 h-5 text-purple-200" />
+                </div>
+                <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-white/20 text-white">
+                  AI 多图高并发
+                </span>
+              </div>
+              <div>
+                <div className="text-sm font-black">📸 批量截图识别开账</div>
+                <div className="text-[11px] text-teal-100 mt-0.5 leading-relaxed">
+                  直接上传微信钱包、支付宝总资产或各银行余额截图自动识别
+                </div>
+              </div>
+            </button>
+          </div>
+
+          {/* Alternative Text Link */}
+          <div className="pt-2">
+            <button
+              type="button"
+              onClick={openAddModal}
+              className="text-xs text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 underline font-medium transition"
+            >
+              或点击此处手动单个新增自定义账户
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Direct Balance Adjust Modal */}
       <AccountBalanceAdjustModal
         isOpen={adjustModalOpen}
@@ -404,180 +483,184 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({
         existingAccounts={accounts}
       />
 
-      {/* Add / Edit Details Modal */}
-      {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-md shadow-2xl p-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                {editingAccount ? '编辑账户详细信息' : '新增账户 / 资产'}
-              </h3>
-              <button onClick={() => setModalOpen(false)} className="text-slate-400 hover:text-slate-600">
-                <X className="w-5 h-5" />
-              </button>
+      {/* Interactive Onboarding Wizard Modal */}
+      <OnboardingWizardModal
+        isOpen={wizardOpen}
+        onClose={() => setWizardOpen(false)}
+        onSuccess={onRefresh}
+        onOpenBatchBalanceOcr={() => setBatchOcrOpen(true)}
+        onOpenAiChat={() => onNavigate?.('dashboard')}
+      />
+
+      {/* Add / Edit Details BottomSheet */}
+      <BottomSheet
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        title={editingAccount ? '✏️ 编辑账户详细信息' : '➕ 新增真实卡/资产账户'}
+        description="规范录入资产或负债类别，支持自定义银行名称与卡号"
+        maxHeightClass="max-h-[92dvh]"
+        contentClassName="p-4 sm:p-5 space-y-4"
+      >
+        <form onSubmit={handleSave} className="space-y-3.5 text-xs">
+          {/* Quick Brand Preset Chips */}
+          {!editingAccount && (
+            <div>
+              <label className="text-slate-500 block mb-1.5 font-bold">✨ 点击快速选择品牌与机构</label>
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-2 scrollbar-none">
+                {[
+                  { name: '微信零钱', type: 'wallet', bank: '微信支付' },
+                  { name: '支付宝', type: 'wallet', bank: '支付宝' },
+                  { name: '招商银行卡', type: 'bank', bank: '招商银行' },
+                  { name: '工商银行卡', type: 'bank', bank: '工商银行' },
+                  { name: '建设银行卡', type: 'bank', bank: '建设银行' },
+                  { name: '农业银行卡', type: 'bank', bank: '农业银行' },
+                  { name: '中国银行卡', type: 'bank', bank: '中国银行' },
+                  { name: '福建农信卡', type: 'bank', bank: '福建农信' },
+                  { name: '厦门银行卡', type: 'bank', bank: '厦门银行' },
+                  { name: '兴业银行卡', type: 'bank', bank: '兴业银行' },
+                  { name: '美团月付', type: 'meituan_pay', bank: '美团' },
+                  { name: '京东白条', type: 'baitiao', bank: '京东金融' },
+                  { name: '抖音月付', type: 'douyin_pay', bank: '抖音' },
+                  { name: '蚂蚁花呗', type: 'huabei', bank: '蚂蚁消金' },
+                  { name: '蚂蚁借呗', type: 'jiebei', bank: '蚂蚁借呗' },
+                  { name: '华泰证券', type: 'investment', bank: '华泰证券' },
+                  { name: '天天基金', type: 'investment', bank: '天天基金' },
+                  { name: '富途牛牛', type: 'investment', bank: '富途证券' },
+                ].map(p => (
+                  <button
+                    key={p.name}
+                    type="button"
+                    onClick={() => {
+                      haptic.selection();
+                      setName(p.name);
+                      setType(p.type as AccountType);
+                      setBankName(p.bank);
+                    }}
+                    className="flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:border-emerald-500 hover:bg-emerald-50/50 dark:hover:bg-emerald-950/40 active:scale-95 transition text-[11px] font-medium text-slate-700 dark:text-slate-200"
+                  >
+                    <BrandLogo type={p.type} name={p.name} size="sm" />
+                    <span>{p.name}</span>
+                  </button>
+                ))}
+              </div>
             </div>
+          )}
 
-            <form onSubmit={handleSave} className="space-y-3 text-xs">
-              {/* Quick Brand Preset Chips */}
-              {!editingAccount && (
-                <div>
-                  <label className="text-slate-500 block mb-1.5 font-bold">✨ 点击快速选择品牌与机构</label>
-                  <div className="flex items-center gap-1.5 overflow-x-auto pb-2 scrollbar-none">
-                    {[
-                      { name: '微信零钱', type: 'wallet', bank: '微信支付' },
-                      { name: '支付宝', type: 'wallet', bank: '支付宝' },
-                      { name: '招商银行卡', type: 'bank', bank: '招商银行' },
-                      { name: '工商银行卡', type: 'bank', bank: '工商银行' },
-                      { name: '建设银行卡', type: 'bank', bank: '建设银行' },
-                      { name: '农业银行卡', type: 'bank', bank: '农业银行' },
-                      { name: '中国银行卡', type: 'bank', bank: '中国银行' },
-                      { name: '福建农信卡', type: 'bank', bank: '福建农信' },
-                      { name: '厦门银行卡', type: 'bank', bank: '厦门银行' },
-                      { name: '兴业银行卡', type: 'bank', bank: '兴业银行' },
-                      { name: '美团月付', type: 'meituan_pay', bank: '美团' },
-                      { name: '京东白条', type: 'baitiao', bank: '京东金融' },
-                      { name: '抖音月付', type: 'douyin_pay', bank: '抖音' },
-                      { name: '蚂蚁花呗', type: 'huabei', bank: '蚂蚁消金' },
-                      { name: '蚂蚁借呗', type: 'jiebei', bank: '蚂蚁借呗' },
-                      { name: '华泰证券', type: 'investment', bank: '华泰证券' },
-                      { name: '天天基金', type: 'investment', bank: '天天基金' },
-                      { name: '富途牛牛', type: 'investment', bank: '富途证券' },
-                    ].map(p => (
-                      <button
-                        key={p.name}
-                        type="button"
-                        onClick={() => {
-                          setName(p.name);
-                          setType(p.type as AccountType);
-                          setBankName(p.bank);
-                        }}
-                        className="flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:border-blue-500 hover:bg-blue-50/50 dark:hover:bg-blue-950/40 active:scale-95 transition text-[11px] font-medium text-slate-700 dark:text-slate-200"
-                      >
-                        <BrandLogo type={p.type} name={p.name} size="sm" />
-                        <span>{p.name}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <div>
-                <label className="text-slate-500 block mb-1">账户名称</label>
-                <div className="flex items-center gap-2">
-                  <div className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center flex-shrink-0">
-                    <BrandLogo type={type} name={name || bankName} size="md" />
-                  </div>
-                  <input
-                    type="text"
-                    required
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="例如：招商银行储蓄卡、富途美股"
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
-                  />
-                </div>
+          <div>
+            <label className="text-slate-500 block mb-1 font-bold">账户名称</label>
+            <div className="flex items-center gap-2">
+              <div className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center flex-shrink-0">
+                <BrandLogo type={type} name={name || bankName} size="md" />
               </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-slate-500 block mb-1">账户类别</label>
-                  <select
-                    value={type}
-                    onChange={(e) => setType(e.target.value as AccountType)}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
-                  >
-                    {Object.entries(ACCOUNT_TYPE_CONFIG).map(([t, cfg]) => (
-                      <option key={t} value={t}>{cfg.label}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-slate-500 block mb-1">计价币种</label>
-                  <select
-                    value={currency}
-                    onChange={(e) => setCurrency(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
-                  >
-                    <option value="CNY">CNY 人民币 (¥)</option>
-                    <option value="USD">USD 美元 ($)</option>
-                    <option value="HKD">HKD 港币 (HK$)</option>
-                    <option value="EUR">EUR 欧元 (€)</option>
-                    <option value="USDT">USDT 泰达币 (₮)</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-slate-500 block mb-1">
-                    {['credit', 'loan', 'huabei', 'baitiao', 'meituan_pay', 'douyin_pay', 'jiebei', 'fenfu'].includes(type)
-                      ? '待还负债金额 (¥)'
-                      : '当前资产余额 (¥)'}
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={balance}
-                    onChange={(e) => setBalance(e.target.value)}
-                    placeholder="0.00"
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-mono font-bold"
-                  />
-                </div>
-                <div>
-                  <label className="text-slate-500 block mb-1">卡号后4位 (智能匹配用)</label>
-                  <input
-                    type="text"
-                    maxLength={4}
-                    value={cardLast4}
-                    onChange={(e) => setCardLast4(e.target.value)}
-                    placeholder="如: 9527"
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-mono"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="text-slate-500 block mb-1">开户机构 / 银行名称</label>
-                <input
-                  type="text"
-                  value={bankName}
-                  onChange={(e) => setBankName(e.target.value)}
-                  placeholder="例如：招商银行、华泰证券、OKX"
-                  className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
-                />
-              </div>
-
-              <div>
-                <label className="text-slate-500 block mb-1">备注说明</label>
-                <input
-                  type="text"
-                  value={note}
-                  onChange={(e) => setNote(e.target.value)}
-                  placeholder="例如：主要发薪与消费卡"
-                  className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
-                />
-              </div>
-
-              <div className="pt-3 flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setModalOpen(false)}
-                  className="px-4 py-2 rounded-xl text-slate-600 hover:bg-slate-100"
-                >
-                  取消
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold shadow-md shadow-emerald-500/20"
-                >
-                  {saving ? '保存中...' : '保存'}
-                </button>
-              </div>
-            </form>
+              <input
+                type="text"
+                required
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="例如：招商银行储蓄卡、富途美股"
+                className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-xs font-bold"
+              />
+            </div>
           </div>
-        </div>
-      )}
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-slate-500 block mb-1 font-bold">账户类别</label>
+              <select
+                value={type}
+                onChange={(e) => setType(e.target.value as AccountType)}
+                className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
+              >
+                {Object.entries(ACCOUNT_TYPE_CONFIG).map(([t, cfg]) => (
+                  <option key={t} value={t}>{cfg.label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="text-slate-500 block mb-1 font-bold">计价币种</label>
+              <select
+                value={currency}
+                onChange={(e) => setCurrency(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
+              >
+                <option value="CNY">CNY 人民币 (¥)</option>
+                <option value="USD">USD 美元 ($)</option>
+                <option value="HKD">HKD 港币 (HK$)</option>
+                <option value="EUR">EUR 欧元 (€)</option>
+                <option value="USDT">USDT 泰达币 (₮)</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-slate-500 block mb-1 font-bold">
+                {['credit', 'loan', 'huabei', 'baitiao', 'meituan_pay', 'douyin_pay', 'jiebei', 'fenfu'].includes(type)
+                  ? '待还负债金额 (¥)'
+                  : '当前资产余额 (¥)'}
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                value={balance}
+                onChange={(e) => setBalance(e.target.value)}
+                placeholder="0.00"
+                className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-mono font-bold"
+              />
+            </div>
+            <div>
+              <label className="text-slate-500 block mb-1 font-bold">卡号后4位 (智能匹配用)</label>
+              <input
+                type="text"
+                maxLength={4}
+                value={cardLast4}
+                onChange={(e) => setCardLast4(e.target.value)}
+                placeholder="如: 9527"
+                className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-mono"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="text-slate-500 block mb-1 font-bold">开户机构 / 银行名称</label>
+            <input
+              type="text"
+              value={bankName}
+              onChange={(e) => setBankName(e.target.value)}
+              placeholder="例如：招商银行、华泰证券、OKX"
+              className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
+            />
+          </div>
+
+          <div>
+            <label className="text-slate-500 block mb-1 font-bold">备注说明</label>
+            <input
+              type="text"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="例如：主要发薪与消费卡"
+              className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
+            />
+          </div>
+
+          <div className="pt-3 flex justify-end gap-2 border-t border-slate-100 dark:border-slate-800">
+            <button
+              type="button"
+              onClick={() => setModalOpen(false)}
+              className="px-4 py-2 rounded-xl text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 font-bold transition"
+            >
+              取消
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold shadow-md shadow-emerald-500/20 active:scale-95 transition"
+            >
+              {saving ? '保存中...' : '保存账户'}
+            </button>
+          </div>
+        </form>
+      </BottomSheet>
     </div>
   );
 };

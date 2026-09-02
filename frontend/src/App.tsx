@@ -11,7 +11,7 @@ import { AiHubModal } from './components/AiHubModal';
 import { AiChatAssistantModal } from './components/AiChatAssistantModal';
 import { UniversalQuickAddModal } from './components/UniversalQuickAddModal';
 import { BatchBalanceOcrModal } from './components/BatchBalanceOcrModal';
-import { OnboardingGuideModal } from './components/OnboardingGuideModal';
+import { OnboardingWizardModal } from './components/OnboardingWizardModal';
 
 // Pages
 import { Dashboard } from './pages/Dashboard';
@@ -220,6 +220,11 @@ export function App() {
       setInvestments(investmentsData);
       setDebts(debtsData);
       setGoals(goalsData);
+
+      // Auto trigger onboarding wizard for new users with 0 accounts
+      if (accountsData.length === 0 && !localStore.getOnboardingCompleted()) {
+        setOnboardingOpen(true);
+      }
 
       // Check recurring scheduled items
       api.executeRecurringRules().catch(() => {});
@@ -612,26 +617,16 @@ export function App() {
         onSelectPlanner={() => setCurrentPage('planner')}
       />
 
-      {/* Onboarding Guide Modal */}
-      <OnboardingGuideModal
+      {/* Interactive Onboarding Wizard Modal */}
+      <OnboardingWizardModal
         isOpen={onboardingOpen}
         onClose={() => {
           setOnboardingOpen(false);
           localStore.saveOnboardingCompleted(true);
         }}
-        onOpenBatchBalance={() => setBatchBalanceOcrOpen(true)}
-        onOpenBudgets={() => setCurrentPage('budgets')}
-        onOpenIphoneShortcut={() => setIphoneShortcutOpen(true)}
+        onSuccess={loadAllData}
+        onOpenBatchBalanceOcr={() => setBatchBalanceOcrOpen(true)}
         onOpenAiChat={() => setAiChatOpen(true)}
-        onNavigateToBackup={() => {
-          setCurrentPage('settings');
-          setTimeout(() => {
-            const el = document.getElementById('backup-restore-section');
-            if (el) {
-              el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }
-          }, 200);
-        }}
       />
 
       {/* Global Modals */}

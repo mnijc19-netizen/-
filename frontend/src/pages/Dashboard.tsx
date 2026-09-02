@@ -68,22 +68,25 @@ export const Dashboard: React.FC<DashboardProps> = ({
     <div className="space-y-2.5 sm:space-y-3 pb-28 animate-in fade-in duration-200 max-w-lg mx-auto">
       {/* New User Welcome / Onboarding Card if Ledger is Brand New */}
       {isBrandNew && (
-        <div className="p-3.5 rounded-3xl bg-gradient-to-r from-purple-600 via-indigo-600 to-pink-600 text-white shadow-lg shadow-indigo-500/20 flex items-center justify-between gap-3 animate-in slide-in-from-top duration-300">
+        <div className="p-3.5 rounded-3xl bg-gradient-to-r from-purple-600 via-indigo-600 to-teal-600 text-white shadow-lg shadow-indigo-500/20 flex items-center justify-between gap-3 animate-in slide-in-from-top duration-300">
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0">
-              <Sparkles className="w-4 h-4 text-white" />
+              <Sparkles className="w-4 h-4 text-amber-300 animate-pulse" />
             </div>
             <div className="min-w-0">
-              <div className="text-xs font-bold truncate">✨ 3步开启极智财务管家</div>
-              <div className="text-[10px] text-purple-100/90 truncate">批量截图识余额 · 零摩擦记账</div>
+              <div className="text-xs font-black truncate">✨ 极智开账大厅 · 10秒对齐全域资产</div>
+              <div className="text-[10px] text-purple-100/90 truncate">点选微信/支付宝/银行卡预设 · 多截图并发识别</div>
             </div>
           </div>
           <button
             type="button"
-            onClick={onOpenOnboarding}
-            className="px-3 py-1.5 rounded-xl bg-white text-purple-900 font-bold text-[10px] shadow-sm hover:bg-purple-50 transition active:scale-95 flex-shrink-0"
+            onClick={() => {
+              haptic.impact();
+              onOpenOnboarding?.();
+            }}
+            className="px-3.5 py-1.5 rounded-xl bg-white text-indigo-900 font-extrabold text-[11px] shadow-sm hover:bg-purple-50 transition active:scale-95 flex-shrink-0"
           >
-            开启向导
+            立即开账
           </button>
         </div>
       )}

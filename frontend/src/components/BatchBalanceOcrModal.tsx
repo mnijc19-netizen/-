@@ -92,21 +92,21 @@ export const BatchBalanceOcrModal: React.FC<BatchBalanceOcrModalProps> = ({
     });
   };
 
-  // Handle Multi-file upload
-  const handleFilesSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
+  // Add files to processing queue
+  const addFilesToQueue = (files: FileList | File[]) => {
     if (!files || files.length === 0) return;
 
     haptic.selection();
     const newItems: BatchBalanceItem[] = [];
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
+      if (!file.type.startsWith('image/')) continue;
       const previewUrl = URL.createObjectURL(file);
       newItems.push({
         id: `batch-${Date.now()}-${i}-${Math.random().toString(36).substring(2, 6)}`,
         file,
         previewUrl,
-        fileName: file.name,
+        fileName: file.name || `截图-${i + 1}.png`,
         status: 'pending',
         selected: true,
         platform: '正在智能识别...',
@@ -117,11 +117,49 @@ export const BatchBalanceOcrModal: React.FC<BatchBalanceOcrModalProps> = ({
       });
     }
 
-    const allQueue = [...items, ...newItems];
-    setItems(allQueue);
-    // Trigger TRUE parallel concurrency
-    processQueueParallel(allQueue);
+    if (newItems.length === 0) return;
+
+    setItems(prev => {
+      const allQueue = [...prev, ...newItems];
+      processQueueParallel(allQueue);
+      return allQueue;
+    });
   };
+
+  // Handle Multi-file upload from input
+  const handleFilesSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files) {
+      addFilesToQueue(files);
+    }
+  };
+
+  // Listen to clipboard paste (Ctrl+V / Long-press paste)
+  React.useEffect(() => {
+    if (!isOpen) return;
+
+    const handlePaste = (e: ClipboardEvent) => {
+      const clipboardItems = e.clipboardData?.items;
+      if (!clipboardItems) return;
+
+      const pastedFiles: File[] = [];
+      for (let i = 0; i < clipboardItems.length; i++) {
+        if (clipboardItems[i].type.startsWith('image/')) {
+          const file = clipboardItems[i].getAsFile();
+          if (file) pastedFiles.push(file);
+        }
+      }
+
+      if (pastedFiles.length > 0) {
+        e.preventDefault();
+        haptic.success();
+        addFilesToQueue(pastedFiles);
+      }
+    };
+
+    window.addEventListener('paste', handlePaste);
+    return () => window.removeEventListener('paste', handlePaste);
+  }, [isOpen]);
 
   // Process items with TRUE PARALLEL CONCURRENCY (Promise.allSettled)
   const processQueueParallel = async (queue: BatchBalanceItem[]) => {
@@ -298,7 +336,7 @@ export const BatchBalanceOcrModal: React.FC<BatchBalanceOcrModalProps> = ({
       {/* Upload Dropzone */}
       <div 
         onClick={() => fileInputRef.current?.click()}
-        className="border-2 border-dashed border-purple-300 dark:border-purple-800/80 hover:border-purple-500 rounded-3xl p-5 text-center cursor-pointer bg-purple-50/40 dark:bg-purple-950/20 transition group active:scale-98"
+        className="border-2 border-dashed border-purple-300 dark:border-purple-800/80 hover:border-purple-500 rounded-3xl p-5 text-center cursor-pointer bg-purple-50/40 dark:bg-purple-950/20 transition group active:scale-98 relative"
       >
         <input
           ref={fileInputRef}
@@ -311,12 +349,23 @@ export const BatchBalanceOcrModal: React.FC<BatchBalanceOcrModalProps> = ({
         <div className="w-11 h-11 rounded-2xl bg-purple-100 dark:bg-purple-900/50 text-purple-600 dark:text-purple-300 flex items-center justify-center mx-auto mb-2.5 group-hover:scale-105 transition shadow-xs">
           <Upload className="w-5 h-5" />
         </div>
-        <div className="text-xs font-black text-slate-800 dark:text-slate-200">
-          点击选取或拖拽上传多张余额截图
+        <div className="text-xs font-black text-slate-800 dark:text-slate-200 flex items-center justify-center gap-1.5">
+          <span>点击选取或拖拽上传多张余额截图</span>
         </div>
         <p className="text-[10.5px] text-slate-400 mt-1 leading-relaxed">
           支持微信、支付宝、银行卡、白条/花呗/月付、券商等，全部并行同时识别！
         </p>
+        <div className="mt-2 inline-flex items-center gap-1 text-[10px] font-bold text-purple-600 dark:text-purple-400 bg-purple-100/60 dark:bg-purple-900/40 px-2.5 py-1 rounded-full">
+          <span>📋 支持直接 Ctrl+V 粘贴截图 / 手机长按粘贴</span>
+        </div>
+      </div>
+
+      {/* Screenshot best practice tip */}
+      <div className="p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-200/80 dark:border-slate-800 text-[10.5px] text-slate-500 dark:text-slate-400 flex items-center justify-between">
+        <div className="flex items-center gap-1.5">
+          <span className="font-bold text-slate-700 dark:text-slate-300">💡 推荐截哪张：</span>
+          <span>微信「钱包」、支付宝「总资产」、各银行 App 首页「我的账户」</span>
+        </div>
       </div>
 
       {/* Concurrent Processing Indicator */}

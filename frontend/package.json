@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "test": "node ../scripts/ci_self_check.js && node ../scripts/live_human_simulation.js",
-    "build": "node ../scripts/ci_self_check.js && node ../scripts/live_human_simulation.js && tsc -b && vite build",
+    "test": "node ../scripts/ci_self_check.js && node ../scripts/live_human_simulation.js && node ../scripts/test_onboarding_and_accounts.js",
+    "build": "node ../scripts/ci_self_check.js && node ../scripts/live_human_simulation.js && node ../scripts/test_onboarding_and_accounts.js && tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview"
   },

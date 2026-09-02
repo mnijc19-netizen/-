@@ -507,6 +507,23 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+          {onOpenOnboarding && (
+            <button
+              type="button"
+              onClick={() => {
+                haptic.impact();
+                onOpenOnboarding();
+              }}
+              className="p-3 rounded-2xl bg-gradient-to-r from-purple-500/15 via-indigo-500/15 to-teal-500/15 border border-purple-200 dark:border-purple-800/60 text-left hover:border-purple-400 active:scale-95 transition space-y-1 group"
+            >
+              <div className="w-8 h-8 rounded-xl bg-purple-500/20 text-purple-600 dark:text-purple-300 flex items-center justify-center group-hover:scale-105 transition">
+                <Sparkles className="w-4 h-4 text-purple-500" />
+              </div>
+              <div className="text-xs font-bold text-slate-900 dark:text-white">✨ 新手开账大厅</div>
+              <div className="text-[10px] text-purple-600 dark:text-purple-400 font-medium">10秒预设 · 多图并发识余额</div>
+            </button>
+          )}
+
           <button
             type="button"
             onClick={() => onNavigate?.('planner')}
